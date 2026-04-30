@@ -11,6 +11,7 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.model.geom.builders.*;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
 
 public class groot_model<T extends Groot> extends HierarchicalModel<T> {
 	// This layer location should be baked with EntityRendererProvider.Context in the entity renderer and passed into this model's constructor
@@ -87,29 +88,30 @@ public class groot_model<T extends Groot> extends HierarchicalModel<T> {
 	public void setupAnim(T entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
 		this.root().getAllParts().forEach(ModelPart::resetPose);
 
-		// 死亡アニメーション優先
-		if (entity.deathAnimationState.isStarted()) {
-			this.animate(entity.deathAnimationState, GrootAnimation.death, ageInTicks, 1.0f);
-			return; // 死亡アニメーション中は他のアニメーションをスキップ
-		}
+		Object obj = (Object) entity;
+		if (obj instanceof Groot groot) {
+			if (groot.isActuallyDying()) {
+				this.animate(groot.deathAnimationState, GrootAnimation.death, ageInTicks, 1.0f);
 
-		// 頭の回転
+				this.root().zRot = 0f;
+				this.root().xRot = 0f;
+				return;
+			}
+
+			// 攻撃中の腕の固定
+			if (groot.isAttackingExternal()) {
+				this.arm1.xRot = 0;
+				this.arm2.xRot = 0;
+			}
+		}
 		this.head.yRot = netHeadYaw * ((float)Math.PI / 180F);
 		this.head.xRot = headPitch * ((float)Math.PI / 180F);
 
-		// 歩行アニメーション
-		this.animateWalk(GrootAnimation.walk, limbSwing, limbSwingAmount, 2f, 2.5f);
-
-		// アイドルアニメーション
+		this.animateWalk(GrootAnimation.walk, limbSwing, limbSwingAmount, 1.5f, 2.5f);
 		this.animate(entity.idleAnimationState, GrootAnimation.idea, ageInTicks, 1f);
-
-		// 攻撃アニメーション
-		this.animate(entity.attack1AnimationState, GrootAnimation.attack1, ageInTicks, 1.0f);
-
-		// 攻撃2 (叩きつけ) を追加
-		this.animate(entity.attack2AnimationState, GrootAnimation.attack2, ageInTicks, 1.0f);
+		this.animate(entity.attack1AnimationState, GrootAnimation.attack1, ageInTicks, 2.2f);
+		this.animate(entity.attack2AnimationState, GrootAnimation.attack2, ageInTicks, 1.8f);
 	}
-
 	@Override
 	public void renderToBuffer(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
 		all.render(poseStack, vertexConsumer, packedLight, packedOverlay, red, green, blue, alpha);

@@ -1,6 +1,7 @@
 package com.niko.ragnarok.entity.costom;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -31,6 +32,9 @@ public class Groot extends Monster {
     private boolean isAttacking = false;
     private int deathTime = 0;
     private boolean isDying = false;
+    private boolean animationStarted = false;
+
+    private int customDeathTime = 0;
 
     public boolean isAttackingExternal() {
         return this.isAttacking;
@@ -50,6 +54,8 @@ public class Groot extends Monster {
 
     public Groot(EntityType<? extends Monster> type, Level level) {
         super(type, level);
+        // 2ブロックの段差をパスとして認識させる
+        this.getNavigation().setCanFloat(true);
     }
 
     @Override
@@ -61,11 +67,10 @@ public class Groot extends Monster {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(1, new GrootMeleeAttackGoal(this, 0.15D, false));
+        this.goalSelector.addGoal(1, new GrootMeleeAttackGoal(this, 0.9D, false));
         this.goalSelector.addGoal(2, new GrootChargeGoal(this));
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.7D));
         this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 8.0F));
-
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
                 (entity) -> this.isAngry()));
@@ -75,10 +80,11 @@ public class Groot extends Monster {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, 100.0D)
                 .add(Attributes.ARMOR, 10.0D)
-                .add(Attributes.ATTACK_DAMAGE, 8.0D)
+                .add(Attributes.ATTACK_DAMAGE, 20.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.35D)
                 .add(Attributes.FOLLOW_RANGE, 32.0D)
-                .add(Attributes.KNOCKBACK_RESISTANCE, 2.0D);
+                .add(Attributes.KNOCKBACK_RESISTANCE, 2.0D)
+                .add(Attributes.JUMP_STRENGTH, 1.0D);
     }
 
     @Override
@@ -89,26 +95,36 @@ public class Groot extends Monster {
         } else if (id == START_ATTACK_2_EVENT) { // else if にする
             this.idleAnimationState.stop();
             this.attack2AnimationState.start(this.tickCount);
-        } else if (id == START_DEATH_EVENT) {
-            this.deathAnimationState.start(this.tickCount);
+        } if (id == START_DEATH_EVENT) {
+            // 死亡アニメーション開始（一度だけ）
+            if (!animationStarted) {
+                this.deathAnimationState.start(this.tickCount);
+                this.animationStarted = true;
+            }
         } else {
             super.handleEntityEvent(id);
         }
     }
+    @Override
+    protected float getJumpPower() {
+        // 通常は 0.42F 程度。これを 0.8F 前後にすると 2.2ブロックほど跳べるようになるよ
+        return 0.8F * this.getBlockJumpFactor();
+    }
+
 
     @Override
     public void aiStep() {
-        super.aiStep();
+        if (this.isDying) {
+            this.customDeathTime++; // こちらを使う
+            this.setDeltaMovement(Vec3.ZERO);
 
-        // 死亡アニメーション処理
-        if (isDying) {
-            deathTime++;
-            // 2.3秒 (46チック) でアニメーション終了
-            if (deathTime >= 46) {
+            if (this.customDeathTime >= 46) {
                 this.remove(RemovalReason.KILLED);
             }
             return;
         }
+        // 生きている間は必ず super を呼んでバニラの移動・物理演算を動かす
+        super.aiStep();
 
         if (isAttacking) {
             attackTick++;
@@ -117,19 +133,19 @@ public class Groot extends Monster {
             switch (attackType) {
                 // Groot.java の aiStep内
                 case 0: // 通常殴り
-                    // 1.25秒 = 25チックの瞬間に攻撃判定を発生させる
-                    if (attackTick == 25) {
+                    // 判定を 25 → 10チック (0.5秒) に大幅短縮！
+                    if (attackTick == 10) {
                         performNormalAttack();
                     }
-                    // アニメーションの長さ 2.0秒 = 40チックで終了
-                    if (attackTick >= 40) {
+                    // 全体のアニメーションも 40 → 20チック (1.0秒) で終わらせて次へ備える
+                    if (attackTick >= 20) {
                         endAttack();
                     }
                     break;
 
                 case 1: // 叩き付け (attack2)
                     // 1.74秒 = 約35チックの瞬間に衝撃波を発生させる
-                    if (attackTick == 35) {
+                    if (attackTick == 30) {
                         performSlamAttack();
                         spawnWaveBlocks(); // 波のようなエフェクト（後述）
                     }
@@ -157,16 +173,24 @@ public class Groot extends Monster {
     }
 
     private void performNormalAttack() {
-        // 自身の向きに合わせて前方に力を加える
-        double d0 = Math.sin(this.getYRot() * (Math.PI / 180.0));
-        double d1 = -Math.cos(this.getYRot() * (Math.PI / 180.0));
-        // 0.5Dをもう少し強めてもいいかもしれないね
-        this.setDeltaMovement(this.getDeltaMovement().add(d0 * 0.8D, 0.0D, d1 * 0.8D));
-
         LivingEntity target = this.getTarget();
-        // 踏み込む分、判定距離(3.5D)を少し広めに設定しておくと空振りが減るよ
-        if (target != null && this.distanceTo(target) < 4.5D) {
+        // 判定距離は 4.0D 程度で維持
+        if (target != null && this.distanceTo(target) < 5.0D) {
+            // 1. ダメージを与える
             target.hurt(this.damageSources().mobAttack(this), 8.0F);
+
+            // 2. 強力なノックバックを付与
+            double dx = target.getX() - this.getX();
+            double dz = target.getZ() - this.getZ();
+            double distance = Math.max(0.1D, Math.sqrt(dx * dx + dz * dz));
+
+            // 横方向に強く (1.2D)、少し上方向へ (0.3D) 飛ばす
+            target.setDeltaMovement(target.getDeltaMovement().add(
+                    dx / distance * 1.2D,
+                    0.3D,
+                    dz / distance * 1.2D
+            ));
+
             this.playSound(SoundEvents.PLAYER_ATTACK_STRONG, 1.0F, 1.0F);
         }
     }
@@ -174,40 +198,59 @@ public class Groot extends Monster {
     // 叩き付け攻撃 (ブロック破壊 + 範囲ダメージ)
     public void performSlamAttack() {
         if (!this.level().isClientSide) {
-            // ブロック破壊範囲 (3x3x3)
-            BlockPos center = this.blockPosition().relative(this.getDirection());
-            BlockPos.betweenClosedStream(center.offset(-1, 0, -1), center.offset(1, 2, 1)).forEach(pos -> {
+            BlockPos center = this.blockPosition();
+
+            // --- 1. ブロック破壊ロジック (13x13) ---
+            // 視覚的な「爆心地」の破壊範囲
+            int breakRadius = 6; // 中心から6ブロック（計13x13）
+            BlockPos.betweenClosedStream(
+                    center.offset(-breakRadius, 0, -breakRadius),
+                    center.offset(breakRadius, 2, breakRadius)
+            ).forEach(pos -> {
                 BlockState state = this.level().getBlockState(pos);
                 if (state.getDestroySpeed(this.level(), pos) >= 0 && state.getDestroySpeed(this.level(), pos) <= 2.0F) {
                     this.level().destroyBlock(pos, true, this);
                 }
             });
 
-            // ダメージ範囲 (5x5x3) - ブロック破壊より広い
+            // --- 2. ダメージ判定範囲 (17x17) ---
+            // 破壊範囲よりも広く設定 (半径8.5D = 約17x17)
+            double damageRadius = 8.5D;
             AABB damageBox = new AABB(
-                    this.getX() - 2.5D, this.getY(), this.getZ() - 2.5D,
-                    this.getX() + 2.5D, this.getY() + 3.0D, this.getZ() + 2.5D
+                    this.getX() - damageRadius, this.getY(), this.getZ() - damageRadius,
+                    this.getX() + damageRadius, this.getY() + 3.0D, this.getZ() + damageRadius
             );
 
             List<LivingEntity> entities = this.level().getEntitiesOfClass(LivingEntity.class, damageBox,
                     entity -> entity != this && entity.isAlive());
 
             for (LivingEntity entity : entities) {
+                // 中心（グルート）に近いほど大ダメージにする工夫もできるけれど、
+                // ひとまずは一律でウォーデン級の重い一撃を。
                 entity.hurt(this.damageSources().mobAttack(this), 14.0F);
-                // ノックバック
+
+                // 吹き飛ばしベクトル
                 double dx = entity.getX() - this.getX();
                 double dz = entity.getZ() - this.getZ();
-                double distance = Math.sqrt(dx * dx + dz * dz);
-                if (distance > 0) {
-                    entity.setDeltaMovement(entity.getDeltaMovement().add(
-                            dx / distance * 0.8D,
-                            0.4D,
-                            dz / distance * 0.8D
-                    ));
-                }
+                double distance = Math.max(0.1D, Math.sqrt(dx * dx + dz * dz));
+
+                // 遠くにいる敵ほど、衝撃波で外側へ強く弾き飛ばそう
+                entity.setDeltaMovement(entity.getDeltaMovement().add(
+                        dx / distance * 1.8D,
+                        0.6D,
+                        dz / distance * 1.8D
+                ));
             }
 
-            this.playSound(SoundEvents.GENERIC_EXPLODE, 1.5F, 0.8F);
+            // --- 3. 演出の調整 ---
+            this.playSound(SoundEvents.GENERIC_EXPLODE, 2.0F, 0.5F);
+
+            if (this.level() instanceof ServerLevel serverLevel) {
+                // 爆発エフェクトは破壊範囲に合わせつつ、
+                // 広いダメージ範囲には土煙（クラウドパーティクル）などを散らすと、「見えない衝撃波」が伝わった感じが出るよ
+                serverLevel.sendParticles(ParticleTypes.EXPLOSION_EMITTER, this.getX(), this.getY(), this.getZ(), 5, 3.0D, 0.5D, 3.0D, 0.1D);
+                serverLevel.sendParticles(ParticleTypes.POOF, this.getX(), this.getY(), this.getZ(), 40, 7.0D, 0.2D, 7.0D, 0.05D);
+            }
         }
     }
 
@@ -277,17 +320,12 @@ public class Groot extends Monster {
 
         List<Player> players = this.level().getEntitiesOfClass(Player.class, searchBox);
         for (Player player : players) {
-            // クリエイティブモードとスペクテイターモードを除外する判定を追加
             if (!player.isCreative() && !player.isSpectator()) {
-                // ここに「もし動物を殺していたら」のロジックを入れる
-                // 以前話した通り、イベントハンドラー経由で onNearbyAnimalKilled を呼ぶのがスマートだよ
             }
         }
     }
 
-    // 外部（Forgeのイベントハンドラーなど）から呼ばれるメソッドも修正
     public void onNearbyAnimalKilled(Player killer) {
-        // 殺人者がプレイヤーであり、かつサバイバル/アドベンチャーモードの場合のみ敵対
         if (!isAngry() && killer != null && !killer.isCreative() && !killer.isSpectator()) {
             setAngry(true);
             this.setTarget(killer);
@@ -317,7 +355,6 @@ public class Groot extends Monster {
     @Override
     public void travel(Vec3 pTravelVector) {
         if (this.isAttacking && this.attackType == 1) {
-            // 叩きつけ中は移動ベクトルをゼロにする
             super.travel(Vec3.ZERO);
         } else {
             super.travel(pTravelVector);
@@ -360,7 +397,6 @@ public class Groot extends Monster {
         super.tick();
         if (this.level().isClientSide()) {
             if (isDying) {
-                // 死亡アニメーション中はアイドルと歩きを停止
                 this.idleAnimationState.stop();
                 this.walkAnimationState.stop();
             } else {
@@ -395,14 +431,31 @@ public class Groot extends Monster {
             }
         }
     }
-
-    // 死亡アニメーション中は無敵
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (isDying) {
             return false;
         }
         return super.hurt(source, amount);
+    }
+    public boolean isActuallyDying() {
+        return this.isDying;
+    }
+    @Override
+    protected net.minecraft.sounds.SoundEvent getHurtSound(DamageSource pDamageSource) {
+        // ダメージを受けた時の音をアイアンゴーレムに設定
+        return SoundEvents.IRON_GOLEM_HURT;
+    }
+
+    @Override
+    protected net.minecraft.sounds.SoundEvent getDeathSound() {
+        // 死亡時の音もアイアンゴーレムに合わせると統一感が出るよ
+        return SoundEvents.IRON_GOLEM_DEATH;
+    }
+
+    @Override
+    protected void playStepSound(BlockPos pPos, BlockState pState) {
+        this.playSound(SoundEvents.IRON_GOLEM_STEP, 1.0F, 1.0F);
     }
 }
 
@@ -414,32 +467,28 @@ public class Groot extends Monster {
             super(groot, speedModifier, followingTargetEvenIfNotSeen);
             this.groot = groot;
         }
-
         @Override
         public void tick() {
-            // super.tick() を呼ばないことで、バニラの自動攻撃を完全にスキップするよ
-
             LivingEntity target = this.groot.getTarget();
-            if (target != null) {
-                // ターゲットを注視させる
-                this.groot.getLookControl().setLookAt(target, 30.0F, 30.0F);
+            if (target == null) return;
 
-                // ターゲットへの距離を計算
-                double distanceSq = this.groot.distanceToSqr(target.getX(), target.getY(), target.getZ());
+            // 常にターゲットの方を向く
+            this.groot.getLookControl().setLookAt(target, 30.0F, 30.0F);
 
-                // ターゲットへ移動する (groot経由で呼び出す)
-                this.groot.getNavigation().moveTo(target, 1.0D);
+            // 攻撃中でも、移動（ナビゲーション）を止めない！
+            // 1.0D（等倍）で常にターゲットを追いかけ続ける
+            this.groot.getNavigation().moveTo(target, 1.0D);
 
-                // 自前の攻撃ロジック
-                // isAttacking() メソッド（後述）を介して状態をチェックするよ
-                if (distanceSq < 12.25D && attackCooldown <= 0 && !this.groot.isAttackingExternal()) {
-                    if (this.groot.getRandom().nextFloat() < 0.3F) {
-                        this.groot.startSlamAttack();
-                        attackCooldown = 100;
-                    } else {
-                        this.groot.startNormalAttack();
-                        attackCooldown = 40;
-                    }
+            double distanceSq = this.groot.distanceToSqr(target.getX(), target.getY(), target.getZ());
+
+            // クールダウン中でなければ攻撃を開始
+            if (distanceSq < 12.25D && attackCooldown <= 0 && !this.groot.isAttackingExternal()) {
+                if (this.groot.getRandom().nextFloat() < 0.3F) {
+                    this.groot.startSlamAttack();
+                    attackCooldown = 50;
+                } else {
+                    this.groot.startNormalAttack();
+                    attackCooldown = 5;
                 }
             }
 
@@ -450,7 +499,6 @@ public class Groot extends Monster {
 
         @Override
         protected void checkAndPerformAttack(LivingEntity pEnemy, double pDistToEnemySqr) {
-            // ここを空のままにしておくことで、バニラの勝手なダメージ判定を阻止するよ
         }
     }
 // カスタム突進ゴール
