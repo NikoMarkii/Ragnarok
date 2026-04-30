@@ -4,7 +4,9 @@ package com.niko.ragnarok.entity.Model;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.niko.ragnarok.entity.animation.GrootAnimation;
+import com.niko.ragnarok.entity.animation.t_lex_animation;
 import com.niko.ragnarok.entity.costom.Groot;
+import com.niko.ragnarok.entity.costom.TLex;
 import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
@@ -87,20 +89,13 @@ public class groot_model<T extends Groot> extends HierarchicalModel<T> {
 	public void setupAnim(T entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
 		this.root().getAllParts().forEach(ModelPart::resetPose);
 
-		// 頭の回転
 		this.head.yRot = netHeadYaw * ((float)Math.PI / 180F);
 		this.head.xRot = headPitch * ((float)Math.PI / 180F);
 
-		if (entity.walkAnimationState.isStarted()) {
-			// 歩行中
-			float walkTime = limbSwing * 0.8f;
-			this.animate(entity.walkAnimationState, GrootAnimation.walk, walkTime, 1.0f);
-		} else {
-			// 待機中
-			this.animate(entity.idleAnimationState, GrootAnimation.idea, ageInTicks, 1.0f);
-		}
+		this.animateWalk(GrootAnimation.walk, limbSwing, limbSwingAmount, 2f, 2.5f);
+		this.animate(entity.idleAnimationState, GrootAnimation.idea, ageInTicks, 1f);
 
-		this.animate(entity.attack1AnimationState, GrootAnimation.attack1, ageInTicks, 1.0F);
+		this.animate(entity.attack1AnimationState, GrootAnimation.attack1, ageInTicks, 1.0f);
 	}
 
 	@Override

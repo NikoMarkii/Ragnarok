@@ -53,7 +53,7 @@ public class Groot extends Monster {
                 .add(Attributes.MAX_HEALTH, 100.0D)
                 .add(Attributes.ARMOR, 10.0D)
                 .add(Attributes.ATTACK_DAMAGE, 8.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.25D)
+                .add(Attributes.MOVEMENT_SPEED, 0.35D)
                 .add(Attributes.FOLLOW_RANGE, 32.0D);
     }
 
@@ -80,7 +80,6 @@ public class Groot extends Monster {
                 // 前方にベクトル（推進力）を加える
                 double d0 = Math.sin(this.getYRot() * (Math.PI / 180.0));
                 double d1 = -Math.cos(this.getYRot() * (Math.PI / 180.0));
-                // 0.5Dの部分を大きくすると、より遠くに踏み込むよ
                 this.setDeltaMovement(this.getDeltaMovement().add(d0 * 0.5D, 0.0D, d1 * 0.5D));
 
                 // ここで周囲の敵にダメージを与える（attack1のダメージ判定）
@@ -138,16 +137,13 @@ public class Groot extends Monster {
     @Override
     public void tick() {
         super.tick();
-
         if (this.level().isClientSide()) {
-
             if (this.getDeltaMovement().horizontalDistanceSqr() > 0.0001D) {
-                if (!this.walkAnimationState.isStarted()) {
-                    this.walkAnimationState.start(this.tickCount);
-                }
+                this.walkAnimationState.startIfStopped(this.tickCount);
             } else {
                 this.walkAnimationState.stop();
             }
+            this.idleAnimationState.startIfStopped(this.tickCount);
         }
     }
 }
