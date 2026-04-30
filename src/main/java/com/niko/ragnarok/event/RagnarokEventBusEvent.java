@@ -26,7 +26,7 @@ public class RagnarokEventBusEvent {
         event.put(RagnarokEntities.T_LEX.get(),
                 TLex.createMobAttributes().build());
         event.put(RagnarokEntities.GROOT.get(),
-                Groot.createMobAttributes().build());
+                Groot.createAttributes().build());
     }
 
     @SubscribeEvent

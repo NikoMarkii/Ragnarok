@@ -31,7 +31,7 @@ public class RagnarokEntities {
 
     public static final RegistryObject<EntityType<Groot>> GROOT =
             ENTITY_TYPES.register("groot",() -> EntityType.Builder.of(Groot::new, MobCategory.MONSTER)
-                    .sized(4.0F,2.0F)
+                    .sized(3.0F,4.5F)
                     .build("groot"));
     public static void register(IEventBus eventBus) {
         ENTITY_TYPES.register(eventBus);

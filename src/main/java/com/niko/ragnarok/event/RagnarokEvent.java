@@ -7,6 +7,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -33,15 +34,26 @@ public class RagnarokEvent {
         }
     }
     @SubscribeEvent
-    public static void onAnimalDeath(LivingDeathEvent event) {
-        // 死んだのが動物、かつ犯人がプレイヤーの場合
-        if (event.getEntity() instanceof Animal && event.getSource().getEntity() instanceof Player player) {
-            // 周囲のグルートを探して怒らせる
-            List<Groot> groots = event.getEntity().level().getEntitiesOfClass(Groot.class,
-                    event.getEntity().getBoundingBox().inflate(20.0D));
-            for (Groot groot : groots) {
-                groot.setTarget(player);
-                groot.setAngry(true); // 前に作ったメソッドだね
+    public static void onAnimalKilled(LivingDeathEvent event) {
+        LivingEntity killed = event.getEntity();
+
+        // 殺されたのが動物で、殺したのがプレイヤーの場合
+        if (killed instanceof Animal && event.getSource().getEntity() instanceof Player) {
+            Player killer = (Player) event.getSource().getEntity();
+
+            // 周囲16ブロック以内のGrootを探す
+            AABB searchBox = new AABB(
+                    killed.getX() - 16.0D, killed.getY() - 8.0D, killed.getZ() - 16.0D,
+                    killed.getX() + 16.0D, killed.getY() + 8.0D, killed.getZ() + 16.0D
+            );
+
+            List<Groot> nearbyGroots = killed.level().getEntitiesOfClass(Groot.class, searchBox);
+
+            // 近くのGrootを全て敵対化
+            for (Groot groot : nearbyGroots) {
+                if (!groot.isAngry()) {
+                    groot.onNearbyAnimalKilled(killer);
+                }
             }
         }
     }

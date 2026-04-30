@@ -4,9 +4,7 @@ package com.niko.ragnarok.entity.Model;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.niko.ragnarok.entity.animation.GrootAnimation;
-import com.niko.ragnarok.entity.animation.t_lex_animation;
 import com.niko.ragnarok.entity.costom.Groot;
-import com.niko.ragnarok.entity.costom.TLex;
 import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
@@ -89,13 +87,27 @@ public class groot_model<T extends Groot> extends HierarchicalModel<T> {
 	public void setupAnim(T entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
 		this.root().getAllParts().forEach(ModelPart::resetPose);
 
+		// 死亡アニメーション優先
+		if (entity.deathAnimationState.isStarted()) {
+			this.animate(entity.deathAnimationState, GrootAnimation.death, ageInTicks, 1.0f);
+			return; // 死亡アニメーション中は他のアニメーションをスキップ
+		}
+
+		// 頭の回転
 		this.head.yRot = netHeadYaw * ((float)Math.PI / 180F);
 		this.head.xRot = headPitch * ((float)Math.PI / 180F);
 
+		// 歩行アニメーション
 		this.animateWalk(GrootAnimation.walk, limbSwing, limbSwingAmount, 2f, 2.5f);
+
+		// アイドルアニメーション
 		this.animate(entity.idleAnimationState, GrootAnimation.idea, ageInTicks, 1f);
 
+		// 攻撃アニメーション
 		this.animate(entity.attack1AnimationState, GrootAnimation.attack1, ageInTicks, 1.0f);
+
+		// 攻撃2 (叩きつけ) を追加
+		this.animate(entity.attack2AnimationState, GrootAnimation.attack2, ageInTicks, 1.0f);
 	}
 
 	@Override
