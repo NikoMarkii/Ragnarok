@@ -1,0 +1,29 @@
+{
+  "entity.tlex.step": {
+    "sounds": [
+      {
+        "name": "ragnarok:entity/tlex/tlex_step",
+        "stream": false,
+        "attenuation_distance": 8
+      }
+    ]
+  },
+  "entity.tlex.ambient": {
+    "sounds": [
+      {
+        "name": "ragnarok:entity/tlex/tlex_roar",
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  },
+  "entity.tlex.roar": {
+    "sounds": [
+      {
+        "name": "ragnarok:entity/tlex/tlex_roar2",
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
+  }
+}

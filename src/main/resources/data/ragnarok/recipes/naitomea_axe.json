@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "/": {
+      "item": "minecraft:netherite_axe"
+    },
+    "S": {
+      "item": "ragnarok:naitomea_ingod"
+    }
+  },
+  "pattern": [
+    "   ",
+    " S ",
+    " / "
+  ],
+  "result": {
+    "item": "ragnarok:naitomea_axe"
+  },
+  "show_notification": true
+}

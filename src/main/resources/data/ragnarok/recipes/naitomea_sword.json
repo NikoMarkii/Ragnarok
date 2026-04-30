@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "/": {
+      "item": "minecraft:netherite_sword"
+    },
+    "S": {
+      "item": "ragnarok:naitomea_ingod"
+    }
+  },
+  "pattern": [
+    "   ",
+    " S ",
+    " / "
+  ],
+  "result": {
+    "item": "ragnarok:naitomea_sword"
+  },
+  "show_notification": true
+}

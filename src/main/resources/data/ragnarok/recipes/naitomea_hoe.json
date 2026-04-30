@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "/": {
+      "item": "minecraft:netherite_hoe"
+    },
+    "S": {
+      "item": "ragnarok:naitomea_ingod"
+    }
+  },
+  "pattern": [
+    "   ",
+    " S ",
+    " / "
+  ],
+  "result": {
+    "item": "ragnarok:naitomea_hoe"
+  },
+  "show_notification": true
+}

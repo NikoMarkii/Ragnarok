@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "ragnarok:naitomea_block"
+    }
+  ],
+  "result": {
+    "count": 9,
+    "item": "ragnarok:naitomea_ingod"
+  }
+}
