@@ -345,7 +345,7 @@ public class GrootAnimation {
 		))
 		.build();
 
-	public static final AnimationDefinition death = AnimationDefinition.Builder.withLength(2.3004F)
+	public static final AnimationDefinition death = AnimationDefinition.Builder.withLength(2.3005F)
 		.addAnimation("all", new AnimationChannel(AnimationChannel.Targets.ROTATION, 
 			new Keyframe(0.0F, KeyframeAnimations.degreeVec(0.0F, 0.0F, 0.0F), AnimationChannel.Interpolations.CATMULLROM),
 			new Keyframe(0.8627F, KeyframeAnimations.degreeVec(0.0F, 0.0F, 0.0F), AnimationChannel.Interpolations.CATMULLROM),
@@ -354,7 +354,7 @@ public class GrootAnimation {
 		.addAnimation("all", new AnimationChannel(AnimationChannel.Targets.POSITION, 
 			new Keyframe(0.0F, KeyframeAnimations.posVec(0.0F, 0.0F, 0.0F), AnimationChannel.Interpolations.CATMULLROM),
 			new Keyframe(0.8627F, KeyframeAnimations.posVec(0.0F, 0.0F, 0.0F), AnimationChannel.Interpolations.CATMULLROM),
-			new Keyframe(2.1567F, KeyframeAnimations.posVec(0.0F, -35.0F, 0.0F), AnimationChannel.Interpolations.CATMULLROM)
+			new Keyframe(2.1567F, KeyframeAnimations.posVec(0.0F, -50.0F, 0.0F), AnimationChannel.Interpolations.CATMULLROM)
 		))
 		.addAnimation("body", new AnimationChannel(AnimationChannel.Targets.ROTATION, 
 			new Keyframe(0.0F, KeyframeAnimations.degreeVec(0.0F, 0.0F, 0.0F), AnimationChannel.Interpolations.CATMULLROM),
