@@ -106,7 +106,7 @@ public class groot_model<T extends Groot> extends HierarchicalModel<T> {
 		this.head.yRot = netHeadYaw * ((float)Math.PI / 180F);
 		this.head.xRot = headPitch * ((float)Math.PI / 180F);
 
-		this.animateWalk(GrootAnimation.walk, limbSwing, limbSwingAmount, 1.5f, 2.5f);
+		this.animateWalk(GrootAnimation.walk, limbSwing, limbSwingAmount, 2.2f, 2.5f);
 		this.animate(entity.idleAnimationState, GrootAnimation.idea, ageInTicks, 1f);
 		this.animate(entity.attack1AnimationState, GrootAnimation.attack1, ageInTicks, 2.2f);
 		this.animate(entity.attack2AnimationState, GrootAnimation.attack2, ageInTicks, 1.8f);

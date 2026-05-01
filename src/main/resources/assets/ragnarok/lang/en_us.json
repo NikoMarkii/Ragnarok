@@ -8,7 +8,11 @@
   "entity.ragnarok.scorpion": "scorpion",
   "entity.ragnarok.t_lex": "t lex",
   "entity.ragnarok.groot": "groot",
+  "entity.ragnarok.mini_groot": "mini groot",
   "item.ragnarok.dragon_scale": "dragon scale",
+  "item.ragnarok.groot_heart": "groot heart",
+  "item.ragnarok.groot_heart.tooltip.1": "It may look terrifying, but it's the heart of the kindest creature.",
+  "item.ragnarok.groot_heart.tooltip.2": "It doesn't work anymore.",
   "item.ragnarok.naitomea_axe": "naitonium axe",
   "item.ragnarok.naitomea_hoe": "naitonium hoe",
   "item.ragnarok.naitomea_ingod": "naitonium ingot",
@@ -24,5 +28,6 @@
   "item.ragnarok.scorpion_spawn_egg": "scorpion spawn egg",
   "item.ragnarok.t_lex_spawn_egg": "t lex spawn egg",
   "item.ragnarok.groot_spawn_egg": "groot spawn egg",
+  "item.ragnarok.mini_groot_spawn_egg": "mini groot spawn egg",
   "itemGroup.ragnarok_main": "Ragnarok"
 }

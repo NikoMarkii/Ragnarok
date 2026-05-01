@@ -7,6 +7,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -14,15 +15,16 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import com.niko.ragnarok.item.Ragnarok_mainItems;
+import net.minecraft.util.RandomSource;
 
 import java.util.List;
 
@@ -363,27 +365,15 @@ public class Groot extends Monster {
 
     private void dropCustomLoot() {
         if (this.level() instanceof ServerLevel) {
-            // 原木 10-20個
             int logCount = 10 + this.random.nextInt(11);
             for (int i = 0; i < logCount; i++) {
                 this.spawnAtLocation(Items.OAK_LOG);
             }
-
-            // ツタ 0-4個
             int vineCount = this.random.nextInt(5);
             for (int i = 0; i < vineCount; i++) {
                 this.spawnAtLocation(Items.VINE);
             }
-
-            // 「冷えた心の核」を確定ドロップ
-            // TODO: ModItems.CHILLED_HEART_CORE に置き換える
-            // 現在は仮でNether Starを使用
-            ItemStack heart = new ItemStack(Items.NETHER_STAR);
-            heart.setHoverName(net.minecraft.network.chat.Component.literal("冷えた心の核"));
-
-            ItemEntity itemEntity = new ItemEntity(this.level(),
-                    this.getX(), this.getY() + 1.0D, this.getZ(), heart);
-            this.level().addFreshEntity(itemEntity);
+            this.spawnAtLocation(Ragnarok_mainItems.GROOT_HARHT.get());
         }
     }
 
@@ -412,16 +402,14 @@ public class Groot extends Monster {
     private void spawnWaveBlocks() {
         if (!this.level().isClientSide) {
             BlockPos center = this.blockPosition().relative(this.getDirection());
-            for (int r = 1; r <= 3; r++) { // 半径を広げていく
+            for (int r = 1; r <= 3; r++) {
                 final int radius = r;
-                // チックをずらして実行することで「波」を表現する
-                // (簡易的な実装として、ここでは位置の計算のみ)
+
                 for (double i = 0; i < Math.PI * 2; i += Math.PI / 4) {
                     double dx = Math.cos(i) * radius;
                     double dz = Math.sin(i) * radius;
                     BlockPos pos = center.offset((int)dx, -1, (int)dz);
 
-                    // 実際にはここでブロックの破片パーティクルを出すのが軽量だよ
                     ((ServerLevel)this.level()).sendParticles(
                             new net.minecraft.core.particles.BlockParticleOption(net.minecraft.core.particles.ParticleTypes.BLOCK, this.level().getBlockState(pos)),
                             pos.getX() + 0.5, pos.getY() + 1.1, pos.getZ() + 0.5,
@@ -430,6 +418,10 @@ public class Groot extends Monster {
                 }
             }
         }
+    }
+    public static boolean checkGrootSpawnRules(EntityType<Groot> pGroot, LevelAccessor pLevel, MobSpawnType pSpawnType, BlockPos pPos, RandomSource pRandom) {
+        boolean isSurface = pLevel.getBlockState(pPos.below()).is(BlockTags.DIRT) || pLevel.getBlockState(pPos.below()).is(net.minecraft.tags.BlockTags.DIRT);
+        return isSurface && pLevel.getRawBrightness(pPos, 0) >= 0;
     }
     @Override
     public boolean hurt(DamageSource source, float amount) {
@@ -459,48 +451,48 @@ public class Groot extends Monster {
     }
 }
 
-    class GrootMeleeAttackGoal extends MeleeAttackGoal {
-        private final Groot groot;
-        private int attackCooldown = 0;
+class GrootMeleeAttackGoal extends MeleeAttackGoal {
+    private final Groot groot;
+    private int attackCooldown = 0;
 
-        public GrootMeleeAttackGoal(Groot groot, double speedModifier, boolean followingTargetEvenIfNotSeen) {
-            super(groot, speedModifier, followingTargetEvenIfNotSeen);
-            this.groot = groot;
-        }
-        @Override
-        public void tick() {
-            LivingEntity target = this.groot.getTarget();
-            if (target == null) return;
+    public GrootMeleeAttackGoal(Groot groot, double speedModifier, boolean followingTargetEvenIfNotSeen) {
+        super(groot, speedModifier, followingTargetEvenIfNotSeen);
+        this.groot = groot;
+    }
+    @Override
+    public void tick() {
+        LivingEntity target = this.groot.getTarget();
+        if (target == null) return;
 
-            // 常にターゲットの方を向く
-            this.groot.getLookControl().setLookAt(target, 30.0F, 30.0F);
+        // 常にターゲットの方を向く
+        this.groot.getLookControl().setLookAt(target, 30.0F, 30.0F);
 
-            // 攻撃中でも、移動（ナビゲーション）を止めない！
-            // 1.0D（等倍）で常にターゲットを追いかけ続ける
-            this.groot.getNavigation().moveTo(target, 1.0D);
+        // 攻撃中でも、移動（ナビゲーション）を止めない！
+        // 1.0D（等倍）で常にターゲットを追いかけ続ける
+        this.groot.getNavigation().moveTo(target, 1.0D);
 
-            double distanceSq = this.groot.distanceToSqr(target.getX(), target.getY(), target.getZ());
+        double distanceSq = this.groot.distanceToSqr(target.getX(), target.getY(), target.getZ());
 
-            // クールダウン中でなければ攻撃を開始
-            if (distanceSq < 12.25D && attackCooldown <= 0 && !this.groot.isAttackingExternal()) {
-                if (this.groot.getRandom().nextFloat() < 0.3F) {
-                    this.groot.startSlamAttack();
-                    attackCooldown = 50;
-                } else {
-                    this.groot.startNormalAttack();
-                    attackCooldown = 5;
-                }
-            }
-
-            if (attackCooldown > 0) {
-                attackCooldown--;
+        // クールダウン中でなければ攻撃を開始
+        if (distanceSq < 12.25D && attackCooldown <= 0 && !this.groot.isAttackingExternal()) {
+            if (this.groot.getRandom().nextFloat() < 0.3F) {
+                this.groot.startSlamAttack();
+                attackCooldown = 30; // 1.5秒に短縮
+            } else {
+                this.groot.startNormalAttack();
+                attackCooldown = 10;
             }
         }
 
-        @Override
-        protected void checkAndPerformAttack(LivingEntity pEnemy, double pDistToEnemySqr) {
+        if (attackCooldown > 0) {
+            attackCooldown--;
         }
     }
+
+    @Override
+    protected void checkAndPerformAttack(LivingEntity pEnemy, double pDistToEnemySqr) {
+    }
+}
 // カスタム突進ゴール
 class GrootChargeGoal extends Goal {
     private final Groot groot;

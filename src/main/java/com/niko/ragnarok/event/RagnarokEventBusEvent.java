@@ -2,10 +2,7 @@ package com.niko.ragnarok.event;
 
 import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.RagnarokEntities;
-import com.niko.ragnarok.entity.costom.Groot;
-import com.niko.ragnarok.entity.costom.RedCreeper;
-import com.niko.ragnarok.entity.costom.Scorpion;
-import com.niko.ragnarok.entity.costom.TLex;
+import com.niko.ragnarok.entity.costom.*;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -27,12 +24,20 @@ public class RagnarokEventBusEvent {
                 TLex.createMobAttributes().build());
         event.put(RagnarokEntities.GROOT.get(),
                 Groot.createAttributes().build());
+        event.put(RagnarokEntities.MINI_GROOT.get(),
+                Mini_Groot.createAttributes().build());
     }
 
     @SubscribeEvent
     public static void registerSpawnPlacements(SpawnPlacementRegisterEvent event) {
       event.register(RagnarokEntities.RED_CREEPER.get(), SpawnPlacements.Type.ON_GROUND, Heightmap.Types.WORLD_SURFACE,
               Monster::checkMonsterSpawnRules, SpawnPlacementRegisterEvent.Operation.REPLACE);
+
+        event.register(RagnarokEntities.GROOT.get(),
+                SpawnPlacements.Type.ON_GROUND,
+                Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                Groot::checkGrootSpawnRules, // ここを自前のメソッドに変更！
+                SpawnPlacementRegisterEvent.Operation.REPLACE);
     }
 }
 

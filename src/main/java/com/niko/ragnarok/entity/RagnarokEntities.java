@@ -1,10 +1,7 @@
 package com.niko.ragnarok.entity;
 
 import com.niko.ragnarok.Ragnarok;
-import com.niko.ragnarok.entity.costom.Groot;
-import com.niko.ragnarok.entity.costom.RedCreeper;
-import com.niko.ragnarok.entity.costom.Scorpion;
-import com.niko.ragnarok.entity.costom.TLex;
+import com.niko.ragnarok.entity.costom.*;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -33,6 +30,14 @@ public class RagnarokEntities {
             ENTITY_TYPES.register("groot",() -> EntityType.Builder.of(Groot::new, MobCategory.MONSTER)
                     .sized(3.0F,4.5F)
                     .build("groot"));
+
+    public static final RegistryObject<EntityType<Mini_Groot>> MINI_GROOT =
+            ENTITY_TYPES.register("mini_groot", () ->
+                    EntityType.Builder.<Mini_Groot>of(Mini_Groot::new, MobCategory.CREATURE)
+                            .sized(1F, 1.2F)
+                            .build("mini_groot")
+            );
+
     public static void register(IEventBus eventBus) {
         ENTITY_TYPES.register(eventBus);
     }

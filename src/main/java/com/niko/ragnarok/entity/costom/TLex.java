@@ -196,8 +196,8 @@ public class TLex extends Animal {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(1, new TlexAttackGoal(this, 0.5D, true));
-        this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 0.3D));
+        this.goalSelector.addGoal(1, new TlexAttackGoal(this, 1.5D, true));
+        this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1D));
         this.goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 8f));
         this.goalSelector.addGoal(4, new RandomLookAroundGoal(this));
         this.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(this, Player.class, true));
@@ -205,14 +205,14 @@ public class TLex extends Animal {
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Cow.class, true));
         this.targetSelector.addGoal(4, new NearestAttackableTargetGoal<>(this, Villager.class, true));
         this.targetSelector.addGoal(5, new NearestAttackableTargetGoal<>(this, Sheep.class, true));
-        this.setMaxUpStep(1.5F); // 1.5ブロック分までの段差なら歩いて登れるようになる
+        this.setMaxUpStep(1.5F);
     }
 
-    public static AttributeSupplier.Builder createAttributes() {
+    public static AttributeSupplier.Builder createMobAttributes() {
         return Animal.createLivingAttributes()
                 .add(Attributes.MAX_HEALTH, 150D)
                 .add(Attributes.FOLLOW_RANGE, 24D)
-                .add(Attributes.MOVEMENT_SPEED, 0.2D)
+                .add(Attributes.MOVEMENT_SPEED, 0.35D)
                 .add(Attributes.ATTACK_DAMAGE, 5.0D)
                 .add(Attributes.ATTACK_KNOCKBACK, 2.0D);
     }

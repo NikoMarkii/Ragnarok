@@ -19,6 +19,7 @@ public class Ragnarok_mainItems {
     public static final RegistryObject<Item> RAW_NAITOMEA = ITEMS.register("raw_naitomea", ItemRawNaitomea::new);
 
     public static final RegistryObject<Item> DRAGON_SCALE = ITEMS.register("dragon_scale", ItemDragonScale::new);
+    public static final RegistryObject<Item> GROOT_HARHT = ITEMS.register("groot_heart", ItemGrootHeart::new);
 
     public static final RegistryObject<Item> SCORPION_CELL = ITEMS.register("scorpion_cell", ItemScorpionCell::new);
 
@@ -41,6 +42,10 @@ public class Ragnarok_mainItems {
     public static final RegistryObject<Item> GROOT_SPAWN_EGG = ITEMS.register("groot_spawn_egg",
             () -> new ForgeSpawnEggItem(RagnarokEntities.GROOT,
                     Color.lightGray.getRGB(),Color.GREEN.getRGB(),new Item.Properties()));
+
+    public static final RegistryObject<Item> MINI_GROOT_SPAWN_EGG = ITEMS.register("mini_groot_spawn_egg",
+            () -> new ForgeSpawnEggItem(RagnarokEntities.MINI_GROOT,
+                    Color.gray.getRGB(),Color.GREEN.getRGB(),new Item.Properties()));
 
     public static final RegistryObject<Item> NAITOMEA_SWORD = ITEMS.register("naitomea_sword",
             () -> new SwordItem(RagnarokTooltiers.NAITOMEA_TOOL,4,-2.4F,new Item.Properties()));

@@ -31,7 +31,7 @@ public class GrootRenderer extends MobRenderer<Groot, groot_model<Groot>> {
     @Override
     protected void setupRotations(Groot entity, PoseStack poseStack, float ageInTicks, float rotationYaw, float partialTicks) {
         if (entity.isActuallyDying()) {
-            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180.0F - rotationYaw));
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(170.0F - rotationYaw));
             return;
         }
         super.setupRotations(entity, poseStack, ageInTicks, rotationYaw, partialTicks);
