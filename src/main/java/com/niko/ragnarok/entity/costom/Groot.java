@@ -32,7 +32,6 @@ public class Groot extends Animal {
     private int attackTick = 0;
     private int attackType = 0;
     private boolean isAttacking = false;
-    private int deathTime = 0;
     private boolean isDying = false;
     private boolean animationStarted = false;
 
@@ -47,11 +46,14 @@ public class Groot extends Animal {
     public final AnimationState walkAnimationState = new AnimationState();
     public final AnimationState deathAnimationState = new AnimationState();
     public final AnimationState attack2AnimationState = new AnimationState();
-    private static final byte START_ATTACK_2_EVENT = 6; // 新しいイベントID
+    private static final byte START_ATTACK_2_EVENT = 6;
     private static final byte START_ATTACK_1_EVENT = 4;
     private static final byte START_DEATH_EVENT = 5;
 
     private static final EntityDataAccessor<Boolean> IS_ANGRY =
+            SynchedEntityData.defineId(Groot.class, EntityDataSerializers.BOOLEAN);
+
+    private static final EntityDataAccessor<Boolean> IS_DYING =
             SynchedEntityData.defineId(Groot.class, EntityDataSerializers.BOOLEAN);
 
     public Groot(EntityType<? extends Animal> type, Level level) {
@@ -64,7 +66,11 @@ public class Groot extends Animal {
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(IS_ANGRY, false);
+        this.entityData.define(IS_DYING, false);
     }
+
+
+
 
     @Override
     protected void registerGoals() {
@@ -116,60 +122,39 @@ public class Groot extends Animal {
 
     @Override
     public void aiStep() {
-        if (this.isDying) {
+        if (this.isActuallyDying()) {
             this.customDeathTime++;
             this.setDeltaMovement(Vec3.ZERO);
 
-            // 2.3005秒 = 46チック (20チック/秒 × 2.3 = 46)
-            if (this.customDeathTime >= 46) {
+            if (!this.level().isClientSide && this.customDeathTime >= 46) {
                 this.remove(RemovalReason.KILLED);
             }
             return;
         }
-        // 生きている間は必ず super を呼んでバニラの移動・物理演算を動かす
+
         super.aiStep();
 
         if (isAttacking) {
             attackTick++;
-
-            // 攻撃タイプ別の処理
             switch (attackType) {
-                // Groot.java の aiStep内
                 case 0: // 通常殴り
-                    // 判定を 25 → 10チック (0.5秒) に大幅短縮！
-                    if (attackTick == 10) {
-                        performNormalAttack();
-                    }
-                    // 全体のアニメーションも 40 → 20チック (1.0秒) で終わらせて次へ備える
-                    if (attackTick >= 20) {
-                        endAttack();
-                    }
+                    if (attackTick == 10) performNormalAttack();
+                    if (attackTick >= 20) endAttack();
                     break;
-
-                case 1: // 叩き付け (attack2)
-                    // 1.74秒 = 約35チックの瞬間に衝撃波を発生させる
+                case 1: // 叩き付け
                     if (attackTick == 30) {
                         performSlamAttack();
-                        spawnWaveBlocks(); // 波のようなエフェクト（後述）
+                        spawnWaveBlocks();
                     }
-                    // 2.38秒 = 約48チックで終了
-                    if (attackTick >= 48) {
-                        endAttack();
-                    }
+                    if (attackTick >= 48) endAttack();
                     break;
-
-                case 2: // 突進 (10ダメージ)
-                    if (attackTick >= 5 && attackTick <= 25) {
-                        performChargeAttack();
-                    }
-                    if (attackTick >= 35) {
-                        endAttack();
-                    }
+                case 2: // 突進
+                    if (attackTick >= 5 && attackTick <= 25) performChargeAttack();
+                    if (attackTick >= 35) endAttack();
                     break;
             }
         }
 
-        // 周囲の動物が殺されるのを監視
         if (!this.level().isClientSide && !isAngry() && this.tickCount % 20 == 0) {
             checkNearbyAnimalDeaths();
         }
@@ -346,12 +331,9 @@ public class Groot extends Animal {
 
     @Override
     public void die(DamageSource damageSource) {
-        if (!this.level().isClientSide && !isDying) {
-            isDying = true;
-            deathTime = 0;
+        if (!this.level().isClientSide) {
+            this.entityData.set(IS_DYING, true); // ここで同期
             this.level().broadcastEntityEvent(this, START_DEATH_EVENT);
-
-            // ドロップアイテム
             dropCustomLoot();
         }
     }
@@ -438,7 +420,7 @@ public class Groot extends Animal {
         return super.hurt(source, amount);
     }
     public boolean isActuallyDying() {
-        return this.isDying;
+        return this.entityData.get(IS_DYING);
     }
 
     // バニラの死亡時の倒れ込みを無効化
@@ -454,11 +436,10 @@ public class Groot extends Animal {
 
     @Override
     protected void tickDeath() {
-        // バニラの死亡処理(deathTime++と倒れ込み)を完全に無効化
-        // カスタムアニメーションはaiStepで管理
     }
 
-    public int getCustomDeathTime() {  // ← @Overrideを削除し、メソッド名も変更
+    // カスタム死亡タイマー用のゲッター（オーバーライドではない）
+    public int getCustomDeathTime() {
         return this.customDeathTime;
     }
 

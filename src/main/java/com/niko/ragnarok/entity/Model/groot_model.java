@@ -87,22 +87,8 @@ public class groot_model<T extends Groot> extends HierarchicalModel<T> {
 	public void setupAnim(T entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
 		this.root().getAllParts().forEach(ModelPart::resetPose);
 
-		Object obj = (Object) entity;
-		if (obj instanceof Groot groot) {
-			if (groot.isActuallyDying()) {
-				groot.idleAnimationState.stop();
-				groot.walkAnimationState.stop();
-				groot.attack1AnimationState.stop();
-				groot.attack2AnimationState.stop();
-
-				this.animate(groot.deathAnimationState, GrootAnimation.death, ageInTicks, 1.0f);
-			}
-
-			// 攻撃中の腕の固定
-			if (groot.isAttackingExternal()) {
-				this.arm1.xRot = 0;
-				this.arm2.xRot = 0;
-			}
+		if (entity.isActuallyDying()) {
+			this.animate(entity.deathAnimationState, GrootAnimation.death, ageInTicks, 1.0f);
 		}
 		this.head.yRot = netHeadYaw * ((float)Math.PI / 180F);
 		this.head.xRot = headPitch * ((float)Math.PI / 180F);
