@@ -15,7 +15,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
@@ -28,7 +28,7 @@ import net.minecraft.util.RandomSource;
 
 import java.util.List;
 
-public class Groot extends Monster {
+public class Groot extends Animal {
     private int attackTick = 0;
     private int attackType = 0;
     private boolean isAttacking = false;
@@ -54,7 +54,7 @@ public class Groot extends Monster {
     private static final EntityDataAccessor<Boolean> IS_ANGRY =
             SynchedEntityData.defineId(Groot.class, EntityDataSerializers.BOOLEAN);
 
-    public Groot(EntityType<? extends Monster> type, Level level) {
+    public Groot(EntityType<? extends Animal> type, Level level) {
         super(type, level);
         // 2ブロックの段差をパスとして認識させる
         this.getNavigation().setCanFloat(true);
@@ -79,7 +79,7 @@ public class Groot extends Monster {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return Monster.createMonsterAttributes()
+        return Animal.createLivingAttributes()
                 .add(Attributes.MAX_HEALTH, 100.0D)
                 .add(Attributes.ARMOR, 10.0D)
                 .add(Attributes.ATTACK_DAMAGE, 20.0D)
@@ -94,10 +94,10 @@ public class Groot extends Monster {
         if (id == START_ATTACK_1_EVENT) {
             this.idleAnimationState.stop();
             this.attack1AnimationState.start(this.tickCount);
-        } else if (id == START_ATTACK_2_EVENT) { // else if にする
+        } else if (id == START_ATTACK_2_EVENT) {
             this.idleAnimationState.stop();
             this.attack2AnimationState.start(this.tickCount);
-        } if (id == START_DEATH_EVENT) {
+        } else if (id == START_DEATH_EVENT) {
             // 死亡アニメーション開始（一度だけ）
             if (!animationStarted) {
                 this.deathAnimationState.start(this.tickCount);
@@ -117,9 +117,10 @@ public class Groot extends Monster {
     @Override
     public void aiStep() {
         if (this.isDying) {
-            this.customDeathTime++; // こちらを使う
+            this.customDeathTime++;
             this.setDeltaMovement(Vec3.ZERO);
 
+            // 2.3005秒 = 46チック (20チック/秒 × 2.3 = 46)
             if (this.customDeathTime >= 46) {
                 this.remove(RemovalReason.KILLED);
             }
@@ -387,8 +388,14 @@ public class Groot extends Monster {
         super.tick();
         if (this.level().isClientSide()) {
             if (isDying) {
+                // 死亡中は他のアニメーションを停止
                 this.idleAnimationState.stop();
                 this.walkAnimationState.stop();
+                this.attack1AnimationState.stop();
+                this.attack2AnimationState.stop();
+
+                // 死亡アニメーションを開始（クライアント側で確実に実行）
+                this.deathAnimationState.startIfStopped(this.tickCount);
             } else {
                 if (this.getDeltaMovement().horizontalDistanceSqr() > 0.0001D) {
                     this.walkAnimationState.startIfStopped(this.tickCount);
@@ -420,8 +427,8 @@ public class Groot extends Monster {
         }
     }
     public static boolean checkGrootSpawnRules(EntityType<Groot> pGroot, LevelAccessor pLevel, MobSpawnType pSpawnType, BlockPos pPos, RandomSource pRandom) {
-        boolean isSurface = pLevel.getBlockState(pPos.below()).is(BlockTags.DIRT) || pLevel.getBlockState(pPos.below()).is(net.minecraft.tags.BlockTags.DIRT);
-        return isSurface && pLevel.getRawBrightness(pPos, 0) >= 0;
+        // 明るさ制限なし - 昼夜問わずスポーン可能
+        return pLevel.getBlockState(pPos.below()).is(BlockTags.DIRT);
     }
     @Override
     public boolean hurt(DamageSource source, float amount) {
@@ -433,6 +440,28 @@ public class Groot extends Monster {
     public boolean isActuallyDying() {
         return this.isDying;
     }
+
+    // バニラの死亡時の倒れ込みを無効化
+    @Override
+    public boolean shouldDropExperience() {
+        return !this.isBaby();
+    }
+
+    @Override
+    public boolean isDeadOrDying() {
+        return this.isDying || super.isDeadOrDying();
+    }
+
+    @Override
+    protected void tickDeath() {
+        // バニラの死亡処理(deathTime++と倒れ込み)を完全に無効化
+        // カスタムアニメーションはaiStepで管理
+    }
+
+    public int getCustomDeathTime() {  // ← @Overrideを削除し、メソッド名も変更
+        return this.customDeathTime;
+    }
+
     @Override
     protected net.minecraft.sounds.SoundEvent getHurtSound(DamageSource pDamageSource) {
         // ダメージを受けた時の音をアイアンゴーレムに設定
@@ -448,6 +477,12 @@ public class Groot extends Monster {
     @Override
     protected void playStepSound(BlockPos pPos, BlockState pState) {
         this.playSound(SoundEvents.IRON_GOLEM_STEP, 1.0F, 1.0F);
+    }
+
+    // Animalクラスの必須メソッド(繁殖しないのでnullを返す)
+    @Override
+    public Animal getBreedOffspring(net.minecraft.server.level.ServerLevel pLevel, net.minecraft.world.entity.AgeableMob pOtherParent) {
+        return null;
     }
 }
 

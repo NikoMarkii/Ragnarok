@@ -22,12 +22,12 @@ public class RagnarokEntities {
                     .build("scorpion"));
 
     public static final RegistryObject<EntityType<TLex>> T_LEX =
-            ENTITY_TYPES.register("t_lex",() -> EntityType.Builder.of(TLex::new, MobCategory.AMBIENT)
+            ENTITY_TYPES.register("t_lex",() -> EntityType.Builder.of(TLex::new, MobCategory.CREATURE)
                     .sized(3.0F, 4.0F)
                     .build("t_lex"));
 
     public static final RegistryObject<EntityType<Groot>> GROOT =
-            ENTITY_TYPES.register("groot",() -> EntityType.Builder.of(Groot::new, MobCategory.MONSTER)
+            ENTITY_TYPES.register("groot",() -> EntityType.Builder.of(Groot::new, MobCategory.CREATURE)
                     .sized(3.0F,4.5F)
                     .build("groot"));
 

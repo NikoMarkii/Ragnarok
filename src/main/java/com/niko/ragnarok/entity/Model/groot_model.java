@@ -90,11 +90,12 @@ public class groot_model<T extends Groot> extends HierarchicalModel<T> {
 		Object obj = (Object) entity;
 		if (obj instanceof Groot groot) {
 			if (groot.isActuallyDying()) {
-				this.animate(groot.deathAnimationState, GrootAnimation.death, ageInTicks, 1.0f);
+				groot.idleAnimationState.stop();
+				groot.walkAnimationState.stop();
+				groot.attack1AnimationState.stop();
+				groot.attack2AnimationState.stop();
 
-				this.root().zRot = 0f;
-				this.root().xRot = 0f;
-				return;
+				this.animate(groot.deathAnimationState, GrootAnimation.death, ageInTicks, 1.0f);
 			}
 
 			// 攻撃中の腕の固定
