@@ -6,6 +6,7 @@ import com.niko.ragnarok.entity.Model.mini_groot_model;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.Model.scorpion_model;
 import com.niko.ragnarok.entity.Model.t_lex_model;
+import com.niko.ragnarok.entity.Model.magic_golem_model;
 import com.niko.ragnarok.entity.renderer.*;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
@@ -21,6 +22,7 @@ public class RagnarokEventBusClientEvent {
         event.registerEntityRenderer(RagnarokEntities.T_LEX.get(), TLexRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.GROOT.get(), GrootRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.MINI_GROOT.get(), MiniGrootRenderer::new);
+        event.registerEntityRenderer(RagnarokEntities.MAGIC_GOLEM.get(),MagicGolemRenderer::new);
     }
 
     @SubscribeEvent
@@ -34,5 +36,7 @@ public class RagnarokEventBusClientEvent {
                 groot_model::createBodyLayer);
         event.registerLayerDefinition(mini_groot_model.LAYER_LOCATION,
                 mini_groot_model::createBodyLayer);
+        event.registerLayerDefinition(magic_golem_model.LAYER_LOCATION,
+                magic_golem_model::createBodyLayer);
     }
 }

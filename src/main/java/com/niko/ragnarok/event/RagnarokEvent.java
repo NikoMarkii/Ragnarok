@@ -1,13 +1,20 @@
 package com.niko.ragnarok.event;
 
+import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.costom.Groot;
+import com.niko.ragnarok.entity.costom.Magic_Golem;
 import com.niko.ragnarok.item.ItemScorpionNecklace;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.monster.Evoker;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.raid.Raider;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -53,6 +60,24 @@ public class RagnarokEvent {
             for (Groot groot : nearbyGroots) {
                 if (!groot.isAngry()) {
                     groot.onNearbyAnimalKilled(killer);
+                }
+            }
+        }
+    }
+    @SubscribeEvent
+    public static void onEntityJoin(EntityJoinLevelEvent event) {
+        Entity entity = event.getEntity();
+        Level level = event.getLevel();
+
+        if (!level.isClientSide && entity instanceof Raider raider) {
+
+            if (raider.getCurrentRaid() != null && raider instanceof Evoker) {
+
+                if (level.random.nextFloat() < 1F) {
+                    Magic_Golem golem = new Magic_Golem(RagnarokEntities.MAGIC_GOLEM.get(), level);
+                    golem.moveTo(raider.getX(), raider.getY(), raider.getZ(), raider.getYRot(), 0.0F);
+
+                    level.addFreshEntity(golem);
                 }
             }
         }

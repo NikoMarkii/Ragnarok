@@ -38,6 +38,13 @@ public class RagnarokEntities {
                             .build("mini_groot")
             );
 
+    public static final RegistryObject<EntityType<Magic_Golem>> MAGIC_GOLEM =
+            ENTITY_TYPES.register("magic_golem",() ->
+                    EntityType.Builder.of(Magic_Golem::new, MobCategory.MONSTER)
+                            .sized(2F,2.0F)
+                            .build("magic_golem")
+            );
+
     public static void register(IEventBus eventBus) {
         ENTITY_TYPES.register(eventBus);
     }

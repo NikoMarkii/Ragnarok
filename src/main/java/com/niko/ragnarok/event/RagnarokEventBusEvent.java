@@ -26,6 +26,8 @@ public class RagnarokEventBusEvent {
                 Groot.createAttributes().build());
         event.put(RagnarokEntities.MINI_GROOT.get(),
                 Mini_Groot.createAttributes().build());
+        event.put(RagnarokEntities.MAGIC_GOLEM.get(),
+                Magic_Golem.createAttributes().build());
     }
 
     @SubscribeEvent
