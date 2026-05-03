@@ -163,7 +163,7 @@ public class scorpion_model<T extends Scorpion> extends HierarchicalModel<T> {
 		this.root().getAllParts().forEach(ModelPart::resetPose);
 		this.applyHeadRotation(netHeadYaw, headPitch, ageInTicks);
 
-		this.animateWalk(scorpion_animation.WALK, limbSwing, limbSwingAmount, 2f, 2.5f);
+		this.animateWalk(scorpion_animation.WALK, limbSwing, limbSwingAmount, 3f, 2.5f);
 		this.animate(((Scorpion) entity).idleAnimationState, scorpion_animation.IDLE, ageInTicks, 1f);
 		this.animate(((Scorpion) entity).attackAnimationState, scorpion_animation.ATTACK, ageInTicks, 1f);
 	}

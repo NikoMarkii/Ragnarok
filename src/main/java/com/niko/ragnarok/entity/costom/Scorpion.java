@@ -1,6 +1,5 @@
 package com.niko.ragnarok.entity.costom;
 
-import com.niko.ragnarok.entity.ai.ScorpionAttackGoal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -104,7 +103,7 @@ public class Scorpion extends Monster {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(1, new FloatGoal(this));
-        this.goalSelector.addGoal(2, new LeapAtTargetGoal(this, 0.4F));
+        this.goalSelector.addGoal(3, new LeapAtTargetGoal(this, 0.4F));
         this.goalSelector.addGoal(3, new ScorpionAttackGoal(this, 1.5D, true));
         this.goalSelector.addGoal(4, new WaterAvoidingRandomStrollGoal(this, 1.3D));
         this.goalSelector.addGoal(6, new LookAtPlayerGoal(this, Player.class, 8.0F));
@@ -147,6 +146,79 @@ public class Scorpion extends Monster {
     @Override
     protected SoundEvent getDeathSound() {
         return SoundEvents.SPIDER_DEATH;
+    }
+    class ScorpionAttackGoal extends MeleeAttackGoal {
+        private final Scorpion scorpion;
+        private final double speedModifier;
+        private int attackCooldown = 0;
+
+        public ScorpionAttackGoal(Scorpion scorpion, double speed, boolean useLongMemory) {
+            super(scorpion, speed, useLongMemory);
+            this.scorpion = scorpion;
+            this.speedModifier = speed;
+        }
+
+        @Override
+        protected double getAttackReachSqr(LivingEntity target) {
+            double reach = (this.scorpion.getBbWidth() * 1.5F) * (this.scorpion.getBbWidth() * 1.5F) + target.getBbWidth();
+            return reach;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return scorpion.isAttacking() || super.canContinueToUse();
+        }
+
+        @Override
+        public void tick() {
+            LivingEntity target = scorpion.getTarget();
+            if (target == null || !target.isAlive()) return;
+
+            // 1. 常にターゲットを注視し、追いかける
+            scorpion.getLookControl().setLookAt(target, 30.0F, 30.0F);
+
+            double distanceSq = scorpion.distanceToSqr(target.getX(), target.getBoundingBox().minY, target.getZ());
+            double reachSq = getAttackReachSqr(target);
+
+            if (attackCooldown > 0) attackCooldown--;
+
+            // 2. 攻撃中でない場合のみ、移動と攻撃開始の判定を行う
+            if (!scorpion.isAttacking()) {
+                if (distanceSq <= reachSq && attackCooldown <= 0) {
+                    startAttackSequence(target);
+                } else {
+                    scorpion.getNavigation().moveTo(target, speedModifier);
+                }
+            }
+            if (scorpion.isAttacking()) {
+                scorpion.getNavigation().stop();
+                updateAttackSequence(target);
+            }
+        }
+        private void startAttackSequence(LivingEntity target) {
+            scorpion.setAttacking(true);
+            scorpion.attackAnimationTimeout = Scorpion.ATTACK_ANIM_TICKS;
+            scorpion.hasDealtStingDamage = false;
+
+            scorpion.attackAnimationState.start(scorpion.tickCount);
+        }
+        private void updateAttackSequence(LivingEntity target) {
+            scorpion.attackAnimationTimeout--;
+
+            if (scorpion.attackAnimationTimeout == Scorpion.ATTACK_ANIM_TICKS - Scorpion.STING_TICK
+                    && !scorpion.hasDealtStingDamage) {
+                scorpion.performStingAttack(target);
+                scorpion.hasDealtStingDamage = true;
+            }
+
+            // アニメーション終了
+            if (scorpion.attackAnimationTimeout <= 0) {
+                scorpion.setAttacking(false);
+                scorpion.hasDealtStingDamage = false;
+                scorpion.attackAnimationState.stop();
+                this.attackCooldown = 5;
+            }
+        }
     }
 }
 

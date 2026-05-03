@@ -17,7 +17,6 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
-import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.npc.Villager;
@@ -70,11 +69,11 @@ public class Magic_Golem extends Raider {
 
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH, 100.0D)
+                .add(Attributes.MAX_HEALTH, 150.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.25D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.8D)
                 .add(Attributes.ATTACK_DAMAGE, 15.0D)
-                .add(Attributes.ARMOR, 10.0D)
+                .add(Attributes.ARMOR, 15.0D)
                 .add(Attributes.FOLLOW_RANGE, 32.0D);
     }
 
@@ -274,7 +273,7 @@ public class Magic_Golem extends Raider {
     private void performNormalAttack() {
         AABB attackBox = this.getBoundingBox().inflate(2.0D, 1.0D, 2.0D);
         this.level().getEntitiesOfClass(LivingEntity.class, attackBox).forEach(entity -> {
-            if (entity != this && entity instanceof Player) {
+            if (entity != this && entity.isAlive()) {
                 entity.hurt(this.damageSources().mobAttack(this), 12.0F);
                 // 軽めのノックバック
                 double dx = entity.getX() - this.getX();
@@ -289,7 +288,7 @@ public class Magic_Golem extends Raider {
     private void performSwingAttack() {
         AABB attackBox = this.getBoundingBox().inflate(2.5D, 1.0D, 2.5D);
         this.level().getEntitiesOfClass(LivingEntity.class, attackBox).forEach(entity -> {
-            if (entity != this && entity instanceof Player) {
+            if (entity != this && entity.isAlive()) {
                 entity.hurt(this.damageSources().mobAttack(this), 15.0F);
                 // ノックバック
                 double dx = entity.getX() - this.getX();
@@ -350,7 +349,7 @@ public class Magic_Golem extends Raider {
         // 当たり判定
         AABB chargeBox = this.getBoundingBox().inflate(0.5D);
         this.level().getEntitiesOfClass(LivingEntity.class, chargeBox).forEach(entity -> {
-            if (entity != this && entity instanceof Player) {
+            if (entity != this && entity.isAlive()) {
                 entity.hurt(this.damageSources().mobAttack(this), 10.0F);
                 entity.knockback(2.0D, chargeDirection.x, chargeDirection.z);
             }
@@ -487,20 +486,17 @@ public class Magic_Golem extends Raider {
         public MagicGolemMeleeAttackGoal(Magic_Golem golem, double speedModifier, boolean followingTargetEvenIfNotSeen) {
             this.golem = golem;
             this.speedModifier = speedModifier;
-            // 他の移動系ゴールと競合しないよう、移動と攻撃のフラグを立てる
             this.setFlags(java.util.EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
         }
 
         @Override
         public boolean canUse() {
             LivingEntity target = this.golem.getTarget();
-            // ターゲットが存在し、生きていること。攻撃中であっても追いかけるために isAttackingExternal は外す
             return target != null && target.isAlive();
         }
 
         @Override
         public void start() {
-            // ターゲットを見つけた瞬間にクールダウンを少し短縮して、初動を早くする
             this.attackCooldown = 5;
         }
 
@@ -518,13 +514,10 @@ public class Magic_Golem extends Raider {
                 attackCooldown--;
             }
 
-            // 攻撃中でないことを確認
             if (!this.golem.isAttackingExternal()) {
-                // 攻撃範囲 (約3.5ブロック以内) に入ったら即座に攻撃判定
                 if (distanceSq <= 12.25D && attackCooldown <= 0) {
                     executeRandomAttack();
                 } else {
-                    // 範囲外なら全力で追いかける
                     this.golem.getNavigation().moveTo(target, this.speedModifier);
                 }
             }
@@ -535,13 +528,13 @@ public class Magic_Golem extends Raider {
 
             if (rand < 0.35F) {
                 this.golem.startNormalAttack();
-                attackCooldown = 10;
+                attackCooldown = 5;
             } else if (rand < 0.70F) {
                 this.golem.startSwingAttack();
-                attackCooldown = 40; // (2.0秒)
+                attackCooldown = 10; // (2.0秒)
             } else if (rand < 0.90F) {
                 this.golem.startSummonAttack();
-                attackCooldown = 40; // (3.0秒)
+                attackCooldown = 20; // (3.0秒)
             } else {
                 this.golem.startChargeAttack();
                 attackCooldown = 60; // (4.0秒)

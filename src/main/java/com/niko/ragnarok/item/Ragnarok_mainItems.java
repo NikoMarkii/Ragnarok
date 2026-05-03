@@ -41,15 +41,21 @@ public class Ragnarok_mainItems {
 
     public static final RegistryObject<Item> GROOT_SPAWN_EGG = ITEMS.register("groot_spawn_egg",
             () -> new ForgeSpawnEggItem(RagnarokEntities.GROOT,
-                    Color.lightGray.getRGB(),Color.GREEN.getRGB(),new Item.Properties()));
+                    0x8b4513,
+                    0x008000,
+                    new Item.Properties()));
 
     public static final RegistryObject<Item> MINI_GROOT_SPAWN_EGG = ITEMS.register("mini_groot_spawn_egg",
             () -> new ForgeSpawnEggItem(RagnarokEntities.MINI_GROOT,
-                    Color.gray.getRGB(),Color.GREEN.getRGB(),new Item.Properties()));
+                    0x8b4513,
+                    0x00ff7f,
+                    new Item.Properties()));
 
     public static final RegistryObject<Item> MAGIC_GOLEM_SPAWN_EGG = ITEMS.register("magic_golem_spawn_egg",
             () -> new ForgeSpawnEggItem(RagnarokEntities.MAGIC_GOLEM,
-                    Color.gray.getRGB(),Color.cyan.getRGB(),new Item.Properties()));
+                    0xCED4D5, // エッグ本体の色
+                    0x7F3FB0, // 模様の色
+                    new Item.Properties()));
 
     public static final RegistryObject<Item> NAITOMEA_SWORD = ITEMS.register("naitomea_sword",
             () -> new SwordItem(RagnarokTooltiers.NAITOMEA_TOOL,4,-2.4F,new Item.Properties()));
