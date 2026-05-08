@@ -10,7 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public class  ScorpionRenderer extends MobRenderer<Scorpion, scorpion_model<Scorpion>> {
     private static final ResourceLocation SCORPION_LOCATION =
-            new ResourceLocation(Ragnarok.MOD_ID, "textures/entity/scorpion.png");
+            ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "textures/entity/scorpion.png");
 
     public ScorpionRenderer(EntityRendererProvider.Context pcontext) {
         super(pcontext, new scorpion_model<>(pcontext.bakeLayer(scorpion_model.SCORPION_LAYER_LOCATION)), 0.8f);

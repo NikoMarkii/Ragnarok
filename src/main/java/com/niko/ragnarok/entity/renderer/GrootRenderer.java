@@ -8,10 +8,10 @@ import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.resources.ResourceLocation;
 
 public class GrootRenderer extends MobRenderer<Groot, groot_model<Groot>> {
-    private static final ResourceLocation GROOT_LOCATION = new ResourceLocation("ragnarok", "textures/entity/groot_texture.png");
+    private static final ResourceLocation GROOT_LOCATION = ResourceLocation.fromNamespaceAndPath("ragnarok", "textures/entity/groot_texture.png");
 
     private static final ResourceLocation GROOT_ANGRY_LOCATION =
-            new ResourceLocation("ragnarok", "textures/entity/groot_rage_eye_layer.png");
+            ResourceLocation.fromNamespaceAndPath("ragnarok", "textures/entity/groot_rage_eye_layer.png");
 
     public GrootRenderer(EntityRendererProvider.Context context) {
         super(context, new groot_model<>(context.bakeLayer(groot_model.LAYER_LOCATION)), 1.2F);

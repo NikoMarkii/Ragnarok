@@ -15,5 +15,5 @@ public class RagnarokTooltiers {
     public static final Tier NAITOMEA_TOOL = TierSortingRegistry.registerTier(
             new ForgeTier(5,2500,10f,6.0f,20,
                     RagnarokTags.Blocks.NAITOMEA_TOOL, () -> Ingredient.of(Ragnarok_mainItems.NAITOMEA_INGOD.get())),
-            new ResourceLocation(Ragnarok.MOD_ID, "naitomea_tool"), List.of(Tiers.NETHERITE),List.of());
+            ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "naitomea_tool"), List.of(Tiers.NETHERITE),List.of());
 }

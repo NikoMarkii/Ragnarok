@@ -1,0 +1,16 @@
+{
+  "item_id": "ragnarok:void_scythe",
+  "attributes": {
+
+    "range": 4.5,
+    "angle": 120,
+    "speed_modifier": 0.8,
+
+    "anim_id": "bettercombat:scythe",
+
+    "two_handed": true,
+
+    "attack_damage": 12.0,
+    "knockback": 2.0
+  }
+}

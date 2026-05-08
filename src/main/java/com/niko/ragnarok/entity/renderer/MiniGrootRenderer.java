@@ -18,7 +18,7 @@ public class MiniGrootRenderer extends MobRenderer<Mini_Groot, mini_groot_model<
     }
     @Override
     public ResourceLocation getTextureLocation(Mini_Groot entity) {
-        return new ResourceLocation("ragnarok", "textures/entity/mini_groot_texture.png");
+        return ResourceLocation.fromNamespaceAndPath("ragnarok", "textures/entity/mini_groot_texture.png");
     }
     @Override
     protected void setupRotations(Mini_Groot entity, PoseStack poseStack, float ageInTicks, float rotationYaw, float partialTicks) {

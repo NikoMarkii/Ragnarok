@@ -34,7 +34,7 @@ public class RagnarokOreFeatures {
     public static ResourceKey<ConfiguredFeature<?,?>>
                   createKey(String name){
         return ResourceKey.create(Registries.CONFIGURED_FEATURE,
-                new ResourceLocation(Ragnarok.MOD_ID,name));
+                ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID,name));
     }
 
 }

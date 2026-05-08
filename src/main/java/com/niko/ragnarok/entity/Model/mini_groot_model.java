@@ -2,8 +2,7 @@ package com.niko.ragnarok.entity.Model;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.niko.ragnarok.entity.animation.GrootAnimation;
-import com.niko.ragnarok.entity.animation.mini_groot_animation;
+import com.niko.ragnarok.entity.animations.mini_groot_animation;
 import com.niko.ragnarok.entity.costom.Mini_Groot;
 import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -14,7 +13,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 
 public class mini_groot_model<T extends Entity> extends HierarchicalModel<T> {
-	public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(new ResourceLocation("ragnarok", "minigroot_model"), "main");
+	public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(
+			ResourceLocation.fromNamespaceAndPath("ragnarok", "mini_groot"), "main");
 
 	private final ModelPart root;
 	private final ModelPart all;

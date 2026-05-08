@@ -21,6 +21,7 @@ public class RagnarokModTabs {
                         .title(Component.translatable("itemGroup.ragnarok_main"))
                         .displayItems((paran, output) -> {
                             for (Item item : ragnarokmain.items) {
+                                output.accept(Ragnarok_mainItems.VOID_SCYTHE.get());
                                 output.accept(Ragnarok_mainItems.NAITOMEA_SWORD.get());
                                 output.accept(Ragnarok_mainItems.NAITOMEA_PICKAXE.get());
                                 output.accept(Ragnarok_mainItems.NAITOMEA_AXE.get());
@@ -33,9 +34,11 @@ public class RagnarokModTabs {
                                 output.accept(RagnarokBlocks.RAW_NAITOMEA_BLOCK.get());
                                 output.accept(RagnarokBlocks.NAITOMEA_ORE.get());
                                 output.accept(Ragnarok_mainItems.DRAGON_SCALE.get());
+                                output.accept(Ragnarok_mainItems.ENDER_SOLDIER_CLAW.get());
                                 output.accept(Ragnarok_mainItems.GROOT_HARHT.get());
                                 output.accept(Ragnarok_mainItems.SCORPION_NEEDLE.get());
                                 output.accept(Ragnarok_mainItems.SCORPION_CELL.get());
+                                output.accept(Ragnarok_mainItems.ENDER_SOLDIER_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.T_LEX_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.GROOT_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.MINI_GROOT_SPAWN_EGG.get());

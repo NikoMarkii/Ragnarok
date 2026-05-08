@@ -19,6 +19,10 @@ public class Ragnarok_mainItems {
     public static final RegistryObject<Item> RAW_NAITOMEA = ITEMS.register("raw_naitomea", ItemRawNaitomea::new);
 
     public static final RegistryObject<Item> DRAGON_SCALE = ITEMS.register("dragon_scale", ItemDragonScale::new);
+
+    public static final RegistryObject<Item> ENDER_SOLDIER_CLAW = ITEMS.register("ender_soldier_claw",
+            () -> new Item(new Item.Properties()));
+
     public static final RegistryObject<Item> GROOT_HARHT = ITEMS.register("groot_heart", ItemGrootHeart::new);
 
     public static final RegistryObject<Item> SCORPION_CELL = ITEMS.register("scorpion_cell", ItemScorpionCell::new);
@@ -57,6 +61,12 @@ public class Ragnarok_mainItems {
                     0x7F3FB0, // 模様の色
                     new Item.Properties()));
 
+    public static final RegistryObject<Item> ENDER_SOLDIER_SPAWN_EGG = ITEMS.register("ender_soldier_spawn_egg",
+            () -> new ForgeSpawnEggItem(RagnarokEntities.ENDER_SOLDIER,
+                    0x000000, // エッグ本体の色
+                    0x9932cc, // 模様の色
+                    new Item.Properties()));
+
     public static final RegistryObject<Item> NAITOMEA_SWORD = ITEMS.register("naitomea_sword",
             () -> new SwordItem(RagnarokTooltiers.NAITOMEA_TOOL,4,-2.4F,new Item.Properties()));
     public static final RegistryObject<Item> NAITOMEA_PICKAXE = ITEMS.register("naitomea_pickaxe",
@@ -67,4 +77,10 @@ public class Ragnarok_mainItems {
             () -> new ShovelItem(RagnarokTooltiers.NAITOMEA_TOOL,1.5F,-3.0F,new Item.Properties()));
     public static final RegistryObject<Item> NAITOMEA_HOE = ITEMS.register("naitomea_hoe",
             () -> new HoeItem(RagnarokTooltiers.NAITOMEA_TOOL,-4,0.0F,new Item.Properties()));
+
+    public static final RegistryObject<Item> VOID_SCYTHE = ITEMS.register("void_scythe",
+            () -> new VoidScythe(new Item.Properties()
+                    .stacksTo(1)
+                    .defaultDurability(1500) // 耐久度は高めに設定
+                    .rarity(Rarity.RARE))); // レア度を設定
 }

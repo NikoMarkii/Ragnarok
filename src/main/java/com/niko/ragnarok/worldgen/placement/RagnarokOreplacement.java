@@ -31,7 +31,7 @@ public class RagnarokOreplacement {
 
     private static ResourceKey<PlacedFeature> createKey(String name) {
         return ResourceKey.create(Registries.PLACED_FEATURE,
-                new ResourceLocation(Ragnarok.MOD_ID, name));
+                ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, name));
     }
 
     private static List<PlacementModifier> orePlacement(PlacementModifier pCountPlacement, PlacementModifier pHeightRange) {

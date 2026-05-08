@@ -3,7 +3,7 @@ package com.niko.ragnarok.entity.Model;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.niko.ragnarok.entity.animation.magic_golem_animation;
+import com.niko.ragnarok.entity.animations.magic_golem_animation;
 import com.niko.ragnarok.entity.costom.Magic_Golem;
 import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -13,8 +13,8 @@ import net.minecraft.client.model.geom.builders.*;
 import net.minecraft.resources.ResourceLocation;
 
 public class magic_golem_model<T extends Magic_Golem> extends HierarchicalModel<T> {
-	public static final ModelLayerLocation LAYER_LOCATION =
-			new ModelLayerLocation(new ResourceLocation("ragnarok", "magic_golem"), "main");
+	public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(
+			ResourceLocation.fromNamespaceAndPath("ragnarok", "magic_golem"), "main");
 
 	private final ModelPart root;
 	private final ModelPart all;

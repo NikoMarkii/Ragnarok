@@ -8,7 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public class MagicGolemRenderer extends MobRenderer<Magic_Golem, magic_golem_model<Magic_Golem>> {
 
-    private static final ResourceLocation TEXTURE = new ResourceLocation("ragnarok", "textures/entity/magic_golem.png");
+    private static final ResourceLocation TEXTURE = ResourceLocation.fromNamespaceAndPath("ragnarok", "textures/entity/magic_golem.png");
 
     public MagicGolemRenderer(EntityRendererProvider.Context context) {
         super(context, new magic_golem_model<>(context.bakeLayer(magic_golem_model.LAYER_LOCATION)), 0.7F);

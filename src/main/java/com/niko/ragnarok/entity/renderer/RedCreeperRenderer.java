@@ -12,7 +12,7 @@ import net.minecraft.util.Mth;
 
 public class RedCreeperRenderer extends MobRenderer<RedCreeper,CreeperModel<RedCreeper>> {
     private static final ResourceLocation RED_CREEPER_LOCATION =
-            new ResourceLocation(Ragnarok.MOD_ID,"textures/entity/redcreeper.png");
+            ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID,"textures/entity/redcreeper.png");
     public RedCreeperRenderer(EntityRendererProvider.Context pcontext) {
         super(pcontext,
                 new CreeperModel <>(pcontext.bakeLayer(ModelLayers.CREEPER)), 0.5f);

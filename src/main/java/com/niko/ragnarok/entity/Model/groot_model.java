@@ -3,7 +3,7 @@ package com.niko.ragnarok.entity.Model;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.niko.ragnarok.entity.animation.GrootAnimation;
+import com.niko.ragnarok.entity.animations.GrootAnimation;
 import com.niko.ragnarok.entity.costom.Groot;
 import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -14,7 +14,8 @@ import net.minecraft.resources.ResourceLocation;
 
 public class groot_model<T extends Groot> extends HierarchicalModel<T> {
 	// This layer location should be baked with EntityRendererProvider.Context in the entity renderer and passed into this model's constructor
-	public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(new ResourceLocation("ragnarok", "groot"), "main");
+	public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(
+			ResourceLocation.fromNamespaceAndPath("ragnarok", "groot"), "main");
 
 	private final ModelPart root;
 	private final ModelPart all;

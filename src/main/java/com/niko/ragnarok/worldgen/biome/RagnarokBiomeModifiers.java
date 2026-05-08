@@ -53,6 +53,6 @@ public class RagnarokBiomeModifiers {
 
     private static ResourceKey<BiomeModifier> createKey(String name) {
         return ResourceKey.create(ForgeRegistries.Keys.BIOME_MODIFIERS,
-                new ResourceLocation(Ragnarok.MOD_ID, name));
+                ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, name));
     }
 }

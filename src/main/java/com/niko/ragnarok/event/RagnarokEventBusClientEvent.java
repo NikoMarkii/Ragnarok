@@ -7,7 +7,10 @@ import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.Model.scorpion_model;
 import com.niko.ragnarok.entity.Model.t_lex_model;
 import com.niko.ragnarok.entity.Model.magic_golem_model;
+import com.niko.ragnarok.entity.geckolib_entity.model.EnderSoldierModel;
+import com.niko.ragnarok.entity.geckolib_entity.renderer.EnderSoldierRenderer;
 import com.niko.ragnarok.entity.renderer.*;
+import net.minecraft.world.item.EnderpearlItem;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -23,6 +26,7 @@ public class RagnarokEventBusClientEvent {
         event.registerEntityRenderer(RagnarokEntities.GROOT.get(), GrootRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.MINI_GROOT.get(), MiniGrootRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.MAGIC_GOLEM.get(),MagicGolemRenderer::new);
+        event.registerEntityRenderer(RagnarokEntities.ENDER_SOLDIER.get(), EnderSoldierRenderer::new);
     }
 
     @SubscribeEvent

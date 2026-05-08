@@ -3,6 +3,7 @@ package com.niko.ragnarok.event;
 import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.costom.*;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Ender_Soldier;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -28,12 +29,17 @@ public class RagnarokEventBusEvent {
                 Mini_Groot.createAttributes().build());
         event.put(RagnarokEntities.MAGIC_GOLEM.get(),
                 Magic_Golem.createAttributes().build());
+        event.put(RagnarokEntities.ENDER_SOLDIER.get(),
+                Ender_Soldier.createAttributes().build());
     }
 
     @SubscribeEvent
     public static void registerSpawnPlacements(SpawnPlacementRegisterEvent event) {
       event.register(RagnarokEntities.RED_CREEPER.get(), SpawnPlacements.Type.ON_GROUND, Heightmap.Types.WORLD_SURFACE,
               Monster::checkMonsterSpawnRules, SpawnPlacementRegisterEvent.Operation.REPLACE);
+
+        event.register(RagnarokEntities.ENDER_SOLDIER.get(), SpawnPlacements.Type.ON_GROUND, Heightmap.Types.WORLD_SURFACE,
+                Monster::checkMonsterSpawnRules, SpawnPlacementRegisterEvent.Operation.REPLACE);
 
         event.register(RagnarokEntities.GROOT.get(),
                 SpawnPlacements.Type.ON_GROUND,

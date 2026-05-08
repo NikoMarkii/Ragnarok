@@ -12,7 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 public class TLexRenderer extends MobRenderer<TLex, t_lex_model<TLex>> {
 
     private static final ResourceLocation TLEX_LOCATION =
-            new ResourceLocation(Ragnarok.MOD_ID, "textures/entity/tlex_texture.png");
+            ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "textures/entity/tlex_texture.png");
 
     public TLexRenderer(EntityRendererProvider.Context pcontext) {
         super(pcontext, new t_lex_model<>(pcontext.bakeLayer(t_lex_model.LAYER_LOCATION)), 3f);

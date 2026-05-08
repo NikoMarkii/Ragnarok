@@ -2,6 +2,7 @@ package com.niko.ragnarok.entity;
 
 import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.costom.*;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Ender_Soldier;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -43,6 +44,12 @@ public class RagnarokEntities {
                     EntityType.Builder.of(Magic_Golem::new, MobCategory.MONSTER)
                             .sized(2F,2.0F)
                             .build("magic_golem")
+            );
+    public static final RegistryObject<EntityType<Ender_Soldier>> ENDER_SOLDIER =
+            ENTITY_TYPES.register("ender_soldier",() ->
+                    EntityType.Builder.of(Ender_Soldier::new,MobCategory.MONSTER)
+                            .sized(3F,4.5F)
+                            .build("ender_soldier")
             );
 
     public static void register(IEventBus eventBus) {

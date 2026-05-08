@@ -3,8 +3,7 @@ package com.niko.ragnarok.entity.Model;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.niko.ragnarok.Ragnarok;
-import com.niko.ragnarok.entity.animation.t_lex_animation;
+import com.niko.ragnarok.entity.animations.t_lex_animation;
 import com.niko.ragnarok.entity.costom.TLex;
 import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -17,7 +16,8 @@ import net.minecraft.world.entity.Entity;
 
 public class t_lex_model<T extends Entity> extends HierarchicalModel<T> {
 
-	public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(new ResourceLocation(Ragnarok.MOD_ID, "tlex_layer"), "main");
+	public static final ModelLayerLocation LAYER_LOCATION = new ModelLayerLocation(
+			ResourceLocation.fromNamespaceAndPath("ragnarok", "tlex_layer"), "main");
 	private final ModelPart all;
 	private final ModelPart leg2;
 	private final ModelPart leg2_r1;

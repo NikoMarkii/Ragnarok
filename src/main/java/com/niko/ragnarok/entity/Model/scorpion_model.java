@@ -3,8 +3,7 @@ package com.niko.ragnarok.entity.Model;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.niko.ragnarok.Ragnarok;
-import com.niko.ragnarok.entity.animation.scorpion_animation;
+import com.niko.ragnarok.entity.animations.scorpion_animation;
 import com.niko.ragnarok.entity.costom.Scorpion;
 import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -15,7 +14,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 public class scorpion_model<T extends Scorpion> extends HierarchicalModel<T> {
-	public static final ModelLayerLocation SCORPION_LAYER_LOCATION = new ModelLayerLocation(new ResourceLocation(Ragnarok.MOD_ID, "scorpion_layer"), "main");
+	public static final ModelLayerLocation SCORPION_LAYER_LOCATION = new ModelLayerLocation(
+			ResourceLocation.fromNamespaceAndPath("ragnarok", "scorpion"), "main");
 	private final ModelPart all;
 	private final ModelPart body;
 	private final ModelPart head;
