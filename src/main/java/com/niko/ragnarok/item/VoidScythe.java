@@ -1,9 +1,9 @@
-
 package com.niko.ragnarok.item;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
-import com.niko.ragnarok.effect.ModMobEffects;
+import com.niko.ragnarok.entity.Projectile.VoidSlashEntity;
+import com.niko.ragnarok.entity.RagnarokEntities;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -12,7 +12,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
-import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -29,27 +28,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-/**
- * ヴォイドサイズ - 虚無を刈り取る大鎌
- *
- * 特殊能力「死神の刻印」:
- * - 右クリックで視線上の敵にVoid Reaperエフェクトを付与
- * - 1秒間（20tick）継続ダメージを与える
- * - クールダウン: 6秒（120tick）
- *
- * Better Combat互換:
- * - 攻撃範囲: 4.5ブロック
- * - 攻撃角度: 120度の薙ぎ払い
- * - 攻撃速度倍率: 0.8（重量感のある振り）
- */
 public class VoidScythe extends TieredItem {
     private final Multimap<Attribute, AttributeModifier> defaultModifiers;
-
-    // 特殊技の設定
-    private static final double SPECIAL_RANGE = 8.0D; // 8ブロック先まで狙える
     private static final int SPECIAL_COOLDOWN = 120; // 6秒クールダウン
-    private static final int EFFECT_DURATION = 20; // 1秒間（20tick）
-    private static final int EFFECT_AMPLIFIER = 2; // エフェクトレベル3
 
     public VoidScythe(Properties properties) {
         super(Tiers.NETHERITE, properties);
@@ -63,6 +44,7 @@ public class VoidScythe extends TieredItem {
                 new AttributeModifier(BASE_ATTACK_SPEED_UUID, "Weapon modifier", -3.2D, AttributeModifier.Operation.ADDITION));
         this.defaultModifiers = builder.build();
     }
+
     @Override
     public boolean canAttackBlock(net.minecraft.world.level.block.state.BlockState state, Level level, net.minecraft.core.BlockPos pos, Player player) {
         return false;
@@ -70,20 +52,114 @@ public class VoidScythe extends TieredItem {
 
     @Override
     public float getDestroySpeed(ItemStack stack, net.minecraft.world.level.block.state.BlockState state) {
-        // クモの巣だけは剣と同じように即座に切り裂けるようにしておくのが「マイクラの武器」らしい振る舞いだね
+        // クモの巣だけは剣と同じように即座に切り裂ける
         if (state.is(net.minecraft.world.level.block.Blocks.COBWEB)) {
             return 15.0F;
         }
         return 0.1F;
     }
 
-    // 正しい道具（ツルハシや斧）として扱わせないようにする
+    @Override
+    public boolean hurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+        // ヒット時のパーティクル演出
+        if (!target.level().isClientSide && target.level() instanceof ServerLevel serverLevel) {
+            serverLevel.sendParticles(ParticleTypes.SOUL,
+                    target.getX(), target.getY() + 1.0D, target.getZ(),
+                    5, 0.3D, 0.5D, 0.3D, 0.02D);
+        }
+        stack.hurtAndBreak(1, attacker, entity -> entity.broadcastBreakEvent(EquipmentSlot.MAINHAND));
+        return true;
+    }
+
+    @Override
+    public boolean onEntitySwing(ItemStack stack, LivingEntity entity) {
+        return super.onEntitySwing(stack, entity);
+    }
+
+    // 特殊技（右クリック）：巨大斬撃を放つ
+    @Override
+    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+
+        if (player.getCooldowns().isOnCooldown(this)) {
+            return InteractionResultHolder.pass(stack);
+        }
+
+        // クライアント側：アニメーション開始
+        if (level.isClientSide) {
+            triggerBetterCombat(player);
+        } else {
+            // サーバー側：即座に出さず、アニメーションに合わせて遅らせる
+            // Better Combat の Scythe アニメーションなら 5～8 Tick (約0.25～0.4秒) 程度が目安だ
+            startDelayedShoot(level, player, 6); // 6 Tick 遅らせる
+            player.getCooldowns().addCooldown(this, SPECIAL_COOLDOWN);
+        }
+
+        return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+    }
+
+    private void startDelayedShoot(Level level, Player player, int delay) {
+        new Thread(() -> {
+            try {
+                // 1 Tick = 50ms なので、delay * 50 ミリ秒待機
+                Thread.sleep(delay * 50);
+
+                // サーバーのスレッドに戻して実行（安全のため）
+                if (level instanceof ServerLevel serverLevel) {
+                    serverLevel.getServer().execute(() -> {
+                        if (player.isAlive()) {
+                            shootSlash(serverLevel, player, true);
+                        }
+                    });
+                }
+            } catch (InterruptedException ignored) {}
+        }).start();
+    }
+
+    private void triggerBetterCombat(Player player) {
+        if (player.level().isClientSide) {
+            try {
+                Class<?> apiClass = Class.forName("net.bettercombat.api.client.BetterCombatClient");
+            } catch (Exception e) {
+                player.swing(InteractionHand.MAIN_HAND);
+            }
+            net.minecraft.client.Minecraft.getInstance().options.keyAttack.setDown(true);
+
+            new Thread(() -> {
+                try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+                net.minecraft.client.Minecraft.getInstance().options.keyAttack.setDown(false);
+            }).start();
+        }
+    }
+    private void shootSlash(Level level, Player player, boolean isBig) {
+        VoidSlashEntity slash = new VoidSlashEntity(RagnarokEntities.VOID_SLASH.get(), level);
+        slash.setOwner(player);
+        slash.setBig(true);
+
+        Vec3 lookAngle = player.getLookAngle();
+        Vec3 horizontalLook = new Vec3(lookAngle.x, 0, lookAngle.z).normalize();
+
+        // 修正：高さを player.getY() + 0.2D まで下げる（ほぼ足元）
+        // これで当たり判定（白い線）が地面スレスレを通るようになる
+        Vec3 spawnPos = player.position().add(0, 1D, 0).add(horizontalLook.scale(1.2D));
+
+        slash.setPos(spawnPos.x, spawnPos.y, spawnPos.z);
+        slash.shootFromRotation(player, 0.0F, player.getYRot(), 0.0F, 1.2F, 0.0F);
+
+        level.addFreshEntity(slash);
+
+        // 音の演出
+        level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.ENDER_DRAGON_SHOOT, SoundSource.PLAYERS, 1.0F, 0.6F);
+    }
+
+    // 正しい道具（ツルハシや斧）として扱わせない
     @Override
     public boolean isCorrectToolForDrops(net.minecraft.world.level.block.state.BlockState state) {
         return false;
     }
 
-    // 剣と同様、ブロックを壊した時の耐久度減少を大きくする（オプション）
+    // 剣と同様、ブロックを壊した時の耐久度減少を大きくする
     @Override
     public boolean mineBlock(ItemStack stack, net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state, net.minecraft.core.BlockPos pos, net.minecraft.world.entity.LivingEntity entity) {
         if (state.getDestroySpeed(level, pos) != 0.0F) {
@@ -94,133 +170,8 @@ public class VoidScythe extends TieredItem {
         return true;
     }
 
-    @Override
-    public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
-        ItemStack stack = player.getItemInHand(hand);
-
-        // クールダウン中なら何もしない
-        if (player.getCooldowns().isOnCooldown(this)) {
-            return InteractionResultHolder.pass(stack);
-        }
-
-        if (!level.isClientSide) {
-            // 視線上のターゲットを取得
-            LivingEntity target = getEntityLookAt(player, SPECIAL_RANGE);
-
-            if (target != null) {
-                // 死神の刻印を発動
-                activateReaperMark(level, player, target);
-
-                // クールダウン開始
-                player.getCooldowns().addCooldown(this, SPECIAL_COOLDOWN);
-
-                return InteractionResultHolder.success(stack);
-            } else {
-                // ターゲットが見つからない場合のフィードバック
-                player.displayClientMessage(
-                        Component.translatable("message.ragnarok.void_scythe.no_target")
-                                .withStyle(ChatFormatting.RED),
-                        true
-                );
-                return InteractionResultHolder.fail(stack);
-            }
-        }
-
-        return InteractionResultHolder.consume(stack);
-    }
-
     /**
-     * 死神の刻印を発動
-     */
-    private void activateReaperMark(Level level, Player player, LivingEntity target) {
-        // サーバー側の処理
-        if (level instanceof ServerLevel serverLevel) {
-            // 虚無のエフェクトを付与
-            target.addEffect(new MobEffectInstance(
-                    ModMobEffects.VOID_REAPER_EFFECT.get(),
-                    EFFECT_DURATION,
-                    EFFECT_AMPLIFIER,
-                    false,
-                    true,
-                    true
-            ));
-
-            // エフェクト音
-            level.playSound(null,
-                    target.getX(), target.getY(), target.getZ(),
-                    SoundEvents.ENDER_DRAGON_FLAP,
-                    SoundSource.PLAYERS,
-                    1.0F,
-                    1.8F
-            );
-
-            level.playSound(null,
-                    target.getX(), target.getY(), target.getZ(),
-                    SoundEvents.WITHER_HURT,
-                    SoundSource.PLAYERS,
-                    0.7F,
-                    0.5F
-            );
-
-            // プレイヤーへのフィードバック
-            player.displayClientMessage(
-                    Component.translatable("message.ragnarok.void_scythe.marked")
-                            .withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD),
-                    true
-            );
-
-            // パーティクルエフェクト
-            spawnReaperParticles(serverLevel, target);
-        }
-    }
-
-    /**
-     * 死神の刻印パーティクルを生成
-     */
-    private void spawnReaperParticles(ServerLevel level, LivingEntity target) {
-        Vec3 targetPos = target.position();
-
-        // 螺旋状のパーティクル
-        for (int i = 0; i < 30; i++) {
-            double angle = Math.toRadians(i * 12);
-            double height = i * 0.1D;
-            double radius = 1.5D - (i * 0.04D);
-
-            double x = targetPos.x + Math.cos(angle) * radius;
-            double y = targetPos.y + height;
-            double z = targetPos.z + Math.sin(angle) * radius;
-
-            level.sendParticles(
-                    ParticleTypes.WITCH,
-                    x, y, z,
-                    1,
-                    0, 0, 0,
-                    0.0D
-            );
-
-            level.sendParticles(
-                    ParticleTypes.SOUL,
-                    x, y, z,
-                    1,
-                    0, 0, 0,
-                    0.0D
-            );
-        }
-
-        // 中心の爆発エフェクト
-        level.sendParticles(
-                ParticleTypes.SOUL_FIRE_FLAME,
-                targetPos.x,
-                targetPos.y + 1.0D,
-                targetPos.z,
-                15,
-                0.5D, 0.5D, 0.5D,
-                0.05D
-        );
-    }
-
-    /**
-     * プレイヤーの視線上のエンティティを取得
+     * プレイヤーの視線上のエンティティを取得（将来的な拡張用に残す）
      */
     private LivingEntity getEntityLookAt(Player player, double range) {
         Vec3 eyePos = player.getEyePosition();
@@ -250,28 +201,6 @@ public class VoidScythe extends TieredItem {
         }
 
         return null;
-    }
-
-    @Override
-    public boolean hurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
-        // 通常攻撃時のエフェクト
-        if (!target.level().isClientSide && target.level() instanceof ServerLevel serverLevel) {
-            // 小規模なパーティクル
-            Vec3 targetPos = target.position();
-            serverLevel.sendParticles(
-                    ParticleTypes.SOUL,
-                    targetPos.x,
-                    targetPos.y + 1.0D,
-                    targetPos.z,
-                    5,
-                    0.3D, 0.5D, 0.3D,
-                    0.02D
-            );
-        }
-
-        stack.hurtAndBreak(1, attacker, entity ->
-                entity.broadcastBreakEvent(EquipmentSlot.MAINHAND));
-        return true;
     }
 
     @Override

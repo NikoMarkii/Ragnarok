@@ -4,6 +4,11 @@ import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.costom.Groot;
 import com.niko.ragnarok.entity.costom.Magic_Golem;
 import com.niko.ragnarok.item.ItemScorpionNecklace;
+import com.niko.ragnarok.item.VoidScythe;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
@@ -14,6 +19,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.raid.Raider;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
+import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -78,6 +85,26 @@ public class RagnarokEvent {
                     golem.moveTo(raider.getX(), raider.getY(), raider.getZ(), raider.getYRot(), 0.0F);
 
                     level.addFreshEntity(golem);
+                }
+            }
+        }
+    }
+    @SubscribeEvent
+    public static void onLeftClick(InputEvent.InteractionKeyMappingTriggered event) {
+        // 左クリック（攻撃キー）がトリガーされた時
+        if (event.isAttack()) {
+            Minecraft mc = Minecraft.getInstance();
+            LocalPlayer player = mc.player;
+
+            if (player != null && player.getMainHandItem().getItem() instanceof VoidScythe) {
+                // 視線の先が「空気（MISS）」であるか確認
+                if (mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.MISS) {
+
+                    // クライアントの接続ハンドラを通じてパケットを送信
+                    // player.connection (LocalPlayer内のフィールド) を使用
+                    if (player.connection != null) {
+                        player.connection.send(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
+                    }
                 }
             }
         }

@@ -1,0 +1,29 @@
+{
+  "display": {
+    "icon": {
+      "item": "ragnarok:naitomea_ingod"
+    },
+    "title": {
+      "translate": "advancements.ragnarok.root.title"
+    },
+    "description": {
+      "translate": "advancements.ragnarok.root.description"
+    },
+    "background": "minecraft:textures/block/end_stone.png",
+    "show_toast": false,
+    "announce_to_chat": false,
+    "visible": true
+  },
+  "criteria": {
+    "has_ingot": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["ragnarok:naitomea_ingod"]
+          }
+        ]
+      }
+    }
+  }
+}

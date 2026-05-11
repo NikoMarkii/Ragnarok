@@ -2,13 +2,20 @@ package com.niko.ragnarok.item;
 
 import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.RagnarokEntities;
+import com.niko.ragnarok.item.Armor.NaitomeaArmorItem;
+import com.niko.ragnarok.item.Armor.RagnarokArmorMaterials;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.*;
 import net.minecraftforge.common.ForgeSpawnEggItem;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import net.minecraft.network.chat.Component;
 
 import java.awt.*;
+import java.util.Arrays;
+import java.util.List;
 
 public class Ragnarok_mainItems {
 
@@ -67,6 +74,18 @@ public class Ragnarok_mainItems {
                     0x9932cc, // 模様の色
                     new Item.Properties()));
 
+    public static final RegistryObject<Item> NAITOMEA_HELMET = ITEMS.register("naitomea_helmet",
+            () -> new NaitomeaArmorItem(RagnarokArmorMaterials.NAITOMEA_ARMOR, ArmorItem.Type.HELMET, new Item.Properties()));
+
+    public static final RegistryObject<Item> NAITOMEA_CHESTPLATE = ITEMS.register("naitomea_chestplate",
+            () -> new NaitomeaArmorItem(RagnarokArmorMaterials.NAITOMEA_ARMOR, ArmorItem.Type.CHESTPLATE, new Item.Properties()));
+
+    public static final RegistryObject<Item> NAITOMEA_LEGGINGS = ITEMS.register("naitomea_leggings",
+            () -> new NaitomeaArmorItem(RagnarokArmorMaterials.NAITOMEA_ARMOR, ArmorItem.Type.LEGGINGS, new Item.Properties()));
+
+    public static final RegistryObject<Item> NAITOMEA_BOOTS = ITEMS.register("naitomea_boots",
+            () -> new NaitomeaArmorItem(RagnarokArmorMaterials.NAITOMEA_ARMOR, ArmorItem.Type.BOOTS, new Item.Properties()));
+
     public static final RegistryObject<Item> NAITOMEA_SWORD = ITEMS.register("naitomea_sword",
             () -> new SwordItem(RagnarokTooltiers.NAITOMEA_TOOL,4,-2.4F,new Item.Properties()));
     public static final RegistryObject<Item> NAITOMEA_PICKAXE = ITEMS.register("naitomea_pickaxe",
@@ -77,6 +96,25 @@ public class Ragnarok_mainItems {
             () -> new ShovelItem(RagnarokTooltiers.NAITOMEA_TOOL,1.5F,-3.0F,new Item.Properties()));
     public static final RegistryObject<Item> NAITOMEA_HOE = ITEMS.register("naitomea_hoe",
             () -> new HoeItem(RagnarokTooltiers.NAITOMEA_TOOL,-4,0.0F,new Item.Properties()));
+
+    public static final RegistryObject<Item> NIGHTNIUM_UPGRADE_SMITHING_TEMPLATE = ITEMS.register("nightnium_upgrade_smithing_template",
+            () -> new SmithingTemplateItem(
+                    // 1. Applies to (適用アイテムの種類)
+                    Component.translatable("item.ragnarok.smithing_template.nightnium_upgrade.applies_to").withStyle(ChatFormatting.BLUE),
+                    // 2. Ingredients (必要な素材の種類)
+                    Component.translatable("item.ragnarok.smithing_template.nightnium_upgrade.ingredients").withStyle(ChatFormatting.BLUE),
+                    // 3. Upgrade Title (メニュー上のタイトル: 例 "ナイトニウム強化")
+                    Component.translatable("upgrade.ragnarok.nightnium_upgrade").withStyle(ChatFormatting.GRAY),
+                    // 4. Base Slot Description (ベーススロットへの指示: 例 "ネザライト装備を入れてください")
+                    Component.translatable("item.ragnarok.smithing_template.nightnium_upgrade.base_slot_description"),
+                    // 5. Additions Slot Description (追加スロットへの指示: 例 "ナイトニウムインゴットを入れてください")
+                    Component.translatable("item.ragnarok.smithing_template.nightnium_upgrade.additions_slot_description"),
+                    // 6. Base Slot Icons (シルエットアイコン)
+                    Arrays.asList(ResourceLocation.fromNamespaceAndPath("minecraft", "item/empty_slot_sword")),
+                    // 7. Additions Slot Icons (素材のシルエットアイコン)
+                    Arrays.asList(ResourceLocation.fromNamespaceAndPath("minecraft", "item/empty_slot_ingot"))
+            )
+    );
 
     public static final RegistryObject<Item> VOID_SCYTHE = ITEMS.register("void_scythe",
             () -> new VoidScythe(new Item.Properties()

@@ -27,6 +27,10 @@ public class RagnarokModTabs {
                                 output.accept(Ragnarok_mainItems.NAITOMEA_AXE.get());
                                 output.accept(Ragnarok_mainItems.NAITOMEA_SHOVEL.get());
                                 output.accept(Ragnarok_mainItems.NAITOMEA_HOE.get());
+                                output.accept(Ragnarok_mainItems.NAITOMEA_HELMET.get());
+                                output.accept(Ragnarok_mainItems.NAITOMEA_CHESTPLATE.get());
+                                output.accept(Ragnarok_mainItems.NAITOMEA_LEGGINGS.get());
+                                output.accept(Ragnarok_mainItems.NAITOMEA_BOOTS.get());
                                 output.accept(Ragnarok_mainItems.SCORPION_NECKLACE.get());
                                 output.accept(Ragnarok_mainItems.NAITOMEA_INGOD.get());
                                 output.accept(RagnarokBlocks.NAITOMEA_BLOCK.get());
@@ -38,6 +42,7 @@ public class RagnarokModTabs {
                                 output.accept(Ragnarok_mainItems.GROOT_HARHT.get());
                                 output.accept(Ragnarok_mainItems.SCORPION_NEEDLE.get());
                                 output.accept(Ragnarok_mainItems.SCORPION_CELL.get());
+                                output.accept(Ragnarok_mainItems.NIGHTNIUM_UPGRADE_SMITHING_TEMPLATE.get());
                                 output.accept(Ragnarok_mainItems.ENDER_SOLDIER_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.T_LEX_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.GROOT_SPAWN_EGG.get());

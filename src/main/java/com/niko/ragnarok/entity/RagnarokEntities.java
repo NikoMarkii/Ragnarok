@@ -1,6 +1,7 @@
 package com.niko.ragnarok.entity;
 
 import com.niko.ragnarok.Ragnarok;
+import com.niko.ragnarok.entity.Projectile.VoidSlashEntity;
 import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Ender_Soldier;
 import net.minecraft.world.entity.EntityType;
@@ -52,6 +53,14 @@ public class RagnarokEntities {
                             .build("ender_soldier")
             );
 
+    public static final RegistryObject<EntityType<VoidSlashEntity>> VOID_SLASH =
+            ENTITY_TYPES.register("void_slash", () ->
+                    EntityType.Builder.<VoidSlashEntity>of(VoidSlashEntity::new, MobCategory.MISC) // 飛び道具は通常 MISC
+                            .sized(4F, 1F) // 当たり判定の大きさ。斬撃なら小さめでOK
+                            .clientTrackingRange(4) // どのくらいの距離から表示を開始するか
+                            .updateInterval(10) // 位置同期の頻度（小さいほど滑らか）
+                            .build("void_slash")
+            );
     public static void register(IEventBus eventBus) {
         ENTITY_TYPES.register(eventBus);
     }

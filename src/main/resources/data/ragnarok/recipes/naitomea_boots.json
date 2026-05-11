@@ -4,12 +4,12 @@
     "item": "ragnarok:nightnium_upgrade_smithing_template"
   },
   "base": {
-    "item": "minecraft:netherite_sword"
+    "item": "minecraft:netherite_boots"
   },
   "addition": {
     "item": "ragnarok:naitomea_ingod"
   },
   "result": {
-    "item": "ragnarok:naitomea_sword"
+    "item": "ragnarok:naitomea_boots"
   }
 }

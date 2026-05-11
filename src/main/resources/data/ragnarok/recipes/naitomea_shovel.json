@@ -1,21 +1,15 @@
 {
-  "type": "minecraft:crafting_shaped",
-  "category": "misc",
-  "key": {
-    "/": {
-      "item": "minecraft:netherite_shovel"
-    },
-    "S": {
-      "item": "ragnarok:naitomea_ingod"
-    }
+  "type": "minecraft:smithing_transform",
+  "template": {
+    "item": "ragnarok:nightnium_upgrade_smithing_template"
   },
-  "pattern": [
-    "   ",
-    " S ",
-    " / "
-  ],
+  "base": {
+    "item": "minecraft:netherite_shovel"
+  },
+  "addition": {
+    "item": "ragnarok:naitomea_ingod"
+  },
   "result": {
     "item": "ragnarok:naitomea_shovel"
-  },
-  "show_notification": true
+  }
 }
