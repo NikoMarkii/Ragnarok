@@ -1,9 +1,11 @@
 package com.niko.ragnarok.entity;
 
 import com.niko.ragnarok.Ragnarok;
+import com.niko.ragnarok.entity.Projectile.GlowingDustEntity;
 import com.niko.ragnarok.entity.Projectile.VoidSlashEntity;
 import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Ender_Soldier;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -52,6 +54,11 @@ public class RagnarokEntities {
                             .sized(3F,4.5F)
                             .build("ender_soldier")
             );
+    public static final RegistryObject<EntityType<Fairy>> FAIRY = ENTITY_TYPES.register("fairy",
+            () -> EntityType.Builder.of(Fairy::new, MobCategory.CREATURE)
+                    .sized(1F, 0.9F) // 小さなサイズ
+                    .clientTrackingRange(8)
+                    .build("fairy"));
 
     public static final RegistryObject<EntityType<VoidSlashEntity>> VOID_SLASH =
             ENTITY_TYPES.register("void_slash", () ->
@@ -60,6 +67,14 @@ public class RagnarokEntities {
                             .clientTrackingRange(4) // どのくらいの距離から表示を開始するか
                             .updateInterval(10) // 位置同期の頻度（小さいほど滑らか）
                             .build("void_slash")
+            );
+    public static final RegistryObject<EntityType<GlowingDustEntity>> GLOWING_DUST_PROJECTILE =
+            ENTITY_TYPES.register("glowing_dust_entity", () ->
+                    EntityType.Builder.<GlowingDustEntity>of(GlowingDustEntity::new, MobCategory.MISC) // 飛び道具は通常 MISC
+                            .sized(1F, 1F) // 当たり判定の大きさ。斬撃なら小さめでOK
+                            .clientTrackingRange(7) // どのくらいの距離から表示を開始するか
+                            .updateInterval(10) // 位置同期の頻度（小さいほど滑らか）
+                            .build("glowing_dust_entity")
             );
     public static void register(IEventBus eventBus) {
         ENTITY_TYPES.register(eventBus);

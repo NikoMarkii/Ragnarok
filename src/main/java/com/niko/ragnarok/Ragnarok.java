@@ -7,6 +7,7 @@ import com.niko.ragnarok.item.Ragnarok_mainItems;
 import com.niko.ragnarok.loot.RagnarokLootModifiers;
 import com.niko.ragnarok.regi.tab.RagnarokModTabs;
 import com.niko.ragnarok.sound.RagnarokSoundEvents;
+import com.niko.ragnarok.worldgen.biome.RagnarokBiomes;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;

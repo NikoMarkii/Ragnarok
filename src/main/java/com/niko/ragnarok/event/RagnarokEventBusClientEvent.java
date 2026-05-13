@@ -10,12 +10,14 @@ import com.niko.ragnarok.entity.Model.t_lex_model;
 import com.niko.ragnarok.entity.Model.magic_golem_model;
 import com.niko.ragnarok.entity.geckolib_entity.renderer.EnderSoldierRenderer;
 import com.niko.ragnarok.entity.Projectile.Renderer.VoidSlashRenderer;
+import com.niko.ragnarok.entity.geckolib_entity.renderer.FairyRenderer;
 import com.niko.ragnarok.entity.renderer.*;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 
 @Mod.EventBusSubscriber(modid = Ragnarok.MOD_ID,bus = Mod.EventBusSubscriber.Bus.MOD,value = Dist.CLIENT)
 public class RagnarokEventBusClientEvent {
@@ -28,7 +30,9 @@ public class RagnarokEventBusClientEvent {
         event.registerEntityRenderer(RagnarokEntities.MINI_GROOT.get(), MiniGrootRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.MAGIC_GOLEM.get(),MagicGolemRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.ENDER_SOLDIER.get(), EnderSoldierRenderer::new);
+        event.registerEntityRenderer(RagnarokEntities.FAIRY.get(), FairyRenderer::new);
         EntityRenderers.register(RagnarokEntities.VOID_SLASH.get(), VoidSlashRenderer::new);
+        event.registerEntityRenderer(RagnarokEntities.GLOWING_DUST_PROJECTILE.get(), ThrownItemRenderer::new);
     }
 
     @SubscribeEvent

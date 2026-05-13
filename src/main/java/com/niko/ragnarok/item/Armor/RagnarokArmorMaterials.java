@@ -4,6 +4,7 @@ import com.google.common.base.Supplier;
 import com.niko.ragnarok.item.Ragnarok_mainItems;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.util.LazyLoadedValue;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArmorMaterial;
@@ -12,7 +13,16 @@ import net.minecraft.world.item.crafting.Ingredient;
 public enum RagnarokArmorMaterials implements ArmorMaterial {
     NAITOMEA_ARMOR("naitomea", 40, new int[]{5, 8, 10, 5}, 25,
             SoundEvents.ARMOR_EQUIP_NETHERITE, 3.0F, 0.1F,
-            () -> Ingredient.of(Ragnarok_mainItems.NAITOMEA_INGOD.get()));
+            () -> Ingredient.of(Ragnarok_mainItems.NAITOMEA_INGOD.get())),
+    WOODEN_ARMOR("wooden",
+            5, // 耐久度倍率（皮が5、鉄が15程度なので、序盤用として設定）
+            new int[]{1, 2, 3, 1}, // 防御力（足、脚、胴、頭）計7ポイント
+            15, // エンチャント適性（木製ツールと同様に少し高め）
+            SoundEvents.ARMOR_EQUIP_GENERIC, // 装備音
+            0.0F, // タフネス
+            0.0F, // ノックバック耐性
+            // 全ての板材（Planksタグ）で修復可能にする
+            () -> Ingredient.of(ItemTags.PLANKS));
 
     private static final int[] HEALTH_PER_SLOT = new int[]{13, 15, 16, 11};
     private final String name;
@@ -75,3 +85,4 @@ public enum RagnarokArmorMaterials implements ArmorMaterial {
         return this.knockbackResistance;
     }
 }
+

@@ -38,6 +38,11 @@ public class Ragnarok_mainItems {
 
     public static final RegistryObject<Item> SCORPION_NECKLACE = ITEMS.register("scorpion_necklace",ItemScorpionNecklace::new);
 
+    public static final RegistryObject<Item> GLOWING_DUST = ITEMS.register("glowing_dust",
+            () -> new GlowingDustItem(new Item.Properties()
+                    .stacksTo(16) // 鱗粉だから16個くらいがちょうどいいかな
+                    .rarity(Rarity.RARE))); // レア度を上げると名前が青くなって特別感が出るよ
+
     public static final RegistryObject<Item> RED_CREEPER_SPAWN_EGG = ITEMS.register("red_creeper_spawn_egg",
             () -> new ForgeSpawnEggItem(RagnarokEntities.RED_CREEPER,
                     Color.RED.getRGB(),Color.BLACK.getRGB(),new Item.Properties()));
@@ -73,6 +78,24 @@ public class Ragnarok_mainItems {
                     0x000000, // エッグ本体の色
                     0x9932cc, // 模様の色
                     new Item.Properties()));
+
+    public static final RegistryObject<Item> FAIRY_SPAWN_EGG = ITEMS.register("fairy_spawn_egg",
+            () -> new ForgeSpawnEggItem(
+                    RagnarokEntities.FAIRY,
+                    0xE8B4F0, // 薄いピンク色（本体）
+                    0xFFD700, // 金色（スポット）
+                    new Item.Properties()
+            ));
+
+    public static final RegistryObject<Item> WOODEN_HELMET = ITEMS.register("wooden_helmet",
+            () -> new NaitomeaArmorItem(RagnarokArmorMaterials.WOODEN_ARMOR, ArmorItem.Type.HELMET, new Item.Properties()));
+
+    public static final RegistryObject<Item> WOODEN_CHESTPLATE = ITEMS.register("wooden_chestplate",
+            () -> new NaitomeaArmorItem(RagnarokArmorMaterials.WOODEN_ARMOR, ArmorItem.Type.CHESTPLATE, new Item.Properties()));
+    public static final RegistryObject<Item> WOODEN_LEGGINGS = ITEMS.register("wooden_leggings",
+            () -> new NaitomeaArmorItem(RagnarokArmorMaterials.WOODEN_ARMOR, ArmorItem.Type.LEGGINGS, new Item.Properties()));
+    public static final RegistryObject<Item> WOODEN_BOOTS = ITEMS.register("wooden_boots",
+            () -> new NaitomeaArmorItem(RagnarokArmorMaterials.WOODEN_ARMOR, ArmorItem.Type.BOOTS, new Item.Properties()));
 
     public static final RegistryObject<Item> NAITOMEA_HELMET = ITEMS.register("naitomea_helmet",
             () -> new NaitomeaArmorItem(RagnarokArmorMaterials.NAITOMEA_ARMOR, ArmorItem.Type.HELMET, new Item.Properties()));

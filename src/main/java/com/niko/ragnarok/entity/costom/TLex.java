@@ -12,6 +12,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -28,6 +29,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.Nullable;
@@ -252,6 +254,12 @@ public class TLex extends Animal {
                 volume,
                 pitch
         );
+    }
+    public static boolean checkAncientAnimalSpawnRules(EntityType<? extends Animal> entityType, LevelAccessor level, MobSpawnType spawnType, BlockPos pos, RandomSource random) {
+        // 地面が「水」ではないことを確認
+        boolean isNotWater = level.getFluidState(pos.below()).isEmpty();
+        // バニラの動物のスポーン条件（明るさや芝生など）も満たしているか確認
+        return isNotWater && Animal.checkAnimalSpawnRules(entityType, level, spawnType, pos, random);
     }
     @Nullable
     @Override

@@ -1,0 +1,17 @@
+{
+  "type": "forge:add_spawns",
+  "biomes": [
+    "minecraft:forest",
+    "minecraft:flower_forest",
+    "minecraft:dark_forest",
+    "minecraft:birch_forest",
+    "minecraft:old_growth_birch_forest",
+    "minecraft:cherry_grove"
+  ],
+  "spawners": {
+    "type": "ragnarok:fairy",
+    "maxCount": 6,
+    "minCount": 2,
+    "weight": 200
+  }
+}
