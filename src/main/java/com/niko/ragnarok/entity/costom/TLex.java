@@ -24,6 +24,7 @@ import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.Cow;
 import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.animal.Sheep;
+import net.minecraft.world.entity.animal.sniffer.Sniffer;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -208,6 +209,7 @@ public class TLex extends Animal {
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Cow.class, true));
         this.targetSelector.addGoal(4, new NearestAttackableTargetGoal<>(this, Villager.class, true));
         this.targetSelector.addGoal(5, new NearestAttackableTargetGoal<>(this, Sheep.class, true));
+        this.targetSelector.addGoal(4, new NearestAttackableTargetGoal<>(this, Sniffer.class, true));
         this.setMaxUpStep(1.5F);
     }
 

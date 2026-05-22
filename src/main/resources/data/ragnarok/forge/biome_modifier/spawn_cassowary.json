@@ -1,0 +1,14 @@
+{
+  "type": "forge:add_spawns",
+  "biomes": [
+    "minecraft:jungle",
+    "minecraft:sparse_jungle",
+    "minecraft:bamboo_jungle"
+  ],
+  "spawners": {
+    "type": "ragnarok:cassowary",
+    "maxCount": 3,
+    "minCount": 1,
+    "weight": 80
+  }
+}

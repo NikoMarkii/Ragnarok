@@ -3,6 +3,7 @@ package com.niko.ragnarok.event;
 import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.costom.*;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Cassowary;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Ender_Soldier;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy;
 import net.minecraft.world.entity.EntityType;
@@ -39,6 +40,8 @@ public class RagnarokEventBusEvent {
                 Ender_Soldier.createAttributes().build());
         event.put(RagnarokEntities.FAIRY.get(),
                 Fairy.createAttributes().build());
+        event.put(RagnarokEntities.CASSOWARY.get(),
+                Cassowary.createAttributes().build());
     }
 
     @SubscribeEvent
@@ -76,6 +79,12 @@ public class RagnarokEventBusEvent {
                             Mob.checkMobSpawnRules(entityType, level, spawnType, pos, random) &&
                             isBrightEnoughToSpawn(level, pos); // 明るさチェックを足すなら
                 },
+                SpawnPlacementRegisterEvent.Operation.REPLACE);
+
+        event.register(RagnarokEntities.CASSOWARY.get(),
+                SpawnPlacements.Type.ON_GROUND,
+                Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                Cassowary::checkCassowarySpawnRules,
                 SpawnPlacementRegisterEvent.Operation.REPLACE);
 
         // スニッファーの登録

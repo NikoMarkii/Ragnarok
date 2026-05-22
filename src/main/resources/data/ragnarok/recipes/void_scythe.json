@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "/": {
+      "item": "ragnarok:ender_soldier_claw"
+    },
+    "S": {
+      "item": "ragnarok:naitomea_ingod"
+    }
+  },
+  "pattern": [
+    "SS/",
+    " S ",
+    " S "
+  ],
+  "result": {
+    "item": "ragnarok:void_scythe"
+  },
+  "show_notification": true
+}

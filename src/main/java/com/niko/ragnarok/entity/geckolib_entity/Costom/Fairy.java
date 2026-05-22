@@ -165,6 +165,11 @@ public class Fairy extends PathfinderMob implements GeoEntity, FlyingAnimal, Mer
                 10, // 獲得経験値
                 0.05F // 価格倍率
         ));
+        this.offers.add(new MerchantOffer(
+                new ItemStack(Items.POPPY, 10),
+                new ItemStack(Items.DANDELION, 10),
+                new ItemStack(Ragnarok_mainItems.FLOWER_NECKLACE.get()),
+                3, 15, 0.05F));
     }
 
     @Override

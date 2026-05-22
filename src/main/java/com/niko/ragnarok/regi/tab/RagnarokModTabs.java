@@ -43,6 +43,7 @@ public class RagnarokModTabs {
                                 output.accept(RagnarokBlocks.NAITOMEA_ORE.get());
                                 output.accept(Ragnarok_mainItems.DRAGON_SCALE.get());
                                 output.accept(Ragnarok_mainItems.ENDER_SOLDIER_CLAW.get());
+                                output.accept(Ragnarok_mainItems.FLOWER_NECKLACE.get());
                                 output.accept(Ragnarok_mainItems.GLOWING_DUST.get());
                                 output.accept(Ragnarok_mainItems.GROOT_HARHT.get());
                                 output.accept(Ragnarok_mainItems.SCORPION_NEEDLE.get());
@@ -51,6 +52,7 @@ public class RagnarokModTabs {
                                 output.accept(Ragnarok_mainItems.ENDER_SOLDIER_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.T_LEX_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.FAIRY_SPAWN_EGG.get());
+                                output.accept(Ragnarok_mainItems.CASSOWARY_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.GROOT_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.MINI_GROOT_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.RED_CREEPER_SPAWN_EGG.get());

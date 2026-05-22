@@ -4,6 +4,7 @@ import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.Projectile.GlowingDustEntity;
 import com.niko.ragnarok.entity.Projectile.VoidSlashEntity;
 import com.niko.ragnarok.entity.costom.*;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Cassowary;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Ender_Soldier;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy;
 import net.minecraft.world.entity.EntityType;
@@ -59,6 +60,13 @@ public class RagnarokEntities {
                     .sized(1F, 0.9F) // 小さなサイズ
                     .clientTrackingRange(8)
                     .build("fairy"));
+
+    public static final RegistryObject<EntityType<Cassowary>> CASSOWARY =
+            ENTITY_TYPES.register("cassowary", () ->
+                    EntityType.Builder.of(Cassowary::new, MobCategory.CREATURE)
+                            .sized(1.2F, 2.1F)
+                            .clientTrackingRange(8)
+                            .build("cassowary"));
 
     public static final RegistryObject<EntityType<VoidSlashEntity>> VOID_SLASH =
             ENTITY_TYPES.register("void_slash", () ->

@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "ragnarok:item/nitenium_upgrade_template"
+    "layer0": "ragnarok:item/flower_necklace"
   }
 }

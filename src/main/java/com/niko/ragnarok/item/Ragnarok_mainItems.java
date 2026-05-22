@@ -43,6 +43,8 @@ public class Ragnarok_mainItems {
                     .stacksTo(16) // 鱗粉だから16個くらいがちょうどいいかな
                     .rarity(Rarity.RARE))); // レア度を上げると名前が青くなって特別感が出るよ
 
+    public static final RegistryObject<Item> FLOWER_NECKLACE = ITEMS.register("flower_necklace",() -> new FlowerNecklaceItem(new Item.Properties()));
+
     public static final RegistryObject<Item> RED_CREEPER_SPAWN_EGG = ITEMS.register("red_creeper_spawn_egg",
             () -> new ForgeSpawnEggItem(RagnarokEntities.RED_CREEPER,
                     Color.RED.getRGB(),Color.BLACK.getRGB(),new Item.Properties()));
@@ -84,6 +86,14 @@ public class Ragnarok_mainItems {
                     RagnarokEntities.FAIRY,
                     0xE8B4F0, // 薄いピンク色（本体）
                     0xFFD700, // 金色（スポット）
+                    new Item.Properties()
+            ));
+
+    public static final RegistryObject<Item> CASSOWARY_SPAWN_EGG = ITEMS.register("cassowary_spawn_egg",
+            () -> new ForgeSpawnEggItem(
+                    RagnarokEntities.CASSOWARY,
+                    0x1A1C24,
+                    0x2F7A9A,
                     new Item.Properties()
             ));
 
