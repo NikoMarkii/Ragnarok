@@ -26,6 +26,8 @@ build/
 run/
 run-data/
 logs/
+run
+
 
 # Files from Forge MDK
 forge*changelog.txt
