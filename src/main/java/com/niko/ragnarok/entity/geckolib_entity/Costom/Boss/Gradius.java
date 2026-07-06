@@ -93,6 +93,9 @@ public class Gradius extends Monster implements GeoEntity {
     private static final EntityDataAccessor<Boolean> IS_STANDBY_ENDING =
             SynchedEntityData.defineId(Gradius.class, EntityDataSerializers.BOOLEAN);
 
+    private static final EntityDataAccessor<Boolean> IS_PHASE2_COLOR =
+            SynchedEntityData.defineId(Gradius.class, EntityDataSerializers.BOOLEAN);
+
     // ──────────────────────────────────────────
     // 内部タイマー
     // ──────────────────────────────────────────
@@ -193,6 +196,7 @@ public class Gradius extends Monster implements GeoEntity {
         this.entityData.define(GUARD_PHASE, 0);
         this.entityData.define(IS_STANDBY, false);
         this.entityData.define(IS_STANDBY_ENDING, false);
+        this.entityData.define(IS_PHASE2_COLOR, false);
 
     }
 
@@ -224,6 +228,13 @@ public class Gradius extends Monster implements GeoEntity {
     }
     public void setPhase2(boolean value) {
         this.entityData.set(PHASE2, value);
+    }
+
+    public boolean isPhase2Color() {
+        return this.entityData.get(IS_PHASE2_COLOR);
+    }
+    private void setPhase2Color(boolean value) {
+        this.entityData.set(IS_PHASE2_COLOR, value);
     }
 
     // ──────────────────────────────────────────
@@ -269,9 +280,10 @@ public class Gradius extends Monster implements GeoEntity {
 
             this.setAttackState(0);
             this.setChargePhase(0);
-
-            this.bossEvent.setProgress(0.0F);
         }
+    }
+    public BossEvent.BossBarColor getBossBarColor() {
+        return this.bossEvent.getColor();
     }
 
     @Override
@@ -297,8 +309,11 @@ public class Gradius extends Monster implements GeoEntity {
         tag.putBoolean("StandbyEnding", this.standbyEnding);
         tag.putInt("StandbyEndTimer", this.standbyEndTimer);
         tag.putBoolean("Phase2", this.isPhase2());
-        tag.putBoolean("Awakening", this.awakening); // ← 追加
+        tag.putBoolean("Awakening", this.awakening);
         tag.putInt("AwakeningTimer", this.awakeningTimer);
+        tag.putBoolean("IsDying", this.isActuallyDying());
+        tag.putInt("CustomDeathTime", this.customDeathTime);
+        tag.putBoolean("Phase2Color", this.isPhase2Color());
     }
 
     @Override
@@ -315,18 +330,31 @@ public class Gradius extends Monster implements GeoEntity {
         }
         this.standbyEndTimer = tag.getInt("StandbyEndTimer");
 
-        // ── 追加：Phase2とAwakeningを復元 ──
         if (tag.contains("Phase2")) {
             boolean p2 = tag.getBoolean("Phase2");
             this.entityData.set(PHASE2, p2);
-            // ロード時にボスバーの色も復元
-            if (p2 && !this.level().isClientSide) {
+            // NBT読み込み時点でもbossEventに色を反映
+            // （startSeenByPlayerより前に呼ばれる場合の保険）
+            if (p2 && !this.level().isClientSide()) {
                 this.bossEvent.setColor(BossEvent.BossBarColor.BLUE);
             }
+        }
+        if (tag.contains("Phase2Color")) {
+            setPhase2Color(tag.getBoolean("Phase2Color"));
         }
         if (tag.contains("Awakening")) {
             this.awakening = tag.getBoolean("Awakening");
             this.awakeningTimer = tag.getInt("AwakeningTimer");
+        }
+        // ── 追加：死亡状態を復元 ──
+        if (tag.contains("IsDying")) {
+            boolean dying = tag.getBoolean("IsDying");
+            this.entityData.set(IS_DYING, dying);
+            if (dying) {
+                this.customDeathTime = tag.getInt("CustomDeathTime");
+                // 死亡中はボスバーを0に
+                this.bossEvent.setProgress(0.0F);
+            }
         }
     }
     public static Gradius createForDungeon(EntityType<? extends Monster> type, Level level) {
@@ -381,9 +409,8 @@ public class Gradius extends Monster implements GeoEntity {
 
             if (awakeningTimer == 25) {
                 doAwakeningBurst();
-                this.bossEvent.setColor(
-                        BossEvent.BossBarColor.BLUE
-                );
+                this.bossEvent.setColor(BossEvent.BossBarColor.BLUE);
+                setPhase2Color(true); // ← 追加（クライアントに25tick目で同期）
             }
 
             if (awakeningTimer >= 45) {
@@ -415,33 +442,27 @@ public class Gradius extends Monster implements GeoEntity {
         if (this.isActuallyDying()) {
             this.customDeathTime++;
 
-            // 死亡演出パーティクル
             if (!this.level().isClientSide && this.customDeathTime % 5 == 0) {
                 spawnDeathParticles();
             }
 
-
+            // ── 死亡中もボスバーのゲージを0のまま表示し続ける ──
+            if (!this.level().isClientSide) {
+                this.bossEvent.setProgress(0.0F);
+                // 色はそのまま保持（phase2ならBLUE）
+            }
 
             if (this.customDeathTime >= DEATH_DURATION && !this.level().isClientSide) {
-
-                // ── トレジャーバッグをドロップ ──
-                ItemStack bag = new ItemStack(
-                        Ragnarok_mainItems.GRADIUS_TREASURE_BAG.get());
-                bag.setHoverName(
-                        Component.literal("トレジャーバッグ(グラディウス)")
-                                .withStyle(ChatFormatting.GOLD));
+                ItemStack bag = new ItemStack(Ragnarok_mainItems.GRADIUS_TREASURE_BAG.get());
+                bag.setHoverName(Component.literal("トレジャーバッグ(グラディウス)")
+                        .withStyle(ChatFormatting.GOLD));
                 this.spawnAtLocation(bag);
 
-                // ── 経験値をドロップ ──
                 this.level().addFreshEntity(
                         new net.minecraft.world.entity.ExperienceOrb(
                                 (ServerLevel) this.level(),
-                                this.getX(),
-                                this.getY(),
-                                this.getZ(),
-                                this.xpReward   // コンストラクタで500に設定済み
-                        )
-                );
+                                this.getX(), this.getY(), this.getZ(),
+                                this.xpReward));
 
                 this.remove(RemovalReason.KILLED);
             }
@@ -549,9 +570,12 @@ public class Gradius extends Monster implements GeoEntity {
     // ボスバー：プレイヤー追加・削除
     // ──────────────────────────────────────────
     @Override
-    public void startSeenByPlayer(net.minecraft.server.level.ServerPlayer player) {
+    public void startSeenByPlayer(ServerPlayer player) {
         super.startSeenByPlayer(player);
         this.bossEvent.addPlayer(player);
+        if (this.isPhase2() || this.isPhase2Color()) {
+            this.bossEvent.setColor(BossEvent.BossBarColor.BLUE);
+        }
     }
 
     @Override
