@@ -23,10 +23,14 @@ build/
 
 # other
 .eclipse/
-run/
 run-data/
 logs/
-run
+run/
+runs/
+runData/
+runClient/
+runServer/
+
 
 
 # Files from Forge MDK
