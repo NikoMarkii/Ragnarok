@@ -1,21 +1,21 @@
 # eclipse
 bin/
-*.launch/
+*.launch
 .settings/
 .metadata/
 .classpath/
-.project/
+.project
 
 # idea
 out/
-*.ipr/
-*.iws/
-*.iml/
+*.ipr
+*.iws
+*.iml
 .idea/
 .vscode/
-*.classpath/
-*.project/
-*.factorypath/
+*.classpath
+*.project
+*.factorypath
 
 # gradle
 build/
