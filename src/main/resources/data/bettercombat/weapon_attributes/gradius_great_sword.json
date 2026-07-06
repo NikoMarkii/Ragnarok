@@ -1,0 +1,14 @@
+{
+  "item_id": "ragnarok:gradius_great_sword",
+  "attributes": {
+    "range": 3.4,
+    "angle": 100,
+    "speed_modifier": 0.75,
+    "anim_id": "bettercombat:claymore",
+    "two_handed": true,
+    "attack_damage": 9.0,
+    "knockback": 1.4,
+    "swing_sound": "minecraft:entity.player.attack.sweep",
+    "upswing_multiplier": 0.55
+  }
+}

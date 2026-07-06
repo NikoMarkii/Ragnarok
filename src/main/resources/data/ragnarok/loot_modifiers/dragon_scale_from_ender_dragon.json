@@ -1,0 +1,10 @@
+{
+  "type": "ragnarok:ender_dragon_items",
+  "conditions": [
+    {
+      "condition": "forge:loot_table_id",
+      "loot_table_id": "minecraft:entities/ender_dragon"
+    }
+  ],
+  "item": "ragnarok:dragon_scale"
+}

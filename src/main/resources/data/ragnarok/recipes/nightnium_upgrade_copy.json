@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "#": { "item": "minecraft:diamond" },
+    "T": { "item": "ragnarok:nightnium_upgrade_smithing_template" },
+    "B": { "item": "minecraft:obsidian" }
+  },
+  "pattern": [
+    "#T#",
+    "#B#",
+    "###"
+  ],
+  "result": {
+    "count": 2,
+    "item": "ragnarok:nightnium_upgrade_smithing_template"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "type": "forge:add_spawns",
+  "biomes": [
+    "minecraft:jungle",
+    "minecraft:savanna",
+    "minecraft:plains",
+    "minecraft:bamboo_jungle",
+    "minecraft:sparse_jungle",
+    "minecraft:desert"
+  ],
+  "spawners": {
+    "type": "ragnarok:scorpion",
+    "maxCount": 3,
+    "minCount": 1,
+    "weight": 25
+  }
+}

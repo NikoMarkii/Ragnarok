@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "/": {
+      "item": "ragnarok:dragon_scale"
+    },
+    "S": {
+      "item": "ragnarok:raw_naitomea"
+    }
+  },
+  "pattern": [
+    "SSS",
+    "S//",
+    "// "
+  ],
+  "result": {
+    "item": "ragnarok:naitomea_ingod"
+  },
+  "show_notification": true
+}

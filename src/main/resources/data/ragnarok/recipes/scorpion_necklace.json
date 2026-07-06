@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "/": {
+      "item": "minecraft:iron_nugget"
+    },
+    "S": {
+      "item": "ragnarok:scorpion_needle"
+    }
+  },
+  "pattern": [
+    "/ /",
+    "/ /",
+    " S "
+  ],
+  "result": {
+    "item": "ragnarok:scorpion_necklace"
+  },
+  "show_notification": true
+}

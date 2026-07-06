@@ -1,0 +1,34 @@
+{
+  "parent": "ragnarok:root",
+  "display": {
+    "icon": {
+      "item": "ragnarok:naitomea_chestplate"
+    },
+    "title": {
+      "translate": "advancements.ragnarok.full_naitomea.title"
+    },
+    "description": {
+      "translate": "advancements.ragnarok.full_naitomea.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "visible": true
+  },
+  "criteria": {
+    "has_full_set": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": ["ragnarok:naitomea_helmet"] },
+          { "items": ["ragnarok:naitomea_chestplate"] },
+          { "items": ["ragnarok:naitomea_leggings"] },
+          { "items": ["ragnarok:naitomea_boots"] }
+        ]
+      }
+    }
+  },
+  "rewards": {
+    "experience": 1000
+  }
+}
