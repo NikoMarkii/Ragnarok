@@ -45,6 +45,13 @@ public class GradiusBossBarOverlay {
     private static final int TEXTURE_WIDTH = 128;
     private static final int TEXTURE_HEIGHT = 128;
 
+    // ── 補間用の現在表示値を管理するマップ ──
+    private static final java.util.Map<Integer, Float> displayedHealth =
+            new java.util.HashMap<>();
+
+    // 補間速度（小さいほど滑らか・遅い、大きいほど速い）
+    private static final float LERP_SPEED = 0.30F;
+
     // render()を複数体対応に変更
     @SubscribeEvent
     public static void render(RenderGuiOverlayEvent.Post event) {
@@ -131,18 +138,36 @@ public class GradiusBossBarOverlay {
         int scaledFrameHeight = Math.round(FRAME_HEIGHT * BAR_SCALE);
         int x = (screenWidth - scaledFrameWidth) / 2;
 
-        int barSpacing = scaledFrameHeight + 5;
+        int barSpacing = scaledFrameHeight - 7;
         int y = -15 + index * barSpacing;
         int frameY = y + Math.round(14 * BAR_SCALE);
 
-        float healthProgress = Mth.clamp(gradius.getHealth() / gradius.getMaxHealth(), 0.0F, 1.0F);
+        float actualProgress = Mth.clamp(
+                gradius.getHealth() / gradius.getMaxHealth(), 0.0F, 1.0F);
+
+        // ── 補間処理 ──
+        int entityId = gradius.getId();
+        float current = displayedHealth.getOrDefault(entityId, actualProgress);
+
+        // 実際の体力に向けてLERP
+        current = Mth.lerp(LERP_SPEED, current, actualProgress);
+
+        // 十分近づいたらスナップ（ごく小さな差は無視）
+        if (Math.abs(current - actualProgress) < 0.001F) {
+            current = actualProgress;
+        }
+
+        // 死亡後は表示値を削除
+        if (gradius.isRemoved()) {
+            displayedHealth.remove(entityId);
+        } else {
+            displayedHealth.put(entityId, current);
+        }
 
         boolean phase2 = gradius.isPhase2Color();
-
-        int fillWidth = Mth.ceil(FILL_WIDTH * healthProgress);
+        int fillWidth = Mth.ceil(FILL_WIDTH * current); // actualProgressではなくcurrentを使用
         int fillV = phase2 ? BLUE_FILL_V : RED_FILL_V;
 
-        // 以下描画処理はそのまま
         guiGraphics.pose().pushPose();
         guiGraphics.pose().translate(x, y, 0.0F);
         guiGraphics.pose().scale(BAR_SCALE, BAR_SCALE, 1.0F);

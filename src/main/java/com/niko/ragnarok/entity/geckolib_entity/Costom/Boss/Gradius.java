@@ -1086,18 +1086,28 @@ public class Gradius extends Monster implements GeoEntity {
 
             // ── 行動選択 ──
             double distSq = this.mob.distanceToSqr(t);
-            if (distSq > 36 &&
-                    distSq < 144 &&
-                    this.mob.random.nextInt(6) == 0) {
-
-                startJumpSlam(t);
+            double chargeRangeSq = CHARGE_RANGE * CHARGE_RANGE; // 400
+            if (distSq > chargeRangeSq) {
+                if (this.mob.random.nextInt(4) == 0) {
+                    startJumpSlam(t);
+                } else {
+                    this.mob.getNavigation().moveTo(t, this.speed);
+                }
                 return;
             }
             // 突進判定：一定以上離れていて確率で突進
-            if (distSq > ATTACK_START_SQ * 2.5
-                    && distSq < CHARGE_RANGE * CHARGE_RANGE
-                    && this.mob.random.nextInt(5) == 0) {
-                startCharge(t);
+            if (distSq > ATTACK_START_SQ * ATTACK_START_SQ
+                    && distSq <= chargeRangeSq) {
+                if (this.mob.random.nextInt(8) == 0) {
+                    // 半々で突進かジャンプ切り
+                    if (this.mob.random.nextBoolean()) {
+                        startCharge(t);
+                    } else {
+                        startJumpSlam(t);
+                    }
+                    return;
+                }
+                this.mob.getNavigation().moveTo(t, this.speed);
                 return;
             }
 
@@ -1106,7 +1116,6 @@ public class Gradius extends Monster implements GeoEntity {
                 this.mob.getNavigation().stop();
                 startAttack();
             } else {
-                // 接近
                 this.mob.getNavigation().moveTo(t, this.speed);
             }
         }
@@ -1939,14 +1948,11 @@ public class Gradius extends Monster implements GeoEntity {
             this.mob.playSound(SoundEvents.RAVAGER_ROAR, 1.5F, 0.9F);
         }
         private void startJumpSlam(LivingEntity t) {
-
+            // ターゲットの現在位置を着地目標に設定
             this.jumpTarget = t.position();
-
             this.jumpSlamTimer = 0;
             this.slamDone = false;
-
             this.mob.setJumpSlamPhase(1);
-
             this.mob.getNavigation().stop();
         }
 
@@ -2058,40 +2064,43 @@ public class Gradius extends Monster implements GeoEntity {
                     0.8F);
         }
         private void doJumpSlam() {
+            // ── 基本ダメージ判定（全形態共通）──
+            AABB box = mob.getBoundingBox().inflate(5.0);
 
-            AABB box =
-                    this.mob.getBoundingBox()
-                            .inflate(5.0);
-
-            for (LivingEntity e :
-                    getHittableEntities(box)) {
-
+            for (LivingEntity e : getHittableEntities(box)) {
                 e.invulnerableTime = 0;
-
-                float dmg =
-                        (float)this.mob.getAttributeValue(
-                                Attributes.ATTACK_DAMAGE)
-                                * 1.3F;
+                float dmg = (float) mob.getAttributeValue(Attributes.ATTACK_DAMAGE) * 1.3F;
                 mob.breakShield(e, 100);
+                e.hurt(mob.damageSources().mobAttack(mob), dmg);
 
-                e.hurt(
-                        this.mob.damageSources()
-                                .mobAttack(this.mob),
-                        dmg);
-
-                Vec3 kb =
-                        e.position()
-                                .subtract(this.mob.position())
-                                .normalize()
-                                .scale(3);
-
-                e.setDeltaMovement(
-                        kb.x,
-                        0.8,
-                        kb.z);
+                Vec3 kb = e.position().subtract(mob.position()).normalize().scale(3.0);
+                e.setDeltaMovement(kb.x, 0.8, kb.z);
+                e.hurtMarked = true;
             }
 
+            // 着地衝撃波パーティクル（全形態共通）
             spawnExpandingShockwave();
+            mob.playSound(SoundEvents.GENERIC_EXPLODE, 2.5F, 0.5F);
+
+            // ── 第二形態：爆発＋火柱 ──
+            if (mob.isPhase2() && mob.level() instanceof ServerLevel sl) {
+
+                // 爆発エフェクト
+                sl.sendParticles(
+                        ParticleTypes.EXPLOSION_EMITTER,
+                        mob.getX(), mob.getY() + 0.5, mob.getZ(),
+                        3, 1.0, 0.5, 1.0, 0.1
+                );
+                sl.sendParticles(
+                        ParticleTypes.SOUL_FIRE_FLAME,
+                        mob.getX(), mob.getY() + 1.0, mob.getZ(),
+                        60, 2.0, 1.0, 2.0, 0.2
+                );
+
+                // 周囲にランダム火柱（即時〜遅延）
+                scheduleRandomFirePillars(0);  // 即時に6〜10本
+                scheduleRandomFirePillars(8);  // 8tick後にさらに追加
+            }
         }
         private void spawnExpandingShockwave() {
 
@@ -2151,63 +2160,73 @@ public class Gradius extends Monster implements GeoEntity {
             this.mob.setDeltaMovement(Vec3.ZERO);
             this.mob.setChargePhase(3);
         }
-        private void tickJumpSlam(
-                LivingEntity target,
-                int phase) {
-
+        private void tickJumpSlam(LivingEntity target, int phase) {
             jumpSlamTimer++;
 
             switch (phase) {
 
+                // phase1：予備動作（30tick）
                 case 1 -> {
-
                     if (jumpSlamTimer >= 30) {
-
                         jumpSlamTimer = 0;
 
-                        Vec3 dir =
-                                jumpTarget
-                                        .subtract(mob.position())
-                                        .normalize();
+                        // ターゲット位置へ向けて放物線を描くよう速度を計算
+                        Vec3 toTarget = jumpTarget.subtract(mob.position());
+                        double dist = Math.sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z);
 
+                        // 水平速度：距離に応じて調整（遠いほど速く）
+                        double hSpeed = Math.max(0.6, Math.min(dist / 15.0, 1.8));
+                        // 垂直速度：固定（放物線の頂点の高さを決める）
+                        double vSpeed = 0.9 + dist * 0.03;
+
+                        Vec3 dir = new Vec3(toTarget.x, 0, toTarget.z).normalize();
                         mob.setDeltaMovement(
-                                dir.x * 1.3,
-                                0.9,
-                                dir.z * 1.3);
+                                dir.x * hSpeed,
+                                vSpeed,
+                                dir.z * hSpeed
+                        );
 
                         mob.setJumpSlamPhase(2);
                     }
                 }
 
+                // phase2：飛行中（着地判定）
                 case 2 -> {
+                    // 重力を手動適用（放物線）
+                    Vec3 mv = mob.getDeltaMovement();
+                    mob.setDeltaMovement(mv.x, mv.y - 0.08, mv.z);
 
-                    if (jumpSlamTimer >= 15
-                            || mob.onGround()) {
+                    // 着地判定：地面に触れたか、jumpTargetに十分近づいたか
+                    boolean nearTarget = mob.position().distanceTo(jumpTarget) < 2.0
+                            && mob.getDeltaMovement().y < 0;
+                    boolean onGround = mob.onGround();
 
+                    if (nearTarget || onGround) {
                         jumpSlamTimer = 0;
-
+                        // 着地位置にスナップ（ずれ防止）
                         mob.setDeltaMovement(Vec3.ZERO);
+                        mob.setJumpSlamPhase(3);
+                    }
 
+                    // タイムアウト（40tick経過で強制着地）
+                    if (jumpSlamTimer >= 40) {
+                        jumpSlamTimer = 0;
+                        mob.setDeltaMovement(Vec3.ZERO);
                         mob.setJumpSlamPhase(3);
                     }
                 }
 
+                // phase3：着地と同時に判定発生
                 case 3 -> {
-
-                    if (jumpSlamTimer == 5
-                            && !slamDone) {
-
+                    // jumpSlamTimer==1（着地した瞬間）に即時判定
+                    if (jumpSlamTimer == 1 && !slamDone) {
                         slamDone = true;
-
                         doJumpSlam();
                     }
 
                     if (jumpSlamTimer >= 20) {
-
                         mob.setJumpSlamPhase(0);
-
                         jumpSlamTimer = 0;
-
                         cooldown = 40;
                     }
                 }
