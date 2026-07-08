@@ -1148,7 +1148,7 @@ public class Gradius extends Monster implements GeoEntity {
                     // 召喚：クールタイム中は別の攻撃に差し替え
                     if (summonCooldown <= 0) {
                         mob.setAttackState(4);
-                        summonCooldown = 1500; // 30秒クールタイム
+                        summonCooldown = 1500;
                     } else {
                         mob.setAttackState(3); // 踏みつけに差し替え
                     }
