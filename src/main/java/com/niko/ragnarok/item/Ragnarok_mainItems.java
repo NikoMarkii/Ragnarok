@@ -127,7 +127,7 @@ public class Ragnarok_mainItems {
                                     "gameplay/gradius_treasure_bag"
                             ),
                             new Item.Properties()
-                                    .stacksTo(1)
+                                    .stacksTo(64)
                     ));
 
     public static final RegistryObject<Item> WOODEN_HELMET = ITEMS.register("wooden_helmet",

@@ -979,6 +979,8 @@ public class Gradius extends Monster implements GeoEntity {
         private boolean fireballsSpawned = false;
         private boolean fireballsShot = false;
 
+        private int summonCooldown = 0;
+
         public GradiusAttackGoal(Gradius mob, double speed) {
             this.mob   = mob;
             this.speed = speed;
@@ -1019,6 +1021,9 @@ public class Gradius extends Monster implements GeoEntity {
         public void tick() {
             LivingEntity t = this.mob.getTarget();
             tickScheduledPillars();
+
+            // 召喚クールタイムを毎tick減らす
+            if (summonCooldown > 0) summonCooldown--;
 
             if (t == null || !t.isAlive()) {
 
@@ -1124,38 +1129,47 @@ public class Gradius extends Monster implements GeoEntity {
         // 攻撃選択（ランダム）
         // ──────────────────────────────────────
         private void startAttack() {
-
             int roll = this.mob.random.nextInt(100);
 
             if (mob.isPhase2()) {
-                // 第二形態の攻撃テーブル
                 if (roll < 15) {
-                    mob.setAttackState(6);       // 0〜14 (15%)
+                    mob.setAttackState(6);
                 } else if (roll < 30) {
-                    mob.setAttackState(7);       // 15〜29 (15%) 火球
+                    mob.setAttackState(7);
                 } else if (roll < 50) {
-                    mob.setAttackState(1);       // 30〜49 (20%)
+                    mob.setAttackState(1);
                 } else if (roll < 65) {
-                    mob.setAttackState(5);       // 50〜64 (15%)
+                    mob.setAttackState(5);
                 } else if (roll < 80) {
-                    mob.setAttackState(2);       // 65〜79 (15%)
-                } else if (roll < 92) {
-                    mob.setAttackState(3);       // 80〜91 (12%)
+                    mob.setAttackState(2);
+                } else if (roll < 94) {
+                    mob.setAttackState(3);
                 } else {
-                    mob.setAttackState(4);       // 92〜99 (8%) 召喚
+                    // 召喚：クールタイム中は別の攻撃に差し替え
+                    if (summonCooldown <= 0) {
+                        mob.setAttackState(4);
+                        summonCooldown = 1500; // 30秒クールタイム
+                    } else {
+                        mob.setAttackState(3); // 踏みつけに差し替え
+                    }
                 }
             } else {
-                // 第一形態の攻撃テーブル
                 if (roll < 25) {
                     mob.setAttackState(1);
                 } else if (roll < 45) {
                     mob.setAttackState(5);
                 } else if (roll < 70) {
                     mob.setAttackState(2);
-                } else if (roll < 90) {
+                } else if (roll < 88) {
                     mob.setAttackState(3);
                 } else {
-                    mob.setAttackState(4);
+                    // 召喚：クールタイム中は薙ぎ払いに差し替え
+                    if (summonCooldown <= 0) {
+                        mob.setAttackState(4);
+                        summonCooldown = 600;
+                    } else {
+                        mob.setAttackState(1);
+                    }
                 }
             }
 
@@ -2170,14 +2184,13 @@ public class Gradius extends Monster implements GeoEntity {
                     if (jumpSlamTimer >= 30) {
                         jumpSlamTimer = 0;
 
-                        // ターゲット位置へ向けて放物線を描くよう速度を計算
                         Vec3 toTarget = jumpTarget.subtract(mob.position());
                         double dist = Math.sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z);
 
-                        // 水平速度：距離に応じて調整（遠いほど速く）
-                        double hSpeed = Math.max(0.6, Math.min(dist / 15.0, 1.8));
-                        // 垂直速度：固定（放物線の頂点の高さを決める）
-                        double vSpeed = 0.9 + dist * 0.03;
+                        // 水平速度：20ブロック先まで届くよう上限を引き上げ
+                        double hSpeed = Math.max(0.6, Math.min(dist / 12.0, 2.5));
+                        // 垂直速度：遠いほど高く跳ぶ
+                        double vSpeed = 0.85 + dist * 0.04;
 
                         Vec3 dir = new Vec3(toTarget.x, 0, toTarget.z).normalize();
                         mob.setDeltaMovement(
@@ -2209,7 +2222,7 @@ public class Gradius extends Monster implements GeoEntity {
                     }
 
                     // タイムアウト（40tick経過で強制着地）
-                    if (jumpSlamTimer >= 40) {
+                    if (jumpSlamTimer >= 60) {
                         jumpSlamTimer = 0;
                         mob.setDeltaMovement(Vec3.ZERO);
                         mob.setJumpSlamPhase(3);
@@ -2218,8 +2231,7 @@ public class Gradius extends Monster implements GeoEntity {
 
                 // phase3：着地と同時に判定発生
                 case 3 -> {
-                    // jumpSlamTimer==1（着地した瞬間）に即時判定
-                    if (jumpSlamTimer == 1 && !slamDone) {
+                    if (jumpSlamTimer == 5 && !slamDone) {
                         slamDone = true;
                         doJumpSlam();
                     }
