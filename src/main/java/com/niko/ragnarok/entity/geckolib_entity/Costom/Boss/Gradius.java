@@ -65,12 +65,16 @@ public class Gradius extends Monster implements GeoEntity {
     // ──────────────────────────────────────────
     // データシンク
     // ──────────────────────────────────────────
-    /** 0=なし  1~3=通常攻撃  4=召喚  5=突進中  6=突進終了処理 */
+    /**
+     * 0=なし  1~3=通常攻撃  4=召喚  5=突進中  6=突進終了処理
+     */
     private static final EntityDataAccessor<Integer> ATTACK_STATE =
             SynchedEntityData.defineId(Gradius.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> IS_DYING =
             SynchedEntityData.defineId(Gradius.class, EntityDataSerializers.BOOLEAN);
-    /** charge フェーズ: 0=なし 1=start 2=loop 3=end */
+    /**
+     * charge フェーズ: 0=なし 1=start 2=loop 3=end
+     */
     private static final EntityDataAccessor<Integer> CHARGE_PHASE =
             SynchedEntityData.defineId(Gradius.class, EntityDataSerializers.INT);
 
@@ -138,6 +142,7 @@ public class Gradius extends Monster implements GeoEntity {
         this.standbyEnding = value;
         this.entityData.set(IS_STANDBY_ENDING, value);
     }
+
     // ──────────────────────────────────────────
     // ボスバー
     // ──────────────────────────────────────────
@@ -160,12 +165,12 @@ public class Gradius extends Monster implements GeoEntity {
     // ──────────────────────────────────────────
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH,         500.0D)
-                .add(Attributes.MOVEMENT_SPEED,       0.28D)
-                .add(Attributes.ATTACK_DAMAGE,         18.0D)
-                .add(Attributes.FOLLOW_RANGE,          48.0D)
-                .add(Attributes.ARMOR,                 15.0D)
-                .add(Attributes.KNOCKBACK_RESISTANCE,   1.0D); // 突進中に押されない
+                .add(Attributes.MAX_HEALTH, 500.0D)
+                .add(Attributes.MOVEMENT_SPEED, 0.28D)
+                .add(Attributes.ATTACK_DAMAGE, 18.0D)
+                .add(Attributes.FOLLOW_RANGE, 48.0D)
+                .add(Attributes.ARMOR, 15.0D)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D); // 突進中に押されない
     }
 
     // ──────────────────────────────────────────
@@ -188,9 +193,9 @@ public class Gradius extends Monster implements GeoEntity {
     @Override
     protected void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(ATTACK_STATE,  0);
-        this.entityData.define(IS_DYING,      false);
-        this.entityData.define(CHARGE_PHASE,  0);
+        this.entityData.define(ATTACK_STATE, 0);
+        this.entityData.define(IS_DYING, false);
+        this.entityData.define(CHARGE_PHASE, 0);
         this.entityData.define(PHASE2, false);
         this.entityData.define(JUMP_SLAM_PHASE, 0);
         this.entityData.define(GUARD_PHASE, 0);
@@ -203,12 +208,30 @@ public class Gradius extends Monster implements GeoEntity {
     // ──────────────────────────────────────────
     // ゲッター / セッター
     // ──────────────────────────────────────────
-    public int  getAttackState()  { return this.entityData.get(ATTACK_STATE);  }
-    public void setAttackState(int s) { this.entityData.set(ATTACK_STATE, s); }
-    public boolean isActuallyDying() { return this.entityData.get(IS_DYING); }
-    private void   setDying(boolean b) { this.entityData.set(IS_DYING, b);    }
-    public int  getChargePhase()   { return this.entityData.get(CHARGE_PHASE);  }
-    public void setChargePhase(int p) { this.entityData.set(CHARGE_PHASE, p); }
+    public int getAttackState() {
+        return this.entityData.get(ATTACK_STATE);
+    }
+
+    public void setAttackState(int s) {
+        this.entityData.set(ATTACK_STATE, s);
+    }
+
+    public boolean isActuallyDying() {
+        return this.entityData.get(IS_DYING);
+    }
+
+    private void setDying(boolean b) {
+        this.entityData.set(IS_DYING, b);
+    }
+
+    public int getChargePhase() {
+        return this.entityData.get(CHARGE_PHASE);
+    }
+
+    public void setChargePhase(int p) {
+        this.entityData.set(CHARGE_PHASE, p);
+    }
+
     public int getJumpSlamPhase() {
         return this.entityData.get(JUMP_SLAM_PHASE);
     }
@@ -216,6 +239,7 @@ public class Gradius extends Monster implements GeoEntity {
     public void setJumpSlamPhase(int phase) {
         this.entityData.set(JUMP_SLAM_PHASE, phase);
     }
+
     public int getGuardPhase() {
         return entityData.get(GUARD_PHASE);
     }
@@ -223,9 +247,11 @@ public class Gradius extends Monster implements GeoEntity {
     public void setGuardPhase(int phase) {
         entityData.set(GUARD_PHASE, phase);
     }
+
     public boolean isPhase2() {
         return this.entityData.get(PHASE2);
     }
+
     public void setPhase2(boolean value) {
         this.entityData.set(PHASE2, value);
     }
@@ -233,6 +259,7 @@ public class Gradius extends Monster implements GeoEntity {
     public boolean isPhase2Color() {
         return this.entityData.get(IS_PHASE2_COLOR);
     }
+
     private void setPhase2Color(boolean value) {
         this.entityData.set(IS_PHASE2_COLOR, value);
     }
@@ -244,18 +271,20 @@ public class Gradius extends Monster implements GeoEntity {
     protected void populateDefaultEquipmentSlots(
             net.minecraft.util.RandomSource random,
             net.minecraft.world.DifficultyInstance difficulty) {
-         this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Ragnarok_mainItems.GRADIUS_GREAT_SWORD.get()));
+        this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Ragnarok_mainItems.GRADIUS_GREAT_SWORD.get()));
         this.setDropChance(
                 EquipmentSlot.MAINHAND,
                 0.0F
         );
     }
+
     @Override
     public boolean canBeAffected(net.minecraft.world.effect.MobEffectInstance effectInstance) {
         // 有益なエフェクト（カテゴリがBENEFICIAL）のみ受け付ける
         return effectInstance.getEffect().getCategory()
                 == net.minecraft.world.effect.MobEffectCategory.BENEFICIAL;
     }
+
     // ──────────────────────────────────────────
     // 死亡処理（カスタム：アニメーションが終わってから消滅）
     // ──────────────────────────────────────────
@@ -282,6 +311,7 @@ public class Gradius extends Monster implements GeoEntity {
             this.setChargePhase(0);
         }
     }
+
     public BossEvent.BossBarColor getBossBarColor() {
         return this.bossEvent.getColor();
     }
@@ -295,13 +325,19 @@ public class Gradius extends Monster implements GeoEntity {
     }
 
     @Override
-    public boolean shouldDropExperience() { return !this.isBaby(); }
+    public boolean shouldDropExperience() {
+        return !this.isBaby();
+    }
 
-    public boolean isStandby() { return this.entityData.get(IS_STANDBY); }
+    public boolean isStandby() {
+        return this.entityData.get(IS_STANDBY);
+    }
+
     public void setStandby(boolean value) {
         this.entityData.set(IS_STANDBY, value);
         this.standby = value;
     }
+
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
@@ -357,6 +393,7 @@ public class Gradius extends Monster implements GeoEntity {
             }
         }
     }
+
     public static Gradius createForDungeon(EntityType<? extends Monster> type, Level level) {
         Gradius gradius = new Gradius(type, level);
         gradius.setStandby(true);
@@ -474,6 +511,7 @@ public class Gradius extends Monster implements GeoEntity {
             this.bossEvent.setProgress(this.getHealth() / this.getMaxHealth());
         }
     }
+
     private void tickStandby() {
         this.getNavigation().stop();
         this.setDeltaMovement(Vec3.ZERO);
@@ -554,6 +592,7 @@ public class Gradius extends Monster implements GeoEntity {
                 5, 1.0, 0.5, 1.0, 0.1
         );
     }
+
     private void wakeUpFromStandby(LivingEntity target) {
         this.standby = false;
         this.entityData.set(IS_STANDBY, false);
@@ -638,6 +677,7 @@ public class Gradius extends Monster implements GeoEntity {
 
         return super.hurt(source, amount);
     }
+
     private void startGuard() {
 
         this.guardTimer = 0;
@@ -657,12 +697,14 @@ public class Gradius extends Monster implements GeoEntity {
         this.getNavigation().stop();
         this.setDeltaMovement(Vec3.ZERO);
     }
+
     private boolean isBusy() {
         return getAttackState() > 0
                 || getChargePhase() > 0
                 || getJumpSlamPhase() > 0
                 || awakening;
     }
+
     private void breakShield(LivingEntity e, int cooldown) {
         if (!(e instanceof Player player)) return;
 
@@ -672,10 +714,12 @@ public class Gradius extends Monster implements GeoEntity {
         player.getCooldowns().addCooldown(Items.SHIELD, cooldown);
         player.disableShield(true);
     }
+
     @Override
     public boolean fireImmune() {
         return true;
     }
+
     @Override
     public boolean isImmobile() {
         // 通常の不動条件（死亡時など）か、あるいは「待機状態」であるなら、完全に体を固定する
@@ -686,18 +730,29 @@ public class Gradius extends Monster implements GeoEntity {
     // サウンド
     // ──────────────────────────────────────────
     @Override
-    protected SoundEvent getAmbientSound() { return SoundEvents.WITHER_SKELETON_AMBIENT;      }
+    protected SoundEvent getAmbientSound() {
+        return SoundEvents.WITHER_SKELETON_AMBIENT;
+    }
+
     @Override
-    protected SoundEvent getHurtSound(DamageSource s) { return SoundEvents.WITHER_SKELETON_HURT; }
+    protected SoundEvent getHurtSound(DamageSource s) {
+        return SoundEvents.WITHER_SKELETON_HURT;
+    }
+
     @Override
     protected void playStepSound(BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
         this.playSound(SoundEvents.WITHER_SKELETON_STEP, 1.0F, 1.0F);
     }
-    @Override
-    protected SoundEvent getDeathSound() { return SoundEvents.WITHER_DEATH; }
-    @Override
-    public boolean causeFallDamage(float d, float m, DamageSource s) { return false; }
 
+    @Override
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.WITHER_DEATH;
+    }
+
+    @Override
+    public boolean causeFallDamage(float d, float m, DamageSource s) {
+        return false;
+    }
 
 
     // ──────────────────────────────────────────
@@ -852,7 +907,9 @@ public class Gradius extends Monster implements GeoEntity {
     }
 
     @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() { return this.cache; }
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return this.cache;
+    }
 
     // ──────────────────────────────────────────
     // パーティクルユーティリティ
@@ -868,6 +925,7 @@ public class Gradius extends Monster implements GeoEntity {
             }
         }
     }
+
     private void doAwakeningBurst() {
 
         if (!(this.level() instanceof ServerLevel sl))
@@ -921,17 +979,17 @@ public class Gradius extends Monster implements GeoEntity {
         private LivingEntity target;
 
         // ── タイマー ──
-        private int attackTimer   = 0;
-        private int cooldown      = 0;
-        private int chargeTimer   = 0;
+        private int attackTimer = 0;
+        private int cooldown = 0;
+        private int chargeTimer = 0;
 
 
         // ── 突進 ──
-        private Vec3  chargeVec       = Vec3.ZERO;
-        private int   chargeStartDuration = 22; // charge_startアニメの長さ(tick)
-        private boolean chargingActive   = false;
-        private static final double CHARGE_SPEED   = 1.5D;
-        private static final double CHARGE_RANGE   = 20.0D; // 突進を使う最大距離
+        private Vec3 chargeVec = Vec3.ZERO;
+        private int chargeStartDuration = 22; // charge_startアニメの長さ(tick)
+        private boolean chargingActive = false;
+        private static final double CHARGE_SPEED = 1.5D;
+        private static final double CHARGE_RANGE = 20.0D; // 突進を使う最大距離
         private int jumpSlamTimer = 0;
         private boolean slamDone = false;
         private boolean forceFinishAttack = false;
@@ -982,7 +1040,7 @@ public class Gradius extends Monster implements GeoEntity {
         private int summonCooldown = 0;
 
         public GradiusAttackGoal(Gradius mob, double speed) {
-            this.mob   = mob;
+            this.mob = mob;
             this.speed = speed;
             this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
         }
@@ -1000,9 +1058,9 @@ public class Gradius extends Monster implements GeoEntity {
 
         @Override
         public void start() {
-            this.target      = this.mob.getTarget();
+            this.target = this.mob.getTarget();
             this.attackTimer = 0;
-            this.cooldown    = 0;
+            this.cooldown = 0;
         }
 
         @Override
@@ -1014,7 +1072,9 @@ public class Gradius extends Monster implements GeoEntity {
         }
 
         @Override
-        public boolean requiresUpdateEveryTick() { return true; }
+        public boolean requiresUpdateEveryTick() {
+            return true;
+        }
 
         // ── メインtick ──
         @Override
@@ -1358,6 +1418,7 @@ public class Gradius extends Monster implements GeoEntity {
                 }
             }
         }
+
         private void createFireballs() {
 
             preparedFireballs.clear();
@@ -1404,6 +1465,7 @@ public class Gradius extends Monster implements GeoEntity {
                     0.5F
             );
         }
+
         private void launchFireballs(
                 LivingEntity target) {
 
@@ -1443,7 +1505,7 @@ public class Gradius extends Monster implements GeoEntity {
         private void doSwipe(LivingEntity primary) {
             // 前方扇形(±60度)の全エンティティをヒット
             Vec3 look = this.mob.getLookAngle();
-            AABB box  = this.mob.getBoundingBox()
+            AABB box = this.mob.getBoundingBox()
                     .move(look.x * 3, 0, look.z * 3)
                     .inflate(4.0, 2.0, 4.0);
 
@@ -1461,6 +1523,7 @@ public class Gradius extends Monster implements GeoEntity {
             this.mob.playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 1.5F, 0.8F);
             spawnSlashParticles(look);
         }
+
         private void doReverseSwipe() {
 
             Vec3 look = this.mob.getLookAngle();
@@ -1474,7 +1537,7 @@ public class Gradius extends Monster implements GeoEntity {
                 e.invulnerableTime = 0;
 
                 float dmg =
-                        (float)this.mob.getAttributeValue(
+                        (float) this.mob.getAttributeValue(
                                 Attributes.ATTACK_DAMAGE);
 
                 e.hurt(
@@ -1499,6 +1562,7 @@ public class Gradius extends Monster implements GeoEntity {
 
             spawnReverseSlashParticles();
         }
+
         private void spawnReverseSlashParticles() {
 
             if (!(this.mob.level() instanceof ServerLevel sl))
@@ -1522,6 +1586,7 @@ public class Gradius extends Monster implements GeoEntity {
                 );
             }
         }
+
         private void spawnFireRings() {
 
             int delay = 0;
@@ -1530,7 +1595,7 @@ public class Gradius extends Monster implements GeoEntity {
                  radius <= 9;
                  radius++) {
 
-                int pillars = (int)(radius * 2);
+                int pillars = (int) (radius * 2);
 
                 for (int i = 0;
                      i < pillars;
@@ -1562,6 +1627,7 @@ public class Gradius extends Monster implements GeoEntity {
                 delay += 4;
             }
         }
+
         private void doFirePillarAttack(LivingEntity target) {
             System.out.println("attackTimer = " + attackTimer);
             this.mob.getNavigation().stop();
@@ -1584,6 +1650,7 @@ public class Gradius extends Monster implements GeoEntity {
                 finishAttack(40);
             }
         }
+
         private void spawnFirePillarLines(
                 LivingEntity target) {
 
@@ -1626,6 +1693,7 @@ public class Gradius extends Monster implements GeoEntity {
                 }
             }
         }
+
         private void tickScheduledPillars() {
 
             Iterator<ScheduledFirePillar> it =
@@ -1649,6 +1717,7 @@ public class Gradius extends Monster implements GeoEntity {
                 }
             }
         }
+
         private void spawnSingleFirePillar(
                 double x,
                 double z) {
@@ -1741,7 +1810,9 @@ public class Gradius extends Monster implements GeoEntity {
             for (LivingEntity e : mob.level().getEntitiesOfClass(
                     LivingEntity.class,
                     hitBox,
-                    ent -> ent != mob && ent.isAlive()
+                    ent -> ent != mob
+                            && ent.isAlive()
+                            && isHostileToGradius(ent)
             )) {
 
                 e.invulnerableTime = 0;
@@ -1772,6 +1843,7 @@ public class Gradius extends Monster implements GeoEntity {
                     0.7F
             );
         }
+
         private static class ScheduledFirePillar {
 
             int remainingTicks;
@@ -1788,12 +1860,13 @@ public class Gradius extends Monster implements GeoEntity {
                 this.z = z;
             }
         }
+
         private void scheduleRandomFirePillars(int delayTicks) {
             int count = 6 + mob.random.nextInt(5); // 6〜10本
 
             for (int i = 0; i < count; i++) {
                 double angle = mob.random.nextDouble() * Math.PI * 2;
-                double dist  = 3.0 + mob.random.nextDouble() * 7.0; // 半径3〜10ブロック
+                double dist = 3.0 + mob.random.nextDouble() * 7.0; // 半径3〜10ブロック
 
                 scheduledPillars.add(new ScheduledFirePillar(
                         delayTicks,
@@ -1802,6 +1875,7 @@ public class Gradius extends Monster implements GeoEntity {
                 ));
             }
         }
+
         private void moveTowardTarget(LivingEntity target, double speed) {
 
             Vec3 dir = target.position()
@@ -1910,28 +1984,36 @@ public class Gradius extends Monster implements GeoEntity {
         private void doSummon() {
             if (this.mob.level().isClientSide) return;
 
-            int count = 4 + this.mob.random.nextInt(3); // 4～6体
+            int count = 4 + this.mob.random.nextInt(3);
             double radius = 5.0;
+
+            // グラディウスのターゲットを取得
+            LivingEntity gradiusTarget = this.mob.getTarget();
 
             for (int i = 0; i < count; i++) {
                 double angle = (Math.PI * 2 / count) * i;
-                double sx    = this.mob.getX() + Math.cos(angle) * radius;
-                double sz    = this.mob.getZ() + Math.sin(angle) * radius;
+                double sx = this.mob.getX() + Math.cos(angle) * radius;
+                double sz = this.mob.getZ() + Math.sin(angle) * radius;
 
-                // 着地できる高さを探す
                 BlockPos spawnPos = new BlockPos((int) sx, (int) this.mob.getY(), (int) sz);
                 while (!this.mob.level().getBlockState(spawnPos).isAir()
                         && spawnPos.getY() < this.mob.level().getMaxBuildHeight()) {
                     spawnPos = spawnPos.above();
                 }
 
-                GhostKnightEntity ghostKnight = new GhostKnightEntity(RagnarokEntities.GHOST_KNIGHT.get(), this.mob.level());
-                ghostKnight.moveTo(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
-                        this.mob.random.nextFloat() * 360F, 0F);
+                GhostKnightEntity ghostKnight = new GhostKnightEntity(
+                        RagnarokEntities.GHOST_KNIGHT.get(), this.mob.level());
+                ghostKnight.moveTo(spawnPos.getX() + 0.5, spawnPos.getY(),
+                        spawnPos.getZ() + 0.5, this.mob.random.nextFloat() * 360F, 0F);
                 ghostKnight.finalizeSpawn((ServerLevel) this.mob.level(),
                         this.mob.level().getCurrentDifficultyAt(spawnPos),
                         MobSpawnType.MOB_SUMMONED, null, null);
                 this.mob.level().addFreshEntity(ghostKnight);
+
+                // ── スポーン直後にターゲットをセット ──
+                if (gradiusTarget != null) {
+                    ghostKnight.setTarget(gradiusTarget);
+                }
             }
 
             this.mob.playSound(SoundEvents.WITHER_SPAWN, 1.5F, 1.2F);
@@ -1954,13 +2036,14 @@ public class Gradius extends Monster implements GeoEntity {
         // ──────────────────────────────────────
         private void startCharge(LivingEntity t) {
             Vec3 dir = t.position().subtract(this.mob.position()).normalize();
-            this.chargeVec    = dir;
+            this.chargeVec = dir;
             this.chargingActive = false;
-            this.chargeTimer  = 0;
+            this.chargeTimer = 0;
             this.mob.setChargePhase(1); // charge_start
             this.mob.getNavigation().stop();
             this.mob.playSound(SoundEvents.RAVAGER_ROAR, 1.5F, 0.9F);
         }
+
         private void startJumpSlam(LivingEntity t) {
             // ターゲットの現在位置を着地目標に設定
             this.jumpTarget = t.position();
@@ -2044,6 +2127,7 @@ public class Gradius extends Monster implements GeoEntity {
                 }
             }
         }
+
         private void doChargeSlash() {
 
             AABB box = this.mob.getBoundingBox()
@@ -2054,7 +2138,7 @@ public class Gradius extends Monster implements GeoEntity {
                 e.invulnerableTime = 0;
 
                 float dmg =
-                        (float)this.mob.getAttributeValue(
+                        (float) this.mob.getAttributeValue(
                                 Attributes.ATTACK_DAMAGE) * 1.2F;
                 mob.breakShield(e, 100);
 
@@ -2077,6 +2161,7 @@ public class Gradius extends Monster implements GeoEntity {
                     2.0F,
                     0.8F);
         }
+
         private void doJumpSlam() {
             // ── 基本ダメージ判定（全形態共通）──
             AABB box = mob.getBoundingBox().inflate(5.0);
@@ -2116,6 +2201,7 @@ public class Gradius extends Monster implements GeoEntity {
                 scheduleRandomFirePillars(8);  // 8tick後にさらに追加
             }
         }
+
         private void spawnExpandingShockwave() {
 
             if (!(this.mob.level() instanceof ServerLevel sl))
@@ -2161,19 +2247,23 @@ public class Gradius extends Monster implements GeoEntity {
                         }));
             }
         }
+
         private void onChargeHit() {
             this.chargeEndYaw = this.mob.getYRot();
 
             endCharge();
         }
 
-        /** 突進終了 */
+        /**
+         * 突進終了
+         */
         private void endCharge() {
             this.chargeTimer = 0;
             this.chargeAttackDone = false;
             this.mob.setDeltaMovement(Vec3.ZERO);
             this.mob.setChargePhase(3);
         }
+
         private void tickJumpSlam(LivingEntity target, int phase) {
             jumpSlamTimer++;
 
@@ -2244,6 +2334,7 @@ public class Gradius extends Monster implements GeoEntity {
                 }
             }
         }
+
         private void tickGuard() {
 
             guardTimer++;
@@ -2287,7 +2378,7 @@ public class Gradius extends Monster implements GeoEntity {
         // ──────────────────────────────────────
         private void finishAttack(int cd) {
             this.attackTimer = 0;
-            this.cooldown    = cd;
+            this.cooldown = cd;
             this.mob.setAttackState(0);
             this.mob.setDeltaMovement(Vec3.ZERO);
         }
@@ -2297,10 +2388,9 @@ public class Gradius extends Monster implements GeoEntity {
         // ──────────────────────────────────────
         private List<LivingEntity> getHittableEntities(AABB box) {
             return this.mob.level().getEntitiesOfClass(LivingEntity.class, box,
-                    e -> e != this.mob                    // 自身は除外
-                            && e.isAlive()                // 生存している
-                            && !(e instanceof Gradius)    // グラディウスは除外
-                            && !(e instanceof GhostKnightEntity) // ★ 亡霊騎士を除外 ★
+                    e -> e != this.mob
+                            && e.isAlive()
+                            && isHostileToGradius(e)  // ← 変更
             );
         }
 
@@ -2318,6 +2408,7 @@ public class Gradius extends Monster implements GeoEntity {
                 );
             }
         }
+
         private void spawnSlashParticles(Vec3 look) {
             if (!(this.mob.level() instanceof ServerLevel sl)) return;
             for (int i = 0; i < 20; i++) {
@@ -2350,6 +2441,15 @@ public class Gradius extends Monster implements GeoEntity {
                         center.z + Math.sin(angle) * (radius * 0.6),
                         2, 0.2, 0.1, 0.2, 0.02);
             }
+        }
+        // グラディウスに敵対しているかを判定
+        private boolean isHostileToGradius(LivingEntity entity) {
+            if (entity instanceof Player) return true; // プレイヤーは常に対象
+            if (entity instanceof net.minecraft.world.entity.Mob mob) {
+                // このモブのターゲットがグラディウスなら敵対している
+                return mob.getTarget() == this.mob;
+            }
+            return false;
         }
     }
 }
