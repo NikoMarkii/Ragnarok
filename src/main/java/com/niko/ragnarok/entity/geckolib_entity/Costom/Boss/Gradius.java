@@ -2278,7 +2278,7 @@ public class Gradius extends Monster implements GeoEntity {
                         double dist = Math.sqrt(toTarget.x * toTarget.x + toTarget.z * toTarget.z);
 
                         // 水平速度：20ブロック先まで届くよう上限を引き上げ
-                        double hSpeed = Math.max(0.6, Math.min(dist / 12.0, 2.5));
+                        double hSpeed = Math.max(0.6, Math.min(dist / 8.0, 3.5));
                         // 垂直速度：遠いほど高く跳ぶ
                         double vSpeed = 0.85 + dist * 0.04;
 
@@ -2311,8 +2311,8 @@ public class Gradius extends Monster implements GeoEntity {
                         mob.setJumpSlamPhase(3);
                     }
 
-                    // タイムアウト（40tick経過で強制着地）
-                    if (jumpSlamTimer >= 60) {
+                    // タイムアウト（100tick経過で強制着地）
+                    if (jumpSlamTimer >= 100) {
                         jumpSlamTimer = 0;
                         mob.setDeltaMovement(Vec3.ZERO);
                         mob.setJumpSlamPhase(3);

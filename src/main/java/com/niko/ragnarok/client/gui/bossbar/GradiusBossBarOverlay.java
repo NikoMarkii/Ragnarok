@@ -1,4 +1,4 @@
-package com.niko.ragnarok.client;
+package com.niko.ragnarok.client.gui.bossbar;
 
 import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.Gradius;
@@ -7,7 +7,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.BossEvent;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
@@ -73,7 +72,7 @@ public class GradiusBossBarOverlay {
             int index = otherBarCount + i;
 
             // ボスバーが2本を超える場合は描画しない
-            if (index >= 2) break;
+            if (index >= 3) break;
 
             renderBar(event.getGuiGraphics(), minecraft, gradiusList.get(i), index);
         }
@@ -138,7 +137,7 @@ public class GradiusBossBarOverlay {
         int scaledFrameHeight = Math.round(FRAME_HEIGHT * BAR_SCALE);
         int x = (screenWidth - scaledFrameWidth) / 2;
 
-        int barSpacing = scaledFrameHeight - 7;
+        int barSpacing = scaledFrameHeight - 8;
         int y = -15 + index * barSpacing;
         int frameY = y + Math.round(14 * BAR_SCALE);
 
