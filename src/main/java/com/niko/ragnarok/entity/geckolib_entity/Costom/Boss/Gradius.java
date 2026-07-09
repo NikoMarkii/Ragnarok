@@ -1,5 +1,7 @@
 package com.niko.ragnarok.entity.geckolib_entity.Costom.Boss;
 
+import com.niko.ragnarok.Ragnarok;
+import com.niko.ragnarok.client.gui.bossbar.ICustomBossBar;
 import com.niko.ragnarok.entity.Projectile.BlueFireballEntity;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.GhostKnightEntity;
@@ -12,12 +14,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.server.TickTask;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.Mth;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
@@ -27,7 +28,6 @@ import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -36,7 +36,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.server.level.ServerBossEvent;
-import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -58,7 +57,7 @@ import java.util.*;
  * - charge     : 突進      (charge_start→charge_loop→charge_end)
  * - death      : 死亡アニメーション
  */
-public class Gradius extends Monster implements GeoEntity {
+public class Gradius extends Monster implements GeoEntity, ICustomBossBar {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -967,6 +966,49 @@ public class Gradius extends Monster implements GeoEntity {
                 2.0F,
                 0.8F
         );
+    }
+
+    @Override
+    public ResourceLocation getBossBarBaseTexture() {
+        // 第二形態ならbase2、それ以外(第一形態など)ならbase1を返す
+        return this.isPhase2Color() ?
+                ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "textures/gui/gradius_bossbar/gradius_boss_bar_base2.png") :
+                ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "textures/gui/gradius_bossbar/gradius_boss_bar_base1.png");
+    }
+
+    @Override
+    public ResourceLocation getBossBarOverlayTexture() {
+        return this.isPhase2Color() ?
+                ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "textures/gui/gradius_bossbar/gradius_boss_bar_overlay2.png") :
+                ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "textures/gui/gradius_bossbar/gradius_boss_bar_overlay1.png");
+    }
+
+    @Override
+    public float getBossProgress() {
+        return this.getHealth() / this.getMaxHealth();
+    }
+
+    @Override
+    public int getFrameWidth() {
+        // 実際のフレーム画像(overlay1/2.png)の横幅を返す
+        return 128; // 仮の値
+    }
+
+    @Override
+    public int getFrameHeight() {
+        // 実際のフレーム画像の縦幅を返す
+        return 30; // 仮の値
+    }
+
+    @Override
+    public int getFrameOffsetX() {
+        // ゲージ幅(120)に対してフレーム(128)を中央揃え：(120 - 128) / 2 = -4
+        return (120 - getFrameWidth()) / 2;
+    }
+
+    @Override
+    public int getFrameOffsetY() {
+        return -12;
     }
 
     // ══════════════════════════════════════════
