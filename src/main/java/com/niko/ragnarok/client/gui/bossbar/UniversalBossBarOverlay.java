@@ -50,6 +50,7 @@ public class UniversalBossBarOverlay {
         }
 
         // ★ `event.setCanceled(true)` は綺麗さっぱり削除したよ！これで他のMODのボスバーを巻き込むことはないさ。
+        bosses.sort(java.util.Comparator.comparingInt(net.minecraft.world.entity.Entity::getId));
 
         // 存在しなくなったボスのデータをクリーンアップ
         DISPLAYED_PROGRESS.keySet().removeIf(id -> bosses.stream().noneMatch(b -> b.getId() == id));
@@ -57,24 +58,21 @@ public class UniversalBossBarOverlay {
         GuiGraphics guiGraphics = event.getGuiGraphics();
         int screenWidth = mc.getWindow().getGuiScaledWidth();
 
-        // ★ 現在画面に表示されている通常のボスバー（バニラや他MODのもの）の数を取得する
-        int vanillaBossCount = getVanillaBossBarCount(mc.gui.getBossOverlay());
+        int[] vanillaCounts = getVanillaBossBarCounts(mc.gui.getBossOverlay(), bosses);
+        int uniqueVanillaCount = vanillaCounts[0]; // 位置ずらし用（種類数）
+        int rawVanillaCount = vanillaCounts[1];    // 上限計算用（実際のゲージ数）
 
-// ★ 通常のボスバーの数に応じて、カスタムボスバーの開始Y座標を動的に計算する
-        int yOffset = 20 + (vanillaBossCount * 19);
+        // ★ 位置ずらしにはユニーク数を使う（無駄な100pxの余白を作らないため）
+        int yOffset = 10 + (uniqueVanillaCount * 50);
         if (yOffset < 22) {
             yOffset = 22;
         }
 
-        // ーーー ★ ここから追加：描画したボスの数を数えるカウンター ーーー
-        int drawnCount = 0;
-
-        // もし「バニラのボスも含めて画面全体で絶対に3体まで」にしたいなら、
-        // 上の行を int drawnCount = vanillaBossCount; に変えるといいよ。
-        // ーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーーー
+        // ★ カウンターの初期値には、実際のゲージ数を使う（3つ制限を正しく機能させるため）
+        int drawnCount = rawVanillaCount;
 
         for (LivingEntity entity : bosses) {
-            // ★ 3体描画し終わっていたら、これ以上は処理せずにループを抜け出す
+            // バニラ含めて合計3本を超えたら描画しない
             if (drawnCount >= 3) {
                 break;
             }
@@ -157,26 +155,63 @@ public class UniversalBossBarOverlay {
             drawnCount++;
         }
     }
-    private static int getVanillaBossBarCount(net.minecraft.client.gui.components.BossHealthOverlay overlay) {
-        if (overlay == null) return 0;
+    private static int[] getVanillaBossBarCounts(
+            net.minecraft.client.gui.components.BossHealthOverlay overlay,
+            List<LivingEntity> customBosses) {
+
+        if (overlay == null) return new int[]{0, 0};
+
+        // カスタムボスの表示名セットを作成
+        java.util.Set<String> customBossNames = new java.util.HashSet<>();
+        for (LivingEntity boss : customBosses) {
+            customBossNames.add(boss.getDisplayName().getString());
+        }
+
         try {
-            // Mojangマッピングにおける一般的なフィールド名 "events" の取得を試みる
             Field field = overlay.getClass().getDeclaredField("events");
             field.setAccessible(true);
             Map<?, ?> map = (Map<?, ?>) field.get(overlay);
-            return map != null ? map.size() : 0;
+            if (map == null) return new int[]{0, 0};
+
+            java.util.Set<String> uniqueNames = new java.util.HashSet<>();
+            int rawCount = 0; // ★ 追加：実際のゲージ総数をカウントする変数
+
+            for (Object value : map.values()) {
+                try {
+                    java.lang.reflect.Method getName = value.getClass().getMethod("getName");
+                    net.minecraft.network.chat.Component nameComponent = (net.minecraft.network.chat.Component) getName.invoke(value);
+                    String name = nameComponent.getString();
+
+                    // カスタムボスではない他Modのゲージなら、まずは物理ゲージとしてカウントする
+                    if (!customBossNames.contains(name)) {
+                        rawCount++;
+
+                        // その上で、空白の名前でなければ「ボスの種類」として記録する
+                        if (!name.trim().isEmpty()) {
+                            uniqueNames.add(name);
+                        }
+                    }
+                } catch (Exception ignored) {
+                    rawCount++;
+                    uniqueNames.add("unknown_" + value.hashCode());
+                }
+            }
+            // ★ ユニーク数と、物理ゲージ数の2つを配列にして返す
+            return new int[]{uniqueNames.size(), rawCount};
+
         } catch (Exception e) {
             try {
-                // 万が一環境やバージョンによってフィールド名が異なる場合、クラス内の唯一の Map 型フィールドを自動抽出するフォールバックさ
                 for (Field f : overlay.getClass().getDeclaredFields()) {
                     if (Map.class.isAssignableFrom(f.getType())) {
                         f.setAccessible(true);
                         Map<?, ?> map = (Map<?, ?>) f.get(overlay);
-                        return map != null ? map.size() : 0;
+                        if (map != null) {
+                            return new int[]{map.size(), map.size()};
+                        }
                     }
                 }
             } catch (Exception ignored) {}
         }
-        return 0;
+        return new int[]{0, 0};
     }
 }

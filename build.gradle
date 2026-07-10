@@ -116,7 +116,6 @@ dependencies {
     implementation fg.deobf("software.bernie.geckolib:geckolib-forge-1.20.1:4.8.2")
     implementation("com.eliotlash.mclib:mclib:20")
 
-    runtimeOnly fg.deobf("curse.maven:jade-324717:6855440")
     runtimeOnly fg.deobf("curse.maven:jei-238222:7920915")
     runtimeOnly fg.deobf("curse.maven:lendercataclysm-551586:7934870")
     runtimeOnly fg.deobf("curse.maven:legendary-monsters-944035:8170235")
@@ -125,6 +124,7 @@ dependencies {
     runtimeOnly fg.deobf("curse.maven:better-combat-by-daedelus-639842:7287334")
     runtimeOnly fg.deobf("curse.maven:cloth-config-348521:5729105")
     runtimeOnly fg.deobf("curse.maven:playeranimator-658587:4587214")
+    runtimeOnly fg.deobf("curse.maven:mowzies-mobs-250498:7815705")
 }
 
 tasks.named('processResources', ProcessResources).configure {
