@@ -2,6 +2,7 @@ package com.niko.ragnarok.entity.geckolib_entity.Costom.Boss;
 
 import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.client.gui.bossbar.ICustomBossBar;
+import com.niko.ragnarok.entity.Boss_Monster;
 import com.niko.ragnarok.entity.Projectile.BlueFireballEntity;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.GhostKnightEntity;
@@ -57,7 +58,7 @@ import java.util.*;
  * - charge     : 突進      (charge_start→charge_loop→charge_end)
  * - death      : 死亡アニメーション
  */
-public class Gradius extends Monster implements GeoEntity, ICustomBossBar {
+public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -2484,12 +2485,16 @@ public class Gradius extends Monster implements GeoEntity, ICustomBossBar {
                         2, 0.2, 0.1, 0.2, 0.02);
             }
         }
+
         // グラディウスに敵対しているかを判定
         private boolean isHostileToGradius(LivingEntity entity) {
-            if (entity instanceof Player) return true; // プレイヤーは常に対象
-            if (entity instanceof net.minecraft.world.entity.Mob mob) {
-                // このモブのターゲットがグラディウスなら敵対している
-                return mob.getTarget() == this.mob;
+            if (entity instanceof Player) return true;
+
+            // グラディウスのターゲットは常に対象
+            if (entity == this.target) return true;
+
+            if (entity instanceof net.minecraft.world.entity.Mob hostileMob) {
+                return hostileMob.getTarget() == this.mob;
             }
             return false;
         }
