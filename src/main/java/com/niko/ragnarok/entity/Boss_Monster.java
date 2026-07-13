@@ -10,7 +10,7 @@ public abstract class Boss_Monster extends Monster {
     private static final float MAX_DAMAGE_PER_HIT = 30.0F;
     private static final int DAMAGE_REDUCTION_DURATION = 10;
     private static final float DAMAGE_REDUCTION_FACTOR = 0.5F;
-    private static final int REGEN_INTERVAL = 10;
+    private static final int REGEN_INTERVAL = 20;
     private static final float REGEN_AMOUNT = 50.0F;
 
     private int damageReductionTimer = 0;

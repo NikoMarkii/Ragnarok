@@ -1235,13 +1235,13 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
                     mob.setAttackState(5);
                 } else if (roll < 80) {
                     mob.setAttackState(2);
-                } else if (roll < 94) {
+                } else if (roll < 96) { // ★ 94 から 96 に変更（召喚確率を 6% から 4% へ引き下げ）
                     mob.setAttackState(3);
                 } else {
                     // 召喚：クールタイム中は別の攻撃に差し替え
                     if (summonCooldown <= 0) {
                         mob.setAttackState(4);
-                        summonCooldown = 1500;
+                        summonCooldown = 2400; // ★ 1500tick(75秒) から 2400tick(120秒) へ延長
                     } else {
                         mob.setAttackState(3); // 踏みつけに差し替え
                     }
@@ -1253,13 +1253,13 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
                     mob.setAttackState(5);
                 } else if (roll < 70) {
                     mob.setAttackState(2);
-                } else if (roll < 88) {
+                } else if (roll < 94) { // ★ 88 から 94 に変更（召喚確率を 12% から 6% へ引き下げ）
                     mob.setAttackState(3);
                 } else {
                     // 召喚：クールタイム中は薙ぎ払いに差し替え
                     if (summonCooldown <= 0) {
                         mob.setAttackState(4);
-                        summonCooldown = 600;
+                        summonCooldown = 1200; // ★ 600tick(30秒) から 1200tick(60秒) へ延長
                     } else {
                         mob.setAttackState(1);
                     }
