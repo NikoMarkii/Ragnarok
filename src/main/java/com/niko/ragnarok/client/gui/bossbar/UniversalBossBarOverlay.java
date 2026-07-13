@@ -26,7 +26,7 @@ public class UniversalBossBarOverlay {
     private static final int BASE_TEXTURE_HEIGHT = 6;
 
     // ゲージを滑らかに減らす速度係数
-    private static final float LERP_SPEED = 0.15F;
+    private static final float LERP_SPEED = 0.33F;
 
     // 各ボスの表示上の体力を保持するマップ
     private static final Map<Integer, Float> DISPLAYED_PROGRESS = new HashMap<>();

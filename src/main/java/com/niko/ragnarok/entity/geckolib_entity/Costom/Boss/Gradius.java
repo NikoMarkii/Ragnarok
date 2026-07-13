@@ -142,6 +142,10 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
         this.standbyEnding = value;
         this.entityData.set(IS_STANDBY_ENDING, value);
     }
+    @Override
+    protected boolean isInStandbyState() {
+        return this.standby || this.standbyEnding;
+    }
 
     // ──────────────────────────────────────────
     // ボスバー
@@ -168,7 +172,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
                 .add(Attributes.MAX_HEALTH, 500.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.28D)
                 .add(Attributes.ATTACK_DAMAGE, 18.0D)
-                .add(Attributes.FOLLOW_RANGE, 48.0D)
+                .add(Attributes.FOLLOW_RANGE, 100.0D)
                 .add(Attributes.ARMOR, 15.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D); // 突進中に押されない
     }
@@ -624,9 +628,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
     }
 
     @Override
-    public boolean hurt(
-            DamageSource source,
-            float amount) {
+    public boolean hurt(DamageSource source, float amount) {
 
         if (awakening) {
             return false;
@@ -636,7 +638,6 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
             this.lastAttacker = player;
         }
         if (this.standby && attacker instanceof LivingEntity livingAttacker) {
-            // クリエイティブのプレイヤーがテストで叩いた時は無視したいなら、この条件を入れておくと親切だね
             if (!(livingAttacker instanceof Player p && p.isCreative())) {
                 this.wakeUpFromStandby(livingAttacker);
             }
@@ -644,38 +645,27 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
         // ガード中
         if (getGuardPhase() == 2) {
-
             if (attacker instanceof LivingEntity living) {
-
-                living.knockback(
-                        1.5F,
+                living.knockback(1.5F,
                         this.getX() - living.getX(),
-                        this.getZ() - living.getZ()
-                );
+                        this.getZ() - living.getZ());
             }
-
-            this.playSound(
-                    SoundEvents.SHIELD_BLOCK,
-                    1.2F,
-                    0.8F
-            );
-
+            this.playSound(SoundEvents.SHIELD_BLOCK, 1.2F, 0.8F);
             return false;
         }
-
 
         // ガード発動
         if (!this.level().isClientSide
+                && attacker != null     // ← 【追加】ここがポイントだ
                 && getGuardPhase() == 0
                 && !isBusy()
                 && random.nextFloat() < 0.25F) {
-
             startGuard();
-
             return false;
         }
 
-        return super.hurt(source, amount);
+        // ── Boss_Monster経由でダメージキャップ・軽減タイマーを適用 ──
+        return super.hurt(source, amount);  // ← これはそのままでOK
     }
 
     private void startGuard() {
