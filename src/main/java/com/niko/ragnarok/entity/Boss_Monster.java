@@ -7,9 +7,9 @@ import net.minecraft.world.level.Level;
 
 public abstract class Boss_Monster extends Monster {
 
-    private static final float MAX_DAMAGE_PER_HIT = 30.0F;
+    private static final float MAX_DAMAGE_PER_HIT = 21.0F;
     private static final int DAMAGE_REDUCTION_DURATION = 10;
-    private static final float DAMAGE_REDUCTION_FACTOR = 0.5F;
+    private static final float DAMAGE_REDUCTION_FACTOR = 0.09F;
     private static final int REGEN_INTERVAL = 20;
     private static final float REGEN_AMOUNT = 50.0F;
 
@@ -17,8 +17,8 @@ public abstract class Boss_Monster extends Monster {
     private int regenTimer = 0;
 
     private static final int MAX_ADAPTATION_STACKS = 10;          // 最大スタック数
-    private static final float ADAPTATION_REDUCTION_PER_STACK = 0.10F; // 1スタックあたりのカット率 (0.05 = 5%)
-    private static final int ADAPTATION_DECAY_TIME = 100;         // 耐性が1段階落ちるまでの時間 (100tick = 5秒)
+    private static final float ADAPTATION_REDUCTION_PER_STACK = 0.05F; // 1スタックあたりのカット率 (0.05 = 5%)
+    private static final int ADAPTATION_DECAY_TIME = 60;         // 耐性が1段階落ちるまでの時間 (60tick = 3秒)
 
     private int adaptationStacks = 0;
     private int adaptationDecayTimer = 0;
@@ -53,11 +53,9 @@ public abstract class Boss_Monster extends Monster {
 
         float capped = Math.min(amount, MAX_DAMAGE_PER_HIT);
 
-        // ── 追加：ダメージ適応による軽減処理 ──
         // 例: 5スタックなら 1.0 - (5 * 0.05) = 0.75倍 (25%カット)
         float adaptationMultiplier = 1.0F - (adaptationStacks * ADAPTATION_REDUCTION_PER_STACK);
-        // 念のため、ダメージが0以下にならないよう下限を設ける（最低でも10%は通るように）
-        capped *= Math.max(0.1F, adaptationMultiplier);
+        capped *= Math.max(0.4F, adaptationMultiplier);
 
         // 既存の連続ヒット軽減
         if (damageReductionTimer > 0) {
@@ -121,5 +119,9 @@ public abstract class Boss_Monster extends Monster {
         } else {
             regenTimer = 0;
         }
+    }
+    @Override
+    public boolean causeFallDamage(float d, float m, DamageSource s) {
+        return false;
     }
 }
