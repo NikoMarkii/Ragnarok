@@ -15,15 +15,8 @@
     "hidden": false
   },
   "criteria": {
-    "has_ingot": {
-      "trigger": "minecraft:inventory_changed",
-      "conditions": {
-        "items": [
-          {
-            "items": ["ragnarok:naitomea_ingod"]
-          }
-        ]
-      }
+    "tick": {
+      "trigger": "minecraft:tick"
     }
   }
 }
