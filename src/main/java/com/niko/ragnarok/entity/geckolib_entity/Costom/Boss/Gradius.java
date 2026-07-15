@@ -299,6 +299,11 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
         if (!this.level().isClientSide
                 && !this.isActuallyDying()) {
 
+            // ★トドメを刺したプレイヤーを取得して lastAttacker に保存
+            if (source.getEntity() instanceof ServerPlayer sp) {
+                this.lastAttacker = sp;
+            }
+
             if (this.lastAttacker != null) {
                 this.lastAttacker.displayClientMessage(
                         Component.literal(
@@ -306,6 +311,9 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
                         ).withStyle(ChatFormatting.GOLD),
                         true
                 );
+
+                // ★ここで進捗をプレイヤーに直接付与するメソッドを呼び出す！
+                this.grantDefeatAdvancement(this.lastAttacker);
             }
 
             this.setDying(true);
@@ -314,6 +322,21 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
             this.setAttackState(0);
             this.setChargePhase(0);
+        }
+    }
+    private void grantDefeatAdvancement(ServerPlayer player) {
+        if (player.getServer() == null) return;
+
+        ResourceLocation advancementId = ResourceLocation.fromNamespaceAndPath("ragnarok", "defeat_gradius");
+        net.minecraft.advancements.Advancement advancement = player.getServer().getAdvancements().getAdvancement(advancementId);
+
+        if (advancement != null) {
+            net.minecraft.advancements.AdvancementProgress progress = player.getAdvancements().getOrStartProgress(advancement);
+            if (!progress.isDone()) {
+                for (String criterion : progress.getRemainingCriteria()) {
+                    player.getAdvancements().award(advancement, criterion);
+                }
+            }
         }
     }
 

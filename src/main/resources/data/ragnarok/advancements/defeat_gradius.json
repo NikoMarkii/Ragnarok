@@ -18,18 +18,7 @@
   "parent": "ragnarok:root",
   "criteria": {
     "defeat_the_boss": {
-      "trigger": "minecraft:player_killed_entity",
-      "conditions": {
-        "entity": [
-          {
-            "condition": "minecraft:entity_properties",
-            "entity": "this",
-            "predicate": {
-              "type": "ragnarok:gradius"
-            }
-          }
-        ]
-      }
+      "trigger": "minecraft:impossible"
     }
   },
   "requirements": [
