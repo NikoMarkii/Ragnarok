@@ -1062,6 +1062,8 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
         private final List<ScheduledBlockWave> scheduledBlockWaves = new ArrayList<>();
 
+        private final List<FallingBlockEntity> activeWaveBlocks = new ArrayList<>();
+
         private final List<BlueFireballEntity> preparedFireballs =
                 new ArrayList<>();
 
@@ -1100,6 +1102,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
             this.mob.setChargePhase(0);
             this.chargingActive = false;
             this.mob.getNavigation().stop();
+            activeWaveBlocks.clear();
         }
 
         @Override
@@ -1113,6 +1116,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
             LivingEntity t = this.mob.getTarget();
             tickScheduledPillars();
             tickScheduledBlockWaves();
+            tickWaveBlockDamage();
 
             // 召喚クールタイムを毎tick減らす
             if (summonCooldown > 0) summonCooldown--;
@@ -1986,7 +1990,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
         // ──────────────────────────────────────
         private void doStomp() {
             // 周囲6ブロック全方向
-            AABB stompBox = this.mob.getBoundingBox().inflate(6.0, 2.0, 6.0);
+            AABB stompBox = this.mob.getBoundingBox().inflate(3.0, 2.0, 3.0);
 
             for (LivingEntity e : getHittableEntities(stompBox)) {
                 e.invulnerableTime = 0;
@@ -2002,29 +2006,40 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
             // 地面揺れ演出
             this.mob.playSound(SoundEvents.GENERIC_EXPLODE, 2.0F, 0.4F);
-            spawnShockwaveParticles(this.mob.position(), 360.0, 6.0);
 
             // カメラシェイク代わりにブロック破壊パーティクル
             if (this.mob.level() instanceof ServerLevel sl) {
                 final BlockPos center = this.mob.blockPosition();
 
-                // 半径1〜8のリングを2tickずつ遅延してキューに積む
                 for (int r = 3; r <= 8; r++) {
                     scheduledBlockWaves.add(
                             new ScheduledBlockWave(r * 2, center, r)
                     );
                 }
 
-                BlockPos bp = this.mob.blockPosition();
-                BlockState bs = sl.getBlockState(bp.below());
-                if (!bs.isAir()) {
-                    sl.sendParticles(
-                            ParticleTypes.CLOUD,
-                            this.mob.getX(),
-                            this.mob.getY(),
-                            this.mob.getZ(),
-                            60, 1.5, 0.1, 1.5, 0.3
-                    );
+                // ── 周囲3ブロックにブロックパーティクルを出す ──
+                for (int x = -3; x <= 3; x++) {
+                    for (int z = -3; z <= 3; z++) {
+                        if (Math.sqrt(x * x + z * z) > 3.0) continue;
+
+                        BlockPos checkPos = center.offset(x, -1, z);
+                        BlockState bs = sl.getBlockState(checkPos);
+
+                        if (!bs.isAir() && bs.getDestroySpeed(sl, checkPos) >= 0) {
+                            sl.sendParticles(
+                                    new net.minecraft.core.particles.BlockParticleOption(
+                                            net.minecraft.core.particles.ParticleTypes.BLOCK, bs),
+                                    checkPos.getX() + 0.5,
+                                    checkPos.getY() + 1.0,
+                                    checkPos.getZ() + 0.5,
+                                    8,    // 個数
+                                    0.3,  // X広がり
+                                    0.2,  // Y広がり
+                                    0.3,  // Z広がり
+                                    0.3   // 速度
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -2548,21 +2563,52 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
                             fallingBlock.setDeltaMovement(0, 0.4D, 0);
 
                             level.addFreshEntity(fallingBlock);
+                            activeWaveBlocks.add(fallingBlock);
                         }
                     }
                 }
             }
         }
-    }
-    private static class ScheduledBlockWave {
-        int remainingTicks;
-        BlockPos center;
-        int radius;
+        private static class ScheduledBlockWave {
+            int remainingTicks;
+            BlockPos center;
+            int radius;
 
-        ScheduledBlockWave(int remainingTicks, BlockPos center, int radius) {
-            this.remainingTicks = remainingTicks;
-            this.center = center;
-            this.radius = radius;
+            ScheduledBlockWave(int remainingTicks, BlockPos center, int radius) {
+                this.remainingTicks = remainingTicks;
+                this.center = center;
+                this.radius = radius;
+            }
+        }
+        private void tickWaveBlockDamage() {
+            if (mob.level().isClientSide()) return;
+
+            activeWaveBlocks.removeIf(block -> {
+                if (!block.isAlive()) return true;
+
+                AABB hitBox = block.getBoundingBox().inflate(0.1);
+                List<LivingEntity> hits = mob.level().getEntitiesOfClass(
+                        LivingEntity.class, hitBox,
+                        e -> e != mob
+                                && e.isAlive()
+                                && e.invulnerableTime <= 0  // ← 無敵時間チェック追加
+                                && isHostileToGradius(e)
+                );
+
+                for (LivingEntity e : hits) {
+                    // invulnerableTime = 0 は削除（無敵時間を尊重する）
+                    e.hurt(
+                            mob.damageSources().mobAttack(mob),
+                            (float) mob.getAttributeValue(Attributes.ATTACK_DAMAGE) * 0.8F
+                    );
+                    Vec3 kb = e.position().subtract(mob.position())
+                            .normalize().scale(1.5);
+                    e.setDeltaMovement(kb.x, 0.5, kb.z);
+                    e.hurtMarked = true;
+                }
+
+                return false;
+            });
         }
     }
 }
