@@ -102,6 +102,13 @@ public class RagnarokEventBusEvent {
                             Animal.checkAnimalSpawnRules(entityType, level, spawnType, pos, random);
                 },
                 SpawnPlacementRegisterEvent.Operation.REPLACE);
+
+        SpawnPlacements.register(
+                RagnarokEntities.GHOST.get(),
+                SpawnPlacements.Type.NO_RESTRICTIONS, // 空中スポーン可
+                Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                GhostEntity::checkGhostSpawnRules
+        );
     }
 }
 

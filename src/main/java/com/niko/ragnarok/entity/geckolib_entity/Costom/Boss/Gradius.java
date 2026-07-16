@@ -1123,9 +1123,20 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
         public void stop() {
             this.mob.setAttackState(0);
             this.mob.setChargePhase(0);
+            this.mob.setJumpSlamPhase(0);  // ← 追加
             this.chargingActive = false;
-            this.mob.getNavigation().stop();
+            this.chargeTimer = 0;          // ← 追加
+            this.jumpSlamTimer = 0;        // ← 追加
+            this.attackTimer = 0;          // ← 追加
+            this.slamDone = false;         // ← 追加
+            this.chargeAttackDone = false; // ← 追加
+            this.forceFinishAttack = false;// ← 追加
+            this.comboActive = false;      // ← 追加
+            this.comboStep = 0;            // ← 追加
+            scheduledBlockWaves.clear();   // ← 追加
             activeWaveBlocks.clear();
+            this.mob.getNavigation().stop();
+            this.mob.setDeltaMovement(Vec3.ZERO); // ← 突進中断時に速度もリセット
         }
 
         @Override
@@ -1141,10 +1152,24 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
             tickScheduledBlockWaves();
             tickWaveBlockDamage();
 
-            // 召喚クールタイムを毎tick減らす
             if (summonCooldown > 0) summonCooldown--;
 
             if (t == null || !t.isAlive()) {
+                // ── ターゲット死亡時：突進・ジャンプ切りは即中断してリセット ──
+                if (this.mob.getChargePhase() > 0
+                        || this.mob.getJumpSlamPhase() > 0) {
+                    this.mob.setChargePhase(0);
+                    this.mob.setJumpSlamPhase(0);
+                    this.chargingActive = false;
+                    this.chargeTimer = 0;
+                    this.jumpSlamTimer = 0;
+                    this.slamDone = false;
+                    this.chargeAttackDone = false;
+                    this.mob.setDeltaMovement(Vec3.ZERO);
+                    this.forceFinishAttack = false;
+                    this.mob.setAttackState(0);
+                    return;
+                }
 
                 if (!this.forceFinishAttack) {
                     this.mob.setAttackState(0);
@@ -1152,7 +1177,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
                     return;
                 }
 
-                // 攻撃アニメ継続用ダミー処理
+                // 通常攻撃アニメ継続（attackStateのみ維持）
                 return;
             }
             if (mob.awakening) {
@@ -1579,7 +1604,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
                 e.hurtMarked = true;
             }
 
-            this.mob.playSound(SoundEvents.ANVIL_PLACE, 1.5F, 0.8F);
+            this.mob.playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 1.5F, 0.8F);
             spawnSlashParticles(look);
         }
 
@@ -1692,11 +1717,10 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
                 ScheduledBlockWave wave = it.next();
                 wave.remainingTicks--;
                 if (wave.remainingTicks <= 0) {
-                    spawnBlockWaveRing(
-                            (ServerLevel) mob.level(),
-                            wave.center,
-                            wave.radius
-                    );
+                    if (mob.level() instanceof ServerLevel sl) {
+                        spawnBlockWaveRing(sl, wave.center, wave.radius,
+                                wave.startAngle, wave.endAngle);
+                    }
                     it.remove();
                 }
             }
@@ -2006,6 +2030,27 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
             this.mob.playSound(SoundEvents.GENERIC_EXPLODE, 1.5F, 0.6F);
             spawnShockwaveParticles(impactPos, 120.0, 6.0);
+
+            if (this.mob.level() instanceof ServerLevel) {
+                final BlockPos center = this.mob.blockPosition();
+
+                if (mob.isPhase2()) {
+                    // 第二形態：円状
+                    for (int r = 3; r <= 8; r++) {
+                        scheduledBlockWaves.add(
+                                new ScheduledBlockWave(r * 2, center, r));
+                    }
+                } else {
+                    // 第一形態：扇状（正面120度）
+                    double angle = Math.atan2(look.z, look.x);
+                    for (int r = 3; r <= 8; r++) {
+                        scheduledBlockWaves.add(
+                                new ScheduledBlockWave(r * 2, center, r,
+                                        angle - Math.toRadians(60),
+                                        angle + Math.toRadians(60)));
+                    }
+                }
+            }
         }
 
         // ──────────────────────────────────────
@@ -2284,6 +2329,13 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
             spawnExpandingShockwave();
             mob.playSound(SoundEvents.GENERIC_EXPLODE, 2.5F, 0.5F);
 
+// ── 円状にブロック波 ──
+            final BlockPos jumpCenter = mob.blockPosition();
+            for (int r = 3; r <= 8; r++) {
+                scheduledBlockWaves.add(
+                        new ScheduledBlockWave(r * 2, jumpCenter, r));
+            }
+
             // ── 第二形態：爆発＋火柱 ──
             if (mob.isPhase2() && mob.level() instanceof ServerLevel sl) {
 
@@ -2558,31 +2610,44 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
             }
             return false;
         }
-        private void spawnBlockWaveRing(ServerLevel level, BlockPos center, int currentRadius) {
+        private void spawnBlockWaveRing(ServerLevel level, BlockPos center,
+                                        int currentRadius, double startAngle, double endAngle) {
             for (int x = -currentRadius; x <= currentRadius; x++) {
                 for (int z = -currentRadius; z <= currentRadius; z++) {
-                    // 現在の半径の円周上（リング状）のブロックだけを対象にする
                     double distance = Math.sqrt(x * x + z * z);
                     if (distance >= currentRadius - 0.5 && distance <= currentRadius + 0.5) {
-                        // 踏みつけた足元のブロック座標
+
+                        // ── 扇状チェック（startAngle == -1なら全周）──
+                        if (startAngle > -Math.PI * 2) { // -1なら全周
+                            double blockAngle = Math.atan2(z, x);
+
+                            double arcSize  = angleDiff(endAngle, startAngle);
+                            double diffFromStart = angleDiff(blockAngle, startAngle);
+
+                            if (diffFromStart > arcSize) continue;
+                        }
+
                         BlockPos targetPos = center.offset(x, -1, z);
                         BlockState state = level.getBlockState(targetPos);
 
-                        // 空気や破壊不可ブロック（岩盤など）は飛ばさない
                         if (!state.isAir() && state.getDestroySpeed(level, targetPos) >= 0) {
-
-                            // 落下ブロックエンティティを生成（元の地形ブロックは破壊しない）
-                            FallingBlockEntity fallingBlock = new FallingBlockEntity(EntityType.FALLING_BLOCK, level);
-                            fallingBlock.setPos(targetPos.getX() + 0.5D, targetPos.getY() + 1.0D, targetPos.getZ() + 0.5D);
+                            FallingBlockEntity fallingBlock =
+                                    new FallingBlockEntity(EntityType.FALLING_BLOCK, level);
+                            fallingBlock.setPos(
+                                    targetPos.getX() + 0.5D,
+                                    targetPos.getY() + 1.0D,
+                                    targetPos.getZ() + 0.5D
+                            );
 
                             net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
                             fallingBlock.saveWithoutId(tag);
                             tag.put("BlockState", net.minecraft.nbt.NbtUtils.writeBlockState(state));
                             tag.putInt("Time", 580);
                             tag.putBoolean("DropItem", false);
+                            tag.putBoolean("NoPhysics", true);
                             fallingBlock.load(tag);
 
-                            fallingBlock.noPhysics = true;  // ← ブロック衝突・積み重ねを無効化
+                            fallingBlock.noPhysics = true;
                             fallingBlock.setDeltaMovement(0, 0.4D, 0);
 
                             level.addFreshEntity(fallingBlock);
@@ -2592,15 +2657,38 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
                 }
             }
         }
+        // 全周版（踏みつけ・飛び切りから呼ばれる）
+        private void spawnBlockWaveRing(ServerLevel level, BlockPos center, int currentRadius) {
+            spawnBlockWaveRing(level, center, currentRadius,
+                    -Math.PI * 3, -Math.PI * 3); // 全周フラグ
+        }
+        private static double angleDiff(double a, double b) {
+            double diff = a - b;
+            while (diff < 0) diff += Math.PI * 2;
+            while (diff > Math.PI * 2) diff -= Math.PI * 2;
+            return diff;
+        }
         private static class ScheduledBlockWave {
             int remainingTicks;
             BlockPos center;
             int radius;
+            double startAngle; // 開始角度（ラジアン）、-1なら全周
+            double endAngle;   // 終了角度（ラジアン）
 
+            // 全周コンストラクタ（踏みつけ・飛び切り）
             ScheduledBlockWave(int remainingTicks, BlockPos center, int radius) {
+                this(remainingTicks, center, radius,
+                        -Math.PI * 3, -Math.PI * 3); // -1 → -π*3（全周フラグ）
+            }
+
+            // 扇状コンストラクタ（叩きつけ第一形態）
+            ScheduledBlockWave(int remainingTicks, BlockPos center, int radius,
+                               double startAngle, double endAngle) {
                 this.remainingTicks = remainingTicks;
                 this.center = center;
                 this.radius = radius;
+                this.startAngle = startAngle;
+                this.endAngle = endAngle;
             }
         }
         private void tickWaveBlockDamage() {

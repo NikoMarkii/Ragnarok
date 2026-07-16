@@ -7,6 +7,7 @@ import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -18,6 +19,7 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -75,6 +77,24 @@ public class GhostEntity extends Monster implements GeoEntity {
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(
                 this, Player.class, true));
+    }
+    @Override
+    public void aiStep() {
+        super.aiStep();
+
+        if (!this.level().isClientSide()) {
+            if (this.level().isDay()
+                    && !this.level().isRaining()
+                    && !this.isOnFire()) {
+                float brightness = this.getLightLevelDependentMagicValue();
+                BlockPos pos = this.blockPosition();
+                if (brightness > 0.5F
+                        && this.random.nextFloat() * 30.0F < (brightness - 0.4F) * 2.0F
+                        && this.level().canSeeSky(pos)) {
+                    this.setSecondsOnFire(8);
+                }
+            }
+        }
     }
     @Override
     public boolean isNoGravity() {
@@ -178,6 +198,18 @@ public class GhostEntity extends Monster implements GeoEntity {
             }
         }
     }
+    public static boolean checkGhostSpawnRules(
+            EntityType<GhostEntity> type,
+            ServerLevelAccessor level,
+            MobSpawnType reason,
+            BlockPos pos,
+            RandomSource random) {
+
+        // 明るさ0かつY座標が50以下（地下）でのみスポーン
+        return pos.getY() < 50
+                && level.getRawBrightness(pos, 0) == 0
+                && checkMobSpawnRules(type, level, reason, pos, random);
+    }
 
     // ──────────────────────────────────────────
     // GhostFloatGoal：ターゲットの頭上あたりをふわふわ移動
@@ -186,8 +218,10 @@ public class GhostEntity extends Monster implements GeoEntity {
 
         private final GhostEntity ghost;
         private int timer = 0;
-        // ふわふわの周期（サイン波でY方向にゆらゆら）
         private double floatPhase = 0;
+        private double wanderX = 0;
+        private double wanderY = 0;
+        private double wanderZ = 0;
 
         GhostFloatGoal(GhostEntity ghost) {
             this.ghost = ghost;
@@ -200,33 +234,32 @@ public class GhostEntity extends Monster implements GeoEntity {
         }
 
         @Override
+        public boolean canContinueToUse() {
+            return ghost.getTarget() == null && ghost.getAttackState() == 0;
+        }
+
+        @Override
+        public void start() {
+            timer = 0;
+            pickNewWanderTarget();
+        }
+
+        @Override
         public void tick() {
             timer++;
-            floatPhase += 0.05; // サイン波の位相を進める
+            floatPhase += 0.05;
 
-            Vec3 current = ghost.getDeltaMovement();
-
-            // Y方向：サイン波でゆらゆら（アレイのふわふわ感）
-            double targetY = Math.sin(floatPhase) * 0.02;
-            double newY = current.y * 0.8 + targetY;
-
-            // XZ方向：60tickごとにランダムな目標をゆっくり加速
+            // 60tickごとに新しい目標位置を選ぶ
             if (timer % 60 == 0) {
-                double angle = ghost.random.nextDouble() * Math.PI * 2;
-                double strength = 0.03 + ghost.random.nextDouble() * 0.02;
-                ghost.setDeltaMovement(
-                        Math.cos(angle) * strength,
-                        newY,
-                        Math.sin(angle) * strength
-                );
-            } else {
-                // 毎tick空気抵抗で減衰しながらY補正だけ適用
-                ghost.setDeltaMovement(
-                        current.x * 0.98,
-                        newY,
-                        current.z * 0.98
-                );
+                pickNewWanderTarget();
             }
+
+            // Y方向にサイン波でゆらゆら
+            double yTarget = wanderY + Math.sin(floatPhase) * 0.5;
+
+            // GhostMoveControlに目標位置を渡して滑らかに移動
+            ghost.getMoveControl().setWantedPosition(
+                    wanderX, yTarget, wanderZ, 0.5D);
 
             // 地面に近づきすぎたら浮き上がる
             BlockPos below = ghost.blockPosition().below();
@@ -234,10 +267,17 @@ public class GhostEntity extends Monster implements GeoEntity {
                     && ghost.getDeltaMovement().y < 0) {
                 ghost.setDeltaMovement(
                         ghost.getDeltaMovement().x,
-                        0.04,
+                        0.05,
                         ghost.getDeltaMovement().z
                 );
             }
+        }
+
+        private void pickNewWanderTarget() {
+            // 現在地から±8ブロック以内のランダムな位置を目標にする
+            wanderX = ghost.getX() + (ghost.random.nextDouble() - 0.5) * 16;
+            wanderY = ghost.getY() + (ghost.random.nextDouble() - 0.5) * 4;
+            wanderZ = ghost.getZ() + (ghost.random.nextDouble() - 0.5) * 16;
         }
     }
 
@@ -275,6 +315,8 @@ public class GhostEntity extends Monster implements GeoEntity {
         @Override
         public void stop() {
             mob.setAttackState(0);
+            this.attackTimer = 0;
+            this.cooldown = 0;
         }
 
         @Override
@@ -321,6 +363,11 @@ public class GhostEntity extends Monster implements GeoEntity {
             } else {
                 approachTarget(t);
             }
+        }
+        @Override
+        public boolean canContinueToUse() {
+            LivingEntity t = mob.getTarget();
+            return t != null && t.isAlive();
         }
 
         private void approachTarget(LivingEntity t) {
