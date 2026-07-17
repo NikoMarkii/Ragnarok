@@ -106,6 +106,22 @@ public class GradiusGreatSword extends SwordItem {
             // 例：小さな煙を出したり、不発音を鳴らしたりする
         }
     }
+    @Override
+    public void onUseTick(Level level, LivingEntity livingEntity, ItemStack stack, int remainingUseDuration) {
+        if (!(livingEntity instanceof Player player)) return;
+
+        int duration = this.getUseDuration(stack) - remainingUseDuration;
+
+        // チャージ完了の瞬間（60tick目）に音を鳴らす
+        if (duration == CHARGE_TICKS) {
+            level.playSound(null,
+                    player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ENCHANTMENT_TABLE_USE,
+                    SoundSource.PLAYERS,
+                    1.0F, 1.5F
+            );
+        }
+    }
 
     // --- ここから下は元のコード（音の修正版） ---
 
@@ -183,7 +199,7 @@ public class GradiusGreatSword extends SwordItem {
 
         // 前回の修正：ServerLevel の playSound を使用する
         sl.playSound(null, x, baseY, z,
-                SoundEvents.BLAZE_SHOOT, SoundSource.PLAYERS, 1.5F, 0.7F);
+                SoundEvents.TRIDENT_THUNDER, SoundSource.PLAYERS, 1.5F, 0.7F);
     }
 
     private record DelayedPillar(int delay, double x, double y, double z) {}

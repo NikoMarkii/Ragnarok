@@ -7,6 +7,8 @@ import com.niko.ragnarok.entity.Projectile.BlueFireballEntity;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.GhostKnightEntity;
 import com.niko.ragnarok.item.Ragnarok_mainItems;
+import com.niko.ragnarok.network.RagnarokNetwork;
+import com.niko.ragnarok.network.ScreenShakePacket;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -163,6 +165,21 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
         super(type, level);
         this.xpReward = 500;
         this.bossEvent.setVisible(false);
+    }
+
+    private void sendScreenShake(float intensity, int duration) {
+        if (this.level().isClientSide()) return;
+        if (!(this.level() instanceof ServerLevel sl)) return;
+
+        // 範囲内のプレイヤーにパケット送信
+        for (net.minecraft.server.level.ServerPlayer player :
+                sl.getPlayers(p -> p.distanceToSqr(this) < 64 * 64)) {
+            RagnarokNetwork.CHANNEL.sendTo(
+                    new ScreenShakePacket(intensity, duration),
+                    player.connection.connection,
+                    net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT
+            );
+        }
     }
 
     // ──────────────────────────────────────────
@@ -518,16 +535,21 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
             }
 
             if (this.customDeathTime >= DEATH_DURATION && !this.level().isClientSide) {
-                ItemStack bag = new ItemStack(Ragnarok_mainItems.GRADIUS_TREASURE_BAG.get());
-                bag.setHoverName(Component.literal("トレジャーバッグ(グラディウス)")
-                        .withStyle(ChatFormatting.GOLD));
-                this.spawnAtLocation(bag);
+                if (this.level() instanceof ServerLevel sl) {
 
-                this.level().addFreshEntity(
-                        new net.minecraft.world.entity.ExperienceOrb(
-                                (ServerLevel) this.level(),
-                                this.getX(), this.getY(), this.getZ(),
-                                this.xpReward));
+                    // ── 正しい死亡原因を渡す ──
+                    DamageSource deathSource = this.lastAttacker != null
+                            ? this.damageSources().playerAttack(this.lastAttacker)
+                            : this.damageSources().generic();
+
+                    this.dropFromLootTable(deathSource, true);
+
+                    this.level().addFreshEntity(
+                            new net.minecraft.world.entity.ExperienceOrb(
+                                    sl,
+                                    this.getX(), this.getY(), this.getZ(),
+                                    this.xpReward));
+                }
 
                 this.remove(RemovalReason.KILLED);
             }
@@ -761,6 +783,12 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
     @Override
     protected SoundEvent getDeathSound() {
         return SoundEvents.WITHER_DEATH;
+    }
+
+    @Override
+    public ResourceLocation getDefaultLootTable() {
+        return ResourceLocation.fromNamespaceAndPath(
+                Ragnarok.MOD_ID, "entities/gradius");
     }
 
 
@@ -1731,7 +1759,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
             // 剣を突き立てるタイミング演出
             if (attackTimer == 1) {
-                this.mob.playSound(SoundEvents.BLAZE_SHOOT, 2.0F, 0.7F);
+                this.mob.playSound(SoundEvents.ENCHANTMENT_TABLE_USE, 2.0F, 0.7F);
             }
 
             // 25tickで発動（ここが本体）
@@ -1935,7 +1963,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
             }
 
             mob.playSound(
-                    SoundEvents.BLAZE_SHOOT,
+                    SoundEvents.TRIDENT_THUNDER,
                     1.5F,
                     0.7F
             );
@@ -2030,6 +2058,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
             this.mob.playSound(SoundEvents.GENERIC_EXPLODE, 1.5F, 0.6F);
             spawnShockwaveParticles(impactPos, 120.0, 6.0);
+            mob.sendScreenShake(1.5F, 15);
 
             if (this.mob.level() instanceof ServerLevel) {
                 final BlockPos center = this.mob.blockPosition();
@@ -2074,6 +2103,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
             // 地面揺れ演出
             this.mob.playSound(SoundEvents.GENERIC_EXPLODE, 2.0F, 0.4F);
+            mob.sendScreenShake(0.9F, 10);
 
             // カメラシェイク代わりにブロック破壊パーティクル
             if (this.mob.level() instanceof ServerLevel sl) {
@@ -2328,13 +2358,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
             // 着地衝撃波パーティクル（全形態共通）
             spawnExpandingShockwave();
             mob.playSound(SoundEvents.GENERIC_EXPLODE, 2.5F, 0.5F);
-
-// ── 円状にブロック波 ──
-            final BlockPos jumpCenter = mob.blockPosition();
-            for (int r = 3; r <= 8; r++) {
-                scheduledBlockWaves.add(
-                        new ScheduledBlockWave(r * 2, jumpCenter, r));
-            }
+            mob.sendScreenShake(1F, 12);
 
             // ── 第二形態：爆発＋火柱 ──
             if (mob.isPhase2() && mob.level() instanceof ServerLevel sl) {

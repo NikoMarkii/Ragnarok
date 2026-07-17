@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:entity",
+  "pools": [
+    {
+      "rolls": 1,
+      "bonus_rolls": 0.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "ragnarok:gradius_treasure_bag",
+          "functions": [
+            {
+              "function": "minecraft:set_name",
+              "entity": "this",
+              "name": {
+                "translate": "item.ragnarok.gradius_treasure_bag"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "random_sequence": "ragnarok:entities/gradius"
+}

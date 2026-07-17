@@ -1,10 +1,12 @@
 package com.niko.ragnarok.entity.costom;
 
+import com.niko.ragnarok.Ragnarok;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.BlockTags;
@@ -334,7 +336,6 @@ public class Groot extends Animal {
         if (!this.level().isClientSide) {
             this.entityData.set(IS_DYING, true); // ここで同期
             this.level().broadcastEntityEvent(this, START_DEATH_EVENT);
-            dropCustomLoot();
         }
     }
     @Override
@@ -346,18 +347,10 @@ public class Groot extends Animal {
         }
     }
 
-    private void dropCustomLoot() {
-        if (this.level() instanceof ServerLevel) {
-            int logCount = 10 + this.random.nextInt(11);
-            for (int i = 0; i < logCount; i++) {
-                this.spawnAtLocation(Items.OAK_LOG);
-            }
-            int vineCount = this.random.nextInt(5);
-            for (int i = 0; i < vineCount; i++) {
-                this.spawnAtLocation(Items.VINE);
-            }
-            this.spawnAtLocation(Ragnarok_mainItems.GROOT_HARHT.get());
-        }
+    @Override
+    public ResourceLocation getDefaultLootTable() {
+        return ResourceLocation.fromNamespaceAndPath(
+                Ragnarok.MOD_ID, "entities/groot");
     }
 
     @Override

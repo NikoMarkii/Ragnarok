@@ -1,11 +1,13 @@
 package com.niko.ragnarok.entity.costom;
 
+import com.niko.ragnarok.Ragnarok;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -386,50 +388,9 @@ public class Magic_Golem extends Raider {
     }
 
     @Override
-    protected void dropCustomDeathLoot(DamageSource source, int looting, boolean recentlyHit) {
-        super.dropCustomDeathLoot(source, looting, recentlyHit);
-
-        if (this.level() instanceof ServerLevel) {
-            // 鉄インゴット (3-5個)
-            int ironCount = 3 + this.random.nextInt(3);
-            for (int i = 0; i < ironCount; i++) {
-                this.spawnAtLocation(Items.IRON_INGOT);
-            }
-
-            // ウィザーローズ (30%確率)
-            if (this.random.nextFloat() < 0.3F) {
-                this.spawnAtLocation(Items.WITHER_ROSE);
-            }
-
-            // 不死のトーテム (10%確率)
-            if (this.random.nextFloat() < 0.1F) {
-                this.spawnAtLocation(Items.TOTEM_OF_UNDYING);
-            }
-
-            // エンチャントアイテム (5%確率)
-            if (this.random.nextFloat() < 0.05F) {
-                dropEnchantedItem();
-            }
-        }
-    }
-
-    private void dropEnchantedItem() {
-        ItemStack[] possibleItems = {
-                new ItemStack(Items.DIAMOND_SWORD),
-                new ItemStack(Items.DIAMOND_PICKAXE),
-                new ItemStack(Items.DIAMOND_AXE),
-                new ItemStack(Items.ENCHANTED_BOOK),
-                new ItemStack(Items.BOW)
-        };
-
-        ItemStack item = possibleItems[this.random.nextInt(possibleItems.length)].copy();
-
-        // ランダムなエンチャント (レベル20-30)
-        if (this.level() instanceof ServerLevel serverLevel) {
-            item = EnchantmentHelper.enchantItem(this.random, item, 20 + this.random.nextInt(11), false);
-        }
-
-        this.spawnAtLocation(item);
+    public ResourceLocation getDefaultLootTable() {
+        return ResourceLocation.fromNamespaceAndPath(
+                Ragnarok.MOD_ID, "entities/magic_golem");
     }
 
     @Override

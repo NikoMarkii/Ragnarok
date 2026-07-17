@@ -117,6 +117,7 @@ dependencies {
     implementation("com.eliotlash.mclib:mclib:20")
 
     runtimeOnly fg.deobf("curse.maven:jei-238222:7920915")
+    runtimeOnly fg.deobf("curse.maven:just-enough-resources-jer-240630:5057220")
     runtimeOnly fg.deobf("curse.maven:lendercataclysm-551586:7934870")
     runtimeOnly fg.deobf("curse.maven:legendary-monsters-944035:8170235")
     runtimeOnly fg.deobf("curse.maven:lionfish-api-1001614:7923140")

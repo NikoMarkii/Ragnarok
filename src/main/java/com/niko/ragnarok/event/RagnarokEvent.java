@@ -1,5 +1,6 @@
 package com.niko.ragnarok.event;
 
+import com.niko.ragnarok.client.ScreenShakeHandler;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.costom.Groot;
 import com.niko.ragnarok.entity.costom.Magic_Golem;
@@ -107,6 +108,20 @@ public class RagnarokEvent {
                     }
                 }
             }
+        }
+    }
+    @SubscribeEvent
+    public static void onCameraSetup(net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles event) {
+        float offsetX = ScreenShakeHandler.getCurrentOffsetX();
+        float offsetY = ScreenShakeHandler.getCurrentOffsetY();
+        event.setYaw(event.getYaw() + offsetX);
+        event.setPitch(event.getPitch() + offsetY);
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(net.minecraftforge.event.TickEvent.ClientTickEvent event) {
+        if (event.phase == net.minecraftforge.event.TickEvent.Phase.END) {
+            ScreenShakeHandler.tick();
         }
     }
 }

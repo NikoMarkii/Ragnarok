@@ -5,11 +5,13 @@ import com.niko.ragnarok.effect.ModMobEffects;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.item.Ragnarok_mainItems;
 import com.niko.ragnarok.loot.RagnarokLootModifiers;
+import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.regi.tab.RagnarokModTabs;
 import com.niko.ragnarok.sound.RagnarokSoundEvents;
 import com.niko.ragnarok.worldgen.biome.RagnarokBiomes;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import software.bernie.geckolib.GeckoLib;
 
@@ -29,5 +31,11 @@ public class Ragnarok {
                 RagnarokSoundEvents.SOUND_EVENTS.register(bus);
 
                 GeckoLib.initialize();
+
+                bus.addListener(this::setup);
         }
-}
+
+        private void setup(final FMLCommonSetupEvent event) {
+                event.enqueueWork(RagnarokNetwork::register);
+        }
+        }
