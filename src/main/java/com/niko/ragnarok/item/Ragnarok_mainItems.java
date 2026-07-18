@@ -4,6 +4,7 @@ import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.item.Armor.NaitomeaArmorItem;
 import com.niko.ragnarok.item.Armor.RagnarokArmorMaterials;
+import com.niko.ragnarok.item.Gradius_Great_Sword.GradiusGreatSword;
 import net.minecraft.ChatFormatting;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.*;
@@ -15,7 +16,6 @@ import net.minecraft.network.chat.Component;
 
 import java.awt.*;
 import java.util.Arrays;
-import java.util.List;
 
 public class Ragnarok_mainItems {
 
