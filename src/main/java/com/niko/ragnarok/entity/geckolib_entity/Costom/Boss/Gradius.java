@@ -777,7 +777,7 @@ public class Gradius extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
     @Override
     protected void playStepSound(BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
-        this.playSound(SoundEvents.WITHER_SKELETON_STEP, 1.0F, 1.0F);
+        this.playSound(SoundEvents.RAVAGER_STEP, 1.0F, 1.0F);
     }
 
     @Override

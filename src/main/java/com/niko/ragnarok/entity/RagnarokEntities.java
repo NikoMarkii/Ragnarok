@@ -74,6 +74,15 @@ public class RagnarokEntities {
                             .sized(2.5F,3.6F)
                             .build("gradius"));
 
+    public static final RegistryObject<EntityType<GaleosEntity>> GALEOS =
+            ENTITY_TYPES.register("galeos", () ->
+                    EntityType.Builder.<GaleosEntity>of(GaleosEntity::new, MobCategory.MONSTER)
+                            .sized(3.5F, 6.5F)
+                            .clientTrackingRange(64)
+                            .updateInterval(1)
+                            .build("galeos")
+            );
+
     public static final RegistryObject<EntityType<VoidSlashEntity>> VOID_SLASH =
             ENTITY_TYPES.register("void_slash", () ->
                     EntityType.Builder.<VoidSlashEntity>of(VoidSlashEntity::new, MobCategory.MISC) // 飛び道具は通常 MISC

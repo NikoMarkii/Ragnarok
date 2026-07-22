@@ -38,6 +38,7 @@ public class RagnarokEventBusClientEvent {
         EntityRenderers.register(RagnarokEntities.VOID_SLASH.get(), VoidSlashRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.GLOWING_DUST_PROJECTILE.get(), ThrownItemRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.BLUE_FIREBALL.get(), BlueFireballRenderer::new);
+        event.registerEntityRenderer(RagnarokEntities.GALEOS.get(), GaleosRenderer::new);
     }
 
     @SubscribeEvent
