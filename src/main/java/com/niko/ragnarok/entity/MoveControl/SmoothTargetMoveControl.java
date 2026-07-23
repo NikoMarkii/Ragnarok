@@ -22,16 +22,9 @@ public class SmoothTargetMoveControl extends MoveControl {
 
     private final Mob mob;
     private final float maxTurnPerTick;
-    private boolean movementDisabled = false;
 
     public SmoothTargetMoveControl(Mob mob) {
         this(mob, 20.0F); // 1tickあたりの最大回転角。値を小さくするほど滑らかになるが反応が遅くなる
-    }
-    public void setOperation(Operation op) {
-        this.operation = op;
-    }
-    public void setMovementDisabled(boolean disabled) {
-        this.movementDisabled = disabled;
     }
 
     public SmoothTargetMoveControl(Mob mob, float maxTurnPerTick) {
@@ -53,51 +46,50 @@ public class SmoothTargetMoveControl extends MoveControl {
         double distSq = dx * dx + dy * dy + dz * dz;
 
         if (distSq < 2.5000003E-7) {
+            this.operation = Operation.WAIT;
             this.mob.setSpeed(0.0F);
-            if (!this.movementDisabled) {   // 移動無効中は operation を変更しない
-                this.operation = Operation.WAIT;
-            }
             return;
         }
 
-        // --- 回転処理（常に実行） ---
+        // ── 回転方向：ターゲットがいればターゲット本体を、いなければ経由点を使う ──
         double dirX = dx;
         double dirZ = dz;
+
         LivingEntity target = this.mob.getTarget();
         if (target != null && target.isAlive()) {
             dirX = target.getX() - this.mob.getX();
             dirZ = target.getZ() - this.mob.getZ();
         }
+
         float targetYaw = (float) (Mth.atan2(dirZ, dirX) * (180.0 / Math.PI)) - 90.0F;
-        this.mob.setYRot(rotlerp(this.mob.getYRot(), targetYaw, this.maxTurnPerTick));
+        this.mob.setYRot(clampedRotlerp(this.mob.getYRot(), targetYaw, this.maxTurnPerTick));
 
-        // --- 速度設定（フラグで制御） ---
-        if (this.movementDisabled) {
-            this.mob.setSpeed(0.0F);
-            return;   // ジャンプ処理もスキップ
-        }
+        this.mob.setSpeed((float) (this.speedModifier
+                * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
 
-        this.mob.setSpeed((float) (this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
-
-        // 以下、ジャンプ処理（変更なし）
+        // 段差の上り下り等はナビゲーションの垂直移動に任せる
         if (dy > (double) this.mob.maxUpStep() && dx * dx + dz * dz < Math.max(1.0, this.mob.getBbWidth())) {
             this.mob.getJumpControl().jump();
             this.operation = Operation.JUMPING;
         }
-        if (this.operation == Operation.JUMPING) {
-            this.mob.setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(Attributes.MOVEMENT_SPEED)));
-            if (this.mob.onGround()) {
-                this.operation = Operation.WAIT;
-            }
-            return;
-        }
-        if (this.operation != Operation.MOVE_TO) {
-            this.mob.setSpeed(0);
-        }
     }
+
+    /**
+     * 攻撃中などに強制的に停止させる。
+     * getNavigation().stop() だけでは operation が MOVE_TO のまま残り、
+     * 古い目標座標へ向かって速度が出続けてしまうため、これを併用する。
+     */
+    public void haltImmediately() {
+        this.operation = Operation.WAIT;
+        this.mob.setSpeed(0.0F);
+        this.mob.setZza(0.0F);
+        this.mob.setXxa(0.0F);
+    }
+
     private static float clampedRotlerp(float current, float target, float maxChange) {
         float diff = Mth.wrapDegrees(target - current);
         diff = Mth.clamp(diff, -maxChange, maxChange);
         return current + diff;
     }
 }
+

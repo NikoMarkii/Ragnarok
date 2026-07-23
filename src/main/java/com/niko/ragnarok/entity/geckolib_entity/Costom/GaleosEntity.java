@@ -20,6 +20,7 @@ import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -194,7 +195,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
             if (cooldown > 0) {
                 cooldown--;
-                mob.getNavigation().moveTo(t, speed);
+                tryRecalcPath(t);
                 return;
             }
 
@@ -213,6 +214,21 @@ public class GaleosEntity extends Monster implements GeoEntity {
                 startAttack();
             } else {
                 // ── 移動中は体の向きをナビゲーションに任せる ──
+                tryRecalcPath(t);
+            }
+        }
+
+        // 経路の再計算を間引く。毎tick moveTo() すると、ターゲットとの位置関係が
+        // 軸に近い(=当たり判定ボックスの辺に正対する)ときに左右の迂回経路が
+        // 同コストで揺れてしまい、体が小刻みに回転/斜め移動する原因になる。
+        private void tryRecalcPath(LivingEntity t) {
+            pathRecalcTimer--;
+            boolean navDone = mob.getNavigation().isDone();
+            boolean targetMoved = target != null
+                    && target.distanceToSqr(t.getX(), t.getY(), t.getZ()) > 1.0D;
+
+            if (pathRecalcTimer <= 0 || navDone || targetMoved) {
+                pathRecalcTimer = 10 + mob.getRandom().nextInt(5); // 10〜14tickごと
                 mob.getNavigation().moveTo(t, speed);
             }
         }
@@ -351,7 +367,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
                         net.minecraft.world.level.block.state.BlockState state = level.getBlockState(targetPos);
 
                         if (!state.isAir() && state.getDestroySpeed(level, targetPos) >= 0) {
-                            net.minecraft.world.entity.item.FallingBlockEntity fallingBlock =
+                            FallingBlockEntity fallingBlock =
                                     new net.minecraft.world.entity.item.FallingBlockEntity(
                                             net.minecraft.world.entity.EntityType.FALLING_BLOCK, level);
                             fallingBlock.setPos(
