@@ -1,7 +1,7 @@
 package com.niko.ragnarok.entity.geckolib_entity.model;
 
 import com.niko.ragnarok.Ragnarok;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Cassowary;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.CassowaryEntity;
 import net.minecraft.resources.ResourceLocation;
 import software.bernie.geckolib.constant.DataTickets;
 import software.bernie.geckolib.core.animatable.model.CoreGeoBone;
@@ -9,24 +9,24 @@ import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.model.data.EntityModelData;
 
-public class CassowaryModel extends GeoModel<Cassowary> {
+public class CassowaryModel extends GeoModel<CassowaryEntity> {
     @Override
-    public ResourceLocation getModelResource(Cassowary animatable) {
+    public ResourceLocation getModelResource(CassowaryEntity animatable) {
         return ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "geo/cassowary.geo.json");
     }
 
     @Override
-    public ResourceLocation getTextureResource(Cassowary animatable) {
+    public ResourceLocation getTextureResource(CassowaryEntity animatable) {
         return ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "textures/entity/cassowary.png");
     }
 
     @Override
-    public ResourceLocation getAnimationResource(Cassowary animatable) {
+    public ResourceLocation getAnimationResource(CassowaryEntity animatable) {
         return ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "animations/cassowary.animation.json");
     }
 
     @Override
-    public void setCustomAnimations(Cassowary animatable, long instanceId, AnimationState<Cassowary> animationState) {
+    public void setCustomAnimations(CassowaryEntity animatable, long instanceId, AnimationState<CassowaryEntity> animationState) {
         super.setCustomAnimations(animatable, instanceId, animationState);
 
         CoreGeoBone head = getAnimationProcessor().getBone("head");

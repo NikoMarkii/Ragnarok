@@ -1,7 +1,7 @@
 package com.niko.ragnarok.entity.Projectile;
 
 import com.niko.ragnarok.entity.RagnarokEntities;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.Gradius;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -9,7 +9,6 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.Level;
@@ -87,7 +86,7 @@ public class BlueFireballEntity extends Projectile {
         HitResult hitResult = ProjectileUtil.getHitResultOnMoveVector(
                 this,
                 entity -> entity instanceof LivingEntity
-                        && !(entity instanceof Gradius)  // グラディウスはスルー
+                        && !(entity instanceof GradiusEntity)  // グラディウスはスルー
                         && entity != getOwner()
                         && entity.isAlive()
         );
@@ -120,7 +119,7 @@ public class BlueFireballEntity extends Projectile {
         Entity hit = result.getEntity();
         if (hit instanceof LivingEntity living
                 && hit != getOwner()
-                && !(hit instanceof Gradius)  // グラディウス自身には当たらない
+                && !(hit instanceof GradiusEntity)  // グラディウス自身には当たらない
                 && !level().isClientSide()) {
 
             LivingEntity owner = (getOwner() instanceof LivingEntity l) ? l : null;

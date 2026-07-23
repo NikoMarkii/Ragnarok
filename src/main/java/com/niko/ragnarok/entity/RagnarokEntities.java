@@ -6,7 +6,8 @@ import com.niko.ragnarok.entity.Projectile.GlowingDustEntity;
 import com.niko.ragnarok.entity.Projectile.VoidSlashEntity;
 import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.Gradius;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -49,28 +50,28 @@ public class RagnarokEntities {
                             .sized(2F,2.0F)
                             .build("magic_golem")
             );
-    public static final RegistryObject<EntityType<Ender_Soldier>> ENDER_SOLDIER =
+    public static final RegistryObject<EntityType<EnderSoldierEntity>> ENDER_SOLDIER =
             ENTITY_TYPES.register("ender_soldier",() ->
-                    EntityType.Builder.of(Ender_Soldier::new,MobCategory.MONSTER)
+                    EntityType.Builder.of(EnderSoldierEntity::new,MobCategory.MONSTER)
                             .sized(3F,4.5F)
                             .build("ender_soldier")
             );
-    public static final RegistryObject<EntityType<Fairy>> FAIRY = ENTITY_TYPES.register("fairy",
-            () -> EntityType.Builder.of(Fairy::new, MobCategory.CREATURE)
+    public static final RegistryObject<EntityType<FairyEntity>> FAIRY = ENTITY_TYPES.register("fairy",
+            () -> EntityType.Builder.of(FairyEntity::new, MobCategory.CREATURE)
                     .sized(1F, 0.9F) // 小さなサイズ
                     .clientTrackingRange(8)
                     .build("fairy"));
 
-    public static final RegistryObject<EntityType<Cassowary>> CASSOWARY =
+    public static final RegistryObject<EntityType<CassowaryEntity>> CASSOWARY =
             ENTITY_TYPES.register("cassowary", () ->
-                    EntityType.Builder.of(Cassowary::new, MobCategory.CREATURE)
+                    EntityType.Builder.of(CassowaryEntity::new, MobCategory.CREATURE)
                             .sized(1.2F, 2.1F)
                             .clientTrackingRange(8)
                             .build("cassowary"));
 
-    public static final RegistryObject<EntityType<Gradius>> GRADIUS =
+    public static final RegistryObject<EntityType<GradiusEntity>> GRADIUS =
             ENTITY_TYPES.register("gradius",() ->
-                    EntityType.Builder.of(Gradius::new, MobCategory.MONSTER)
+                    EntityType.Builder.of(GradiusEntity::new, MobCategory.MONSTER)
                             .sized(2.5F,3.6F)
                             .build("gradius"));
 

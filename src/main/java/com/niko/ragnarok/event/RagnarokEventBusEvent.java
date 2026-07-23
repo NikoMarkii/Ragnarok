@@ -4,7 +4,8 @@ import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.Gradius;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.SpawnPlacements;
@@ -16,7 +17,7 @@ import net.minecraftforge.event.entity.SpawnPlacementRegisterEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
-import static com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.isBrightEnoughToSpawn;
+import static com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity.isBrightEnoughToSpawn;
 
 @Mod.EventBusSubscriber(modid = Ragnarok.MOD_ID,bus = Mod.EventBusSubscriber.Bus.MOD)
 public class RagnarokEventBusEvent {
@@ -36,13 +37,13 @@ public class RagnarokEventBusEvent {
         event.put(RagnarokEntities.MAGIC_GOLEM.get(),
                 Magic_Golem.createAttributes().build());
         event.put(RagnarokEntities.ENDER_SOLDIER.get(),
-                Ender_Soldier.createAttributes().build());
+                EnderSoldierEntity.createAttributes().build());
         event.put(RagnarokEntities.FAIRY.get(),
-                Fairy.createAttributes().build());
+                FairyEntity.createAttributes().build());
         event.put(RagnarokEntities.CASSOWARY.get(),
-                Cassowary.createAttributes().build());
+                CassowaryEntity.createAttributes().build());
         event.put(RagnarokEntities.GRADIUS.get(),
-                Gradius.createAttributes().build());
+                GradiusEntity.createAttributes().build());
         event.put(RagnarokEntities.GHOST.get(),
                 GhostEntity.createAttributes().build());
         event.put(RagnarokEntities.GHOST_KNIGHT.get(),
@@ -91,7 +92,7 @@ public class RagnarokEventBusEvent {
         event.register(RagnarokEntities.CASSOWARY.get(),
                 SpawnPlacements.Type.ON_GROUND,
                 Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                Cassowary::checkCassowarySpawnRules,
+                CassowaryEntity::checkCassowarySpawnRules,
                 SpawnPlacementRegisterEvent.Operation.REPLACE);
 
         // スニッファーの登録

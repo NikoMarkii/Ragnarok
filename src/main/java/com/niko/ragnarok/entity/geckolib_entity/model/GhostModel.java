@@ -1,7 +1,6 @@
 package com.niko.ragnarok.entity.geckolib_entity.model;
 
 import com.niko.ragnarok.Ragnarok;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.GhostEntity;
 import net.minecraft.resources.ResourceLocation;
 import software.bernie.geckolib.constant.DataTickets;

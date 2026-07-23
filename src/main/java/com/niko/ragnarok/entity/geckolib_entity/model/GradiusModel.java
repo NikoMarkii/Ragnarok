@@ -1,40 +1,39 @@
 package com.niko.ragnarok.entity.geckolib_entity.model;
 
 import com.niko.ragnarok.Ragnarok;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.Gradius;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
 import net.minecraft.resources.ResourceLocation;
 import software.bernie.geckolib.constant.DataTickets;
 import software.bernie.geckolib.core.animatable.model.CoreGeoBone;
 import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.model.GeoModel;
-import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.model.data.EntityModelData;
 
-public class GradiusModel extends GeoModel<Gradius> {
+public class GradiusModel extends GeoModel<GradiusEntity> {
 
     @Override
-    public ResourceLocation getModelResource(Gradius animatable) {
+    public ResourceLocation getModelResource(GradiusEntity animatable) {
         return ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID,
                 "geo/gradius.geo.json");
     }
 
     @Override
-    public ResourceLocation getTextureResource(Gradius animatable) {
+    public ResourceLocation getTextureResource(GradiusEntity animatable) {
         return ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID,
                 "textures/entity/gradius_texture.png");
     }
 
     @Override
-    public ResourceLocation getAnimationResource(Gradius animatable) {
+    public ResourceLocation getAnimationResource(GradiusEntity animatable) {
         return ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID,
                 "animations/gradius.animation.json");
     }
 
     @Override
     public void setCustomAnimations(
-            Gradius animatable,
+            GradiusEntity animatable,
             long instanceId,
-            AnimationState<Gradius> animationState) {
+            AnimationState<GradiusEntity> animationState) {
 
         super.setCustomAnimations(animatable, instanceId, animationState);
 

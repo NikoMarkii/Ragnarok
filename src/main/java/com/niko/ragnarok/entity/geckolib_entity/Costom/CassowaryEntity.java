@@ -20,7 +20,6 @@ import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
-import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
@@ -32,19 +31,18 @@ import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.RawAnimation;
-import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-public class Cassowary extends Animal implements GeoEntity {
+public class CassowaryEntity extends Animal implements GeoEntity {
     private static final int ATTACK_HIT_TICK = 12;
     private static final int ATTACK_ANIMATION_TICKS = 20;
     private static final int SHIELD_DISABLE_TICKS = 100;
     private static final EntityDataAccessor<Integer> ATTACK_ANIMATION_REMAINING =
-            SynchedEntityData.defineId(Cassowary.class, EntityDataSerializers.INT);
+            SynchedEntityData.defineId(CassowaryEntity.class, EntityDataSerializers.INT);
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
-    public Cassowary(EntityType<? extends Animal> entityType, Level level) {
+    public CassowaryEntity(EntityType<? extends Animal> entityType, Level level) {
         super(entityType, level);
         this.xpReward = 4;
     }
@@ -69,7 +67,7 @@ public class Cassowary extends Animal implements GeoEntity {
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.2D);
     }
 
-    public static boolean checkCassowarySpawnRules(EntityType<Cassowary> entityType, LevelAccessor level, net.minecraft.world.entity.MobSpawnType spawnType, BlockPos pos, net.minecraft.util.RandomSource random) {
+    public static boolean checkCassowarySpawnRules(EntityType<CassowaryEntity> entityType, LevelAccessor level, net.minecraft.world.entity.MobSpawnType spawnType, BlockPos pos, net.minecraft.util.RandomSource random) {
         return level.getFluidState(pos.below()).isEmpty()
                 && Animal.checkAnimalSpawnRules(entityType, level, spawnType, pos, random);
     }
@@ -165,15 +163,15 @@ public class Cassowary extends Animal implements GeoEntity {
     }
 
     private static class CassowaryAttackGoal extends MeleeAttackGoal {
-        private final Cassowary cassowary;
+        private final CassowaryEntity cassowaryEntity;
         @Nullable
         private LivingEntity animationTarget;
         private int animationTick;
         private boolean hasHit;
 
-        public CassowaryAttackGoal(Cassowary cassowary, double speedModifier, boolean followingTargetEvenIfNotSeen) {
-            super(cassowary, speedModifier, followingTargetEvenIfNotSeen);
-            this.cassowary = cassowary;
+        public CassowaryAttackGoal(CassowaryEntity cassowaryEntity, double speedModifier, boolean followingTargetEvenIfNotSeen) {
+            super(cassowaryEntity, speedModifier, followingTargetEvenIfNotSeen);
+            this.cassowaryEntity = cassowaryEntity;
         }
 
         @Override
@@ -219,7 +217,7 @@ public class Cassowary extends Animal implements GeoEntity {
                 this.animationTarget = target;
                 this.animationTick = 0;
                 this.hasHit = false;
-                this.cassowary.startAttackAnimation();
+                this.cassowaryEntity.startAttackAnimation();
             }
         }
 

@@ -1,6 +1,6 @@
 package com.niko.ragnarok.entity.geckolib_entity.model;
 
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Ender_Soldier;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.EnderSoldierEntity;
 import net.minecraft.resources.ResourceLocation;
 import software.bernie.geckolib.constant.DataTickets;
 import software.bernie.geckolib.core.animatable.model.CoreGeoBone;
@@ -8,25 +8,25 @@ import software.bernie.geckolib.core.animation.AnimationState;
 import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.model.data.EntityModelData;
 
-public class EnderSoldierModel extends GeoModel<Ender_Soldier> {
+public class EnderSoldierModel extends GeoModel<EnderSoldierEntity> {
 
     @Override
-    public ResourceLocation getModelResource(Ender_Soldier animatable) {
+    public ResourceLocation getModelResource(EnderSoldierEntity animatable) {
         return ResourceLocation.fromNamespaceAndPath("ragnarok", "geo/ender_soldier.geo.json");
     }
 
     @Override
-    public ResourceLocation getTextureResource(Ender_Soldier animatable) {
+    public ResourceLocation getTextureResource(EnderSoldierEntity animatable) {
         return ResourceLocation.fromNamespaceAndPath("ragnarok", "textures/entity/ender_soldier.png");
     }
 
     @Override
-    public ResourceLocation getAnimationResource(Ender_Soldier animatable) {
+    public ResourceLocation getAnimationResource(EnderSoldierEntity animatable) {
         return ResourceLocation.fromNamespaceAndPath("ragnarok", "animations/ender_soldier.animation.json");
     }
 
     @Override
-    public void setCustomAnimations(Ender_Soldier animatable, long instanceId, AnimationState<Ender_Soldier> animationState) {
+    public void setCustomAnimations(EnderSoldierEntity animatable, long instanceId, AnimationState<EnderSoldierEntity> animationState) {
         super.setCustomAnimations(animatable, instanceId, animationState);
 
         CoreGeoBone head = getAnimationProcessor().getBone("head");
