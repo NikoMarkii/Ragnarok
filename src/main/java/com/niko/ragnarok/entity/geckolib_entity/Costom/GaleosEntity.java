@@ -52,10 +52,24 @@ public class GaleosEntity extends Monster implements GeoEntity {
     private static final EntityDataAccessor<Integer> ATTACK_STATE =
             SynchedEntityData.defineId(GaleosEntity.class, EntityDataSerializers.INT);
 
+    private static final EntityDataAccessor<Boolean> IS_DYING =
+            SynchedEntityData.defineId(GaleosEntity.class, EntityDataSerializers.BOOLEAN);
+
+    public boolean isActuallyDying() {
+        return this.entityData.get(IS_DYING);
+    }
+    private void setDying(boolean dying) {
+        this.entityData.set(IS_DYING, dying);
+    }
+
     private static final int ATK_HIT   = 30;
     private static final int ATK_TOTAL = 45;
 
+    private static final int DEATH_DURATION = 65;
+
     private int previousAttackState = 0;
+
+    private int customDeathTime = 0;
 
     private void sendScreenShake(float intensity, int duration) {
         if (this.level().isClientSide()) return;
@@ -78,18 +92,19 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH,      120.0D)
+                .add(Attributes.MAX_HEALTH,      200.0D)
                 .add(Attributes.MOVEMENT_SPEED,    0.24D)
                 .add(Attributes.ATTACK_DAMAGE,     10.0D)
                 .add(Attributes.FOLLOW_RANGE,      32.0D)
                 .add(Attributes.ARMOR,              8.0D)
-                .add(Attributes.KNOCKBACK_RESISTANCE, 0.5D);
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D);
     }
 
     @Override
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(ATTACK_STATE, 0);
+        this.entityData.define(IS_DYING, false);
     }
 
     public int getAttackState()       { return this.entityData.get(ATTACK_STATE); }
@@ -105,10 +120,45 @@ public class GaleosEntity extends Monster implements GeoEntity {
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
     }
+    @Override
+    public void die(DamageSource damageSource) {
+        if (!this.level().isClientSide && !this.isActuallyDying()) {
+            super.die(damageSource);
+            this.setDying(true);
+            this.customDeathTime = 0;
+        }
+    }
+    @Override
+    public void aiStep() {
+        super.aiStep();
+
+        if (this.isActuallyDying()) {
+            this.customDeathTime++;
+            this.setDeltaMovement(Vec3.ZERO);
+
+            // アニメーションが終了する直前（あるいは終了時）にドロップを実行
+            if (this.customDeathTime >= DEATH_DURATION) {
+                if (!this.level().isClientSide) {
+                    // ここでドロップアイテムを放出する
+                    this.dropFromLootTable(this.damageSources().generic(), true);
+
+                    this.remove(RemovalReason.KILLED);
+                }
+            }
+        }
+    }
 
     @Override
     public boolean fireImmune() {
         return true;
+    }
+
+    @Override
+    protected void tickDeath() {
+    }
+    @Override
+    public boolean isDeadOrDying() {
+        return this.isActuallyDying() || super.isDeadOrDying();
     }
 
     @Override
@@ -133,9 +183,10 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
         private int attackTimer = 0;
         private int cooldown    = 0;
-        private int pathRecalcTimer = 0;
 
         private static final double ATTACK_START_SQ = 25.0D; // 3ブロック以内で攻撃開始
+
+        private int turnTimer = 0;
 
         private final List<ScheduledBlockWave> scheduledBlockWaves = new ArrayList<>();
         private final List<net.minecraft.world.entity.item.FallingBlockEntity> activeWaveBlocks = new ArrayList<>();
@@ -163,7 +214,6 @@ public class GaleosEntity extends Monster implements GeoEntity {
             this.target = mob.getTarget();
             this.attackTimer = 0;
             this.cooldown = 0;
-            this.pathRecalcTimer = 0;
         }
 
         @Override
@@ -190,19 +240,31 @@ public class GaleosEntity extends Monster implements GeoEntity {
             }
             this.target = t;
 
-            // 頭は常にターゲットを見る（体の向きには影響しない）
+            // 頭は常にターゲットを見る
             mob.getLookControl().setLookAt(t, 30F, 30F);
 
             if (cooldown > 0) {
                 cooldown--;
-                tryRecalcPath(t);
+                Vec3 toTarget = new Vec3(
+                        t.getX() - mob.getX(),
+                        0,
+                        t.getZ() - mob.getZ()
+                ).normalize();
+                double slowSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.60D;
+                mob.setDeltaMovement(
+                        toTarget.x * slowSpeed,
+                        mob.getDeltaMovement().y,
+                        toTarget.z * slowSpeed
+                );
+                faceTargetSmoothly(t);
                 return;
             }
 
+            // 攻撃中は停止（変更なし）
             if (mob.getAttackState() > 0) {
                 attackTimer++;
                 mob.getNavigation().stop();
-                faceTarget(t); // ← 攻撃中のみ体を強制的に向ける
+                mob.setDeltaMovement(Vec3.ZERO);
                 executeAttack(t);
                 return;
             }
@@ -210,54 +272,55 @@ public class GaleosEntity extends Monster implements GeoEntity {
             double distSq = mob.distanceToSqr(t);
             if (distSq <= ATTACK_START_SQ) {
                 mob.getNavigation().stop();
-                faceTarget(t); // ← 攻撃直前も体を向ける
+                mob.setDeltaMovement(Vec3.ZERO);
+                faceTarget(t);
                 startAttack();
             } else {
-                // ── 移動中は体の向きをナビゲーションに任せる ──
-                tryRecalcPath(t);
+                mob.getNavigation().stop();
+                Vec3 toTarget = new Vec3(
+                        t.getX() - mob.getX(),
+                        0,
+                        t.getZ() - mob.getZ()
+                ).normalize();
+                double moveSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.67D; // ★ 速度調整
+                mob.setDeltaMovement(
+                        toTarget.x * moveSpeed,
+                        mob.getDeltaMovement().y,
+                        toTarget.z * moveSpeed
+                );
+                faceTargetSmoothly(t);
             }
         }
 
-        // 経路の再計算を間引く。毎tick moveTo() すると、ターゲットとの位置関係が
-        // 軸に近い(=当たり判定ボックスの辺に正対する)ときに左右の迂回経路が
-        // 同コストで揺れてしまい、体が小刻みに回転/斜め移動する原因になる。
-        private void tryRecalcPath(LivingEntity t) {
-            pathRecalcTimer--;
-            boolean navDone = mob.getNavigation().isDone();
-            boolean targetMoved = target != null
-                    && target.distanceToSqr(t.getX(), t.getY(), t.getZ()) > 1.0D;
-
-            if (pathRecalcTimer <= 0 || navDone || targetMoved) {
-                pathRecalcTimer = 10 + mob.getRandom().nextInt(5); // 10〜14tickごと
-                mob.getNavigation().moveTo(t, speed);
-            }
-        }
-
-        // 体（yBodyRot）を滑らかにターゲットへ向ける
         private void faceTarget(LivingEntity t) {
             double dx = t.getX() - mob.getX();
             double dz = t.getZ() - mob.getZ();
-            float targetYaw = (float)(Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+            float targetYaw = (float) (Math.atan2(dz, dx) * (180F / Math.PI)) - 90F;
+            mob.setYRot(targetYaw);
+            mob.yBodyRot = targetYaw;
+        }
 
-            // 停止して向き直す場面でのみ呼ばれるので、少し速めに回転してOK
-            float maxTurn = 25F;
+        // 体の向きを滑らかに追従（毎tick呼び出す）
+        private void faceTargetSmoothly(LivingEntity t) {
+            double dx = t.getX() - mob.getX();
+            double dz = t.getZ() - mob.getZ();
+            float targetYaw = (float) (Math.atan2(dz, dx) * (180F / Math.PI)) - 90F;
 
-            float newYaw = rotlerp(mob.getYRot(), targetYaw, maxTurn);
+            // 現在の体の向きとの差分を計算（-180～180度に正規化）
+            float currentYaw = mob.yBodyRot;
+            float delta = targetYaw - currentYaw;
+            while (delta > 180F) delta -= 360F;
+            while (delta < -180F) delta += 360F;
 
+            // 1tickあたり最大10度まで回転（滑らかにする）
+            float maxTurn = 10.0F;
+            if (Math.abs(delta) > maxTurn) {
+                delta = Math.signum(delta) * maxTurn;
+            }
+            float newYaw = currentYaw + delta;
             mob.setYRot(newYaw);
             mob.yBodyRot = newYaw;
-            mob.yHeadRot = newYaw;
         }
-
-        private static float rotlerp(float current, float target, float maxChange) {
-            float diff = net.minecraft.util.Mth.wrapDegrees(target - current);
-
-            if (diff > maxChange) diff = maxChange;
-            if (diff < -maxChange) diff = -maxChange;
-
-            return current + diff;
-        }
-
         private void startAttack() {
             int roll = mob.random.nextInt(3);
             mob.setAttackState(roll + 1); // 1,2,3
@@ -452,7 +515,11 @@ public class GaleosEntity extends Monster implements GeoEntity {
     // ──────────────────────────────────────────
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        // ── 待機・歩行コントローラー ──
         controllers.add(new AnimationController<>(this, "base_controller", 5, state -> {
+            // 死体は動かさないための楔
+            if (this.isDeadOrDying()) return PlayState.STOP;
+
             if (this.getAttackState() > 0) {
                 return state.setAndContinue(RawAnimation.begin().thenLoop("idle"));
             }
@@ -462,8 +529,17 @@ public class GaleosEntity extends Monster implements GeoEntity {
             return state.setAndContinue(RawAnimation.begin().thenLoop("idle"));
         }));
 
-        // ── コンストラクタの第3引数にtransitionTickTimeを直接指定 ──
+        // ── アクション（攻撃）コントローラー ──
         controllers.add(new AnimationController<>(this, "action_controller", 3, state -> {
+            if (this.isActuallyDying()) {
+
+                return state.setAndContinue(
+                        RawAnimation.begin().thenPlayAndHold("death")
+                );
+            }
+            // 死体は攻撃しないための楔
+            if (this.isDeadOrDying()) return PlayState.STOP;
+
             AnimationController<?> controller = state.getController();
             boolean hasAnim = controller.getCurrentAnimation() != null;
             boolean isFinished = controller.hasAnimationFinished();
