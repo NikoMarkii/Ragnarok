@@ -10,7 +10,6 @@ import java.util.function.Predicate;
 
 /**
  * 汎用追跡ゴール – 移動可能条件を外部から指定できる
- * 改善: より直線的で自然な追従、ナビゲーションの遅延を軽減
  */
 public class RkmoveGoal extends Goal {
 
@@ -21,7 +20,6 @@ public class RkmoveGoal extends Goal {
     private LivingEntity target;
     private int pathRecalcTimer;
     private Vec3 lastTargetPos = Vec3.ZERO;
-    private static final double RECALC_DISTANCE_SQ = 4.0D; // 2ブロック移動で再計算
 
     public RkmoveGoal(Mob mob, double speed, Predicate<Mob> canMovePredicate) {
         this.mob = mob;
@@ -67,61 +65,21 @@ public class RkmoveGoal extends Goal {
         this.target = t;
 
         mob.getLookControl().setLookAt(t, 30F, 30F);
-        
-        // ターゲットが非常に近い場合は、ナビゲーションを使わず直接移動
-        double distSq = mob.distanceToSqr(t);
-        if (distSq < 6.25D) { // 2.5ブロック以内は直接移動
-            moveDirectlyToTarget(t);
-        } else {
-            // それ以外はナビゲーションを使用（パス検索）
-            tryRecalcPath(t);
-        }
+        tryRecalcPath(t);
     }
 
-    /**
-     * ターゲットに直接移動（ナビゲーション不使用）
-     * より滑らかで、横歩きが少ない
-     */
-    private void moveDirectlyToTarget(LivingEntity target) {
-        Vec3 mobPos = mob.position();
-        Vec3 targetPos = target.position();
-        Vec3 direction = targetPos.subtract(mobPos);
-        
-        // Y成分を無視（垂直移動はジャンプで処理）
-        direction = new Vec3(direction.x, 0, direction.z);
-        
-        double distSq = direction.lengthSqr();
-        if (distSq > 0.01) {
-            direction = direction.normalize();
-            double moveSpeed = speed * mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
-            mob.setDeltaMovement(
-                    direction.x * moveSpeed,
-                    mob.getDeltaMovement().y,
-                    direction.z * moveSpeed
-            );
-            
-            // 段差を越える判定
-            if (targetPos.y > mobPos.y + mob.getStepHeight()) {
-                mob.getJumpControl().jump();
-            }
-        }
-    }
-
-    /**
-     * ナビゲーション経路の再計算
-     * より頻繁にターゲット位置の変化をチェック
-     */
     private void tryRecalcPath(LivingEntity t) {
         this.pathRecalcTimer--;
 
-        // ターゲットが大きく移動したか、パスが完了したら再計算
+        // タイマーが0以下になった時のみ、再計算の余地を与える
         if (this.pathRecalcTimer <= 0) {
             boolean navDone = this.mob.getNavigation().isDone();
-            boolean targetMoved = t.position().distanceToSqr(this.lastTargetPos) > RECALC_DISTANCE_SQ;
+            boolean targetMoved = t.position().distanceToSqr(this.lastTargetPos) > 1.0D;
 
+            // ナビゲーションが終わっているか、ターゲットが移動していたらパスを更新
             if (navDone || targetMoved) {
-                // 再計算のインターバル（ターゲットが移動していたら短くする）
-                this.pathRecalcTimer = targetMoved ? 3 : (5 + this.mob.getRandom().nextInt(5));
+                // 再計算のインターバルをランダムに設定（バニラの挙動を参考にした軽量化対策）
+                this.pathRecalcTimer = 4 + this.mob.getRandom().nextInt(7);
                 this.lastTargetPos = t.position();
                 this.mob.getNavigation().moveTo(t, this.speed);
             }
