@@ -1,5 +1,6 @@
 package com.niko.ragnarok.entity.geckolib_entity.Costom;
 
+import com.niko.ragnarok.entity.AI.RkmoveGoal;
 import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.network.ScreenShakePacket;
 import net.minecraft.core.BlockPos;
@@ -14,6 +15,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
@@ -88,6 +90,62 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
     public GaleosEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
+        this.moveControl = new SmoothMoveControl(this, 15.0F);
+    }
+
+    /**
+     * 1tickあたりの最大回転角を制限したMoveControl。
+     * バニラ実装(net.minecraft.world.entity.ai.control.MoveControl)とほぼ同じだが、
+     * rotlerpに渡すmaxTurnを小さくすることで急な回頭を防ぐ。
+     */
+    static class SmoothMoveControl extends MoveControl {
+        private final float maxTurnPerTick;
+
+        SmoothMoveControl(net.minecraft.world.entity.Mob mob, float maxTurnPerTick) {
+            super(mob);
+            this.maxTurnPerTick = maxTurnPerTick;
+        }
+
+        @Override
+        public void tick() {
+            // カニ歩き(STRAFE)時はバニラの処理に任せる
+            if (this.operation == MoveControl.Operation.STRAFE) {
+                super.tick();
+            } else if (this.operation == MoveControl.Operation.MOVE_TO) {
+                this.operation = MoveControl.Operation.WAIT;
+                double dx = this.wantedX - this.mob.getX();
+                double dy = this.wantedY - this.mob.getY();
+                double dz = this.wantedZ - this.mob.getZ();
+                double distSq = dx * dx + dy * dy + dz * dz;
+
+                if (distSq < 2.500000277905201E-7D) {
+                    this.mob.setZza(0.0F);
+                    return;
+                }
+
+                // 目標の角度を算出
+                float targetYaw = (float)(net.minecraft.util.Mth.atan2(dz, dx) * (180F / Math.PI)) - 90.0F;
+
+                // ここが要！バニラでは90.0Fで急回転するところを、maxTurnPerTickを使って滑らかに回頭させる
+                this.mob.setYRot(this.rotlerp(this.mob.getYRot(), targetYaw, this.maxTurnPerTick));
+
+                // 向いている方向に対して前進速度を設定
+                this.mob.setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED)));
+
+                // 段差やブロックがある場合の自動ジャンプ判定
+                if (dy > (double)this.mob.getStepHeight() && dx * dx + dz * dz < (double)Math.max(1.0F, this.mob.getBbWidth())) {
+                    this.mob.getJumpControl().jump();
+                    this.operation = MoveControl.Operation.JUMPING;
+                }
+            } else if (this.operation == MoveControl.Operation.JUMPING) {
+                this.mob.setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED)));
+                if (this.mob.onGround()) {
+                    this.operation = MoveControl.Operation.WAIT;
+                }
+            } else {
+                this.mob.setZza(0.0F);
+            }
+        }
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -114,8 +172,10 @@ public class GaleosEntity extends Monster implements GeoEntity {
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
         this.goalSelector.addGoal(1, new GaleosAttackGoal(this, 1.05D));
-        this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1.0D));
-        this.goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 12.0F));
+        this.goalSelector.addGoal(2, new RkmoveGoal(this, 1.05D,
+                mob -> mob instanceof GaleosEntity g && g.getAttackState() == 0));
+        this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 1.0D));
+        this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 12.0F));
 
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
@@ -186,8 +246,6 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
         private static final double ATTACK_START_SQ = 25.0D; // 3ブロック以内で攻撃開始
 
-        private int turnTimer = 0;
-
         private final List<ScheduledBlockWave> scheduledBlockWaves = new ArrayList<>();
         private final List<net.minecraft.world.entity.item.FallingBlockEntity> activeWaveBlocks = new ArrayList<>();
 
@@ -200,13 +258,16 @@ public class GaleosEntity extends Monster implements GeoEntity {
         @Override
         public boolean canUse() {
             LivingEntity t = mob.getTarget();
-            return t != null && t.isAlive();
+            return t != null && t.isAlive() && mob.distanceToSqr(t) <= ATTACK_START_SQ;
         }
 
         @Override
         public boolean canContinueToUse() {
             LivingEntity t = mob.getTarget();
-            return t != null && t.isAlive();
+            if (t == null || !t.isAlive()) return false;
+            // 攻撃中・クールダウン中は距離に関わらず継続する（アニメーション/硬直を中断しない）
+            if (mob.getAttackState() > 0 || cooldown > 0) return true;
+            return mob.distanceToSqr(t) <= ATTACK_START_SQ;
         }
 
         @Override
@@ -221,8 +282,8 @@ public class GaleosEntity extends Monster implements GeoEntity {
             mob.setAttackState(0);
             attackTimer = 0;
             mob.getNavigation().stop();
-            scheduledBlockWaves.clear(); // ← 追加
-            activeWaveBlocks.clear();    // ← 追加
+            scheduledBlockWaves.clear();
+            activeWaveBlocks.clear();
         }
 
         @Override
@@ -230,97 +291,55 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
         @Override
         public void tick() {
-            LivingEntity t = mob.getTarget();
             tickScheduledBlockWaves();
             tickWaveBlockDamage();
 
+            LivingEntity t = mob.getTarget();
             if (t == null || !t.isAlive()) {
                 mob.setAttackState(0);
                 return;
             }
             this.target = t;
 
-            // 頭は常にターゲットを見る
-            mob.getLookControl().setLookAt(t, 30F, 30F);
-
+            // ---- クールダウン中は移動を妨げず、向きも変更しない ----
             if (cooldown > 0) {
                 cooldown--;
-                Vec3 toTarget = new Vec3(
-                        t.getX() - mob.getX(),
-                        0,
-                        t.getZ() - mob.getZ()
-                ).normalize();
-                double slowSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.60D;
-                mob.setDeltaMovement(
-                        toTarget.x * slowSpeed,
-                        mob.getDeltaMovement().y,
-                        toTarget.z * slowSpeed
-                );
-                faceTargetSmoothly(t);
                 return;
             }
 
-            // 攻撃中は停止（変更なし）
+            // ---- 攻撃中 ----
             if (mob.getAttackState() > 0) {
+                mob.getNavigation().stop();          // 移動停止
+                faceTarget(t);                       // 攻撃方向に体を向ける
                 attackTimer++;
-                mob.getNavigation().stop();
-                mob.setDeltaMovement(Vec3.ZERO);
                 executeAttack(t);
                 return;
             }
 
-            double distSq = mob.distanceToSqr(t);
-            if (distSq <= ATTACK_START_SQ) {
-                mob.getNavigation().stop();
-                mob.setDeltaMovement(Vec3.ZERO);
-                faceTarget(t);
-                startAttack();
-            } else {
-                mob.getNavigation().stop();
-                Vec3 toTarget = new Vec3(
-                        t.getX() - mob.getX(),
-                        0,
-                        t.getZ() - mob.getZ()
-                ).normalize();
-                double moveSpeed = mob.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.67D; // ★ 速度調整
-                mob.setDeltaMovement(
-                        toTarget.x * moveSpeed,
-                        mob.getDeltaMovement().y,
-                        toTarget.z * moveSpeed
-                );
-                faceTargetSmoothly(t);
-            }
+            // ---- 攻撃開始（attackState == 0 && cooldown == 0） ----
+            startAttack();
         }
 
         private void faceTarget(LivingEntity t) {
             double dx = t.getX() - mob.getX();
             double dz = t.getZ() - mob.getZ();
             float targetYaw = (float) (Math.atan2(dz, dx) * (180F / Math.PI)) - 90F;
-            mob.setYRot(targetYaw);
-            mob.yBodyRot = targetYaw;
-        }
 
-        // 体の向きを滑らかに追従（毎tick呼び出す）
-        private void faceTargetSmoothly(LivingEntity t) {
-            double dx = t.getX() - mob.getX();
-            double dz = t.getZ() - mob.getZ();
-            float targetYaw = (float) (Math.atan2(dz, dx) * (180F / Math.PI)) - 90F;
+            float maxTurn = 25F;
+            float newYaw = rotlerp(mob.getYRot(), targetYaw, maxTurn);
 
-            // 現在の体の向きとの差分を計算（-180～180度に正規化）
-            float currentYaw = mob.yBodyRot;
-            float delta = targetYaw - currentYaw;
-            while (delta > 180F) delta -= 360F;
-            while (delta < -180F) delta += 360F;
-
-            // 1tickあたり最大10度まで回転（滑らかにする）
-            float maxTurn = 10.0F;
-            if (Math.abs(delta) > maxTurn) {
-                delta = Math.signum(delta) * maxTurn;
-            }
-            float newYaw = currentYaw + delta;
             mob.setYRot(newYaw);
             mob.yBodyRot = newYaw;
+            mob.yHeadRot = newYaw;
         }
+
+        private static float rotlerp(float current, float target, float maxChange) {
+            float diff = net.minecraft.util.Mth.wrapDegrees(target - current);
+            if (diff > maxChange) diff = maxChange;
+            if (diff < -maxChange) diff = -maxChange;
+            return current + diff;
+        }
+
         private void startAttack() {
             int roll = mob.random.nextInt(3);
             mob.setAttackState(roll + 1); // 1,2,3
