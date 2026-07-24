@@ -1,6 +1,5 @@
 package com.niko.ragnarok.entity.geckolib_entity.Costom;
 
-import com.niko.ragnarok.entity.AI.RkmoveGoal;
 import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.network.ScreenShakePacket;
 import net.minecraft.core.BlockPos;
@@ -15,7 +14,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.control.MoveControl;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
@@ -43,9 +41,6 @@ import java.util.List;
 
 /**
  * ガレオス - 中ボス
- * attack1   : 右腕 発生25tick 長さ45tick
- * attack1_2 : 左腕 発生25tick 長さ45tick
- * attack2   : 両腕叩きつけ 発生25tick 長さ45tick
  */
 public class GaleosEntity extends Monster implements GeoEntity {
 
@@ -70,14 +65,12 @@ public class GaleosEntity extends Monster implements GeoEntity {
     private static final int DEATH_DURATION = 65;
 
     private int previousAttackState = 0;
-
     private int customDeathTime = 0;
 
     private void sendScreenShake(float intensity, int duration) {
         if (this.level().isClientSide()) return;
         if (!(this.level() instanceof ServerLevel sl)) return;
 
-        // 範囲内のプレイヤーにパケット送信
         for (net.minecraft.server.level.ServerPlayer player :
                 sl.getPlayers(p -> p.distanceToSqr(this) < 64 * 64)) {
             RagnarokNetwork.CHANNEL.sendTo(
@@ -90,60 +83,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
     public GaleosEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
-        this.moveControl = new DirectiveMoveControl(this);
-    }
-
-    /**
-     * 高速応答型MoveControl
-     * 回転速度を上げ、常に目標方向に向きながら移動
-     */
-    static class DirectiveMoveControl extends MoveControl {
-
-        DirectiveMoveControl(net.minecraft.world.entity.Mob mob) {
-            super(mob);
-        }
-
-        @Override
-        public void tick() {
-            if (this.operation == MoveControl.Operation.STRAFE) {
-                // カニ歩きモード（現状では使用されないが、念のため処理）
-                super.tick();
-            } else if (this.operation == MoveControl.Operation.MOVE_TO) {
-                this.operation = MoveControl.Operation.WAIT;
-                double dx = this.wantedX - this.mob.getX();
-                double dy = this.wantedY - this.mob.getY();
-                double dz = this.wantedZ - this.mob.getZ();
-                double distSq = dx * dx + dy * dy + dz * dz;
-
-                if (distSq < 2.500000277905201E-7D) {
-                    this.mob.setZza(0.0F);
-                    return;
-                }
-
-                // 目標方向への角度
-                float targetYaw = (float)(net.minecraft.util.Mth.atan2(dz, dx) * (180F / Math.PI)) - 90.0F;
-
-                // 高速な回転（1tick あたり45度まで）
-                float maxTurn = 45.0F;
-                this.mob.setYRot(this.rotlerp(this.mob.getYRot(), targetYaw, maxTurn));
-
-                // 向いている方向に対して前進速度を設定
-                this.mob.setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED)));
-
-                // 段差やブロックがある場合の自動ジャンプ判定
-                if (dy > (double)this.mob.getStepHeight() && dx * dx + dz * dz < (double)Math.max(1.0F, this.mob.getBbWidth())) {
-                    this.mob.getJumpControl().jump();
-                    this.operation = MoveControl.Operation.JUMPING;
-                }
-            } else if (this.operation == MoveControl.Operation.JUMPING) {
-                this.mob.setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED)));
-                if (this.mob.onGround()) {
-                    this.operation = MoveControl.Operation.WAIT;
-                }
-            } else {
-                this.mob.setZza(0.0F);
-            }
-        }
+        // DirectiveMoveControl は撤去し、デフォルトの MoveControl を使用
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -169,15 +109,15 @@ public class GaleosEntity extends Monster implements GeoEntity {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
+        // GaleosAttackGoal 自体が移動と攻撃の両方を統合処理する
         this.goalSelector.addGoal(1, new GaleosAttackGoal(this, 1.05D));
-        this.goalSelector.addGoal(2, new RkmoveGoal(this, 1.05D,
-                mob -> mob instanceof GaleosEntity g && g.getAttackState() == 0));
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 1.0D));
         this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 12.0F));
 
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
     }
+
     @Override
     public void die(DamageSource damageSource) {
         if (!this.level().isClientSide && !this.isActuallyDying()) {
@@ -186,6 +126,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
             this.customDeathTime = 0;
         }
     }
+
     @Override
     public void aiStep() {
         super.aiStep();
@@ -194,12 +135,9 @@ public class GaleosEntity extends Monster implements GeoEntity {
             this.customDeathTime++;
             this.setDeltaMovement(Vec3.ZERO);
 
-            // アニメーションが終了する直前（あるいは終了時）にドロップを実行
             if (this.customDeathTime >= DEATH_DURATION) {
                 if (!this.level().isClientSide) {
-                    // ここでドロップアイテムを放出する
                     this.dropFromLootTable(this.damageSources().generic(), true);
-
                     this.remove(RemovalReason.KILLED);
                 }
             }
@@ -212,8 +150,8 @@ public class GaleosEntity extends Monster implements GeoEntity {
     }
 
     @Override
-    protected void tickDeath() {
-    }
+    protected void tickDeath() {}
+
     @Override
     public boolean isDeadOrDying() {
         return this.isActuallyDying() || super.isDeadOrDying();
@@ -231,7 +169,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
     }
 
     // ──────────────────────────────────────────
-    // AttackGoal
+    // Attack & Movement Goal (統合版)
     // ──────────────────────────────────────────
     static class GaleosAttackGoal extends Goal {
 
@@ -241,8 +179,9 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
         private int attackTimer = 0;
         private int cooldown    = 0;
+        private int pathUpdateTimer = 0; // バニラ標準の経路更新用タイマー
 
-        private static final double ATTACK_START_SQ = 25.0D; // 3ブロック以内で攻撃開始
+        private static final double ATTACK_START_SQ = 16.0D; // 4ブロック以内で攻撃（扱いやすい距離に微調整）
 
         private final List<ScheduledBlockWave> scheduledBlockWaves = new ArrayList<>();
         private final List<net.minecraft.world.entity.item.FallingBlockEntity> activeWaveBlocks = new ArrayList<>();
@@ -256,16 +195,15 @@ public class GaleosEntity extends Monster implements GeoEntity {
         @Override
         public boolean canUse() {
             LivingEntity t = mob.getTarget();
-            return t != null && t.isAlive() && mob.distanceToSqr(t) <= ATTACK_START_SQ;
+            // ターゲットが存在すれば距離に関わらず発動可能にする
+            return t != null && t.isAlive();
         }
 
         @Override
         public boolean canContinueToUse() {
             LivingEntity t = mob.getTarget();
             if (t == null || !t.isAlive()) return false;
-            // 攻撃中・クールダウン中は距離に関わらず継続する（アニメーション/硬直を中断しない）
-            if (mob.getAttackState() > 0 || cooldown > 0) return true;
-            return mob.distanceToSqr(t) <= ATTACK_START_SQ;
+            return true;
         }
 
         @Override
@@ -273,6 +211,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
             this.target = mob.getTarget();
             this.attackTimer = 0;
             this.cooldown = 0;
+            this.pathUpdateTimer = 0;
         }
 
         @Override
@@ -299,23 +238,37 @@ public class GaleosEntity extends Monster implements GeoEntity {
             }
             this.target = t;
 
-            // ---- クールダウン中は移動を妨げず、向きも変更しない ----
+            // クールダウン処理
             if (cooldown > 0) {
                 cooldown--;
-                return;
             }
 
-            // ---- 攻撃中 ----
+            // ---- 1. 攻撃実行中 ----
             if (mob.getAttackState() > 0) {
-                mob.getNavigation().stop();          // 移動停止
-                faceTarget(t);                       // 攻撃方向に体を向ける
+                mob.getNavigation().stop(); // 攻撃中は足を止める
+                faceTarget(t);              // 体をターゲットに向ける
                 attackTimer++;
                 executeAttack(t);
                 return;
             }
 
-            // ---- 攻撃開始（attackState == 0 && cooldown == 0） ----
-            startAttack();
+            // ---- 2. 間合いに入った & クールダウン終了 → 攻撃開始 ----
+            double distSq = mob.distanceToSqr(t);
+            if (distSq <= ATTACK_START_SQ && cooldown <= 0) {
+                mob.getNavigation().stop();
+                startAttack();
+                return;
+            }
+
+            // ---- 3. 間合いの外 → バニラ標準の安全なナビゲーションで接近 ----
+            // 毎tick再計算せず、10tick(0.5秒)ごとにナビゲーションを更新する（これでガタつきが消える）
+            if (--this.pathUpdateTimer <= 0) {
+                this.pathUpdateTimer = 10;
+                this.mob.getNavigation().moveTo(t, this.speed);
+            }
+
+            // 移動中も頭と視線は自然にターゲットに向ける
+            this.mob.getLookControl().setLookAt(t, 30.0F, 30.0F);
         }
 
         private void faceTarget(LivingEntity t) {
@@ -391,7 +344,6 @@ public class GaleosEntity extends Monster implements GeoEntity {
             mob.playSound(SoundEvents.GENERIC_EXPLODE, 1.5F, 0.6F);
             mob.sendScreenShake(1.5F, 15);
 
-            // ── 扇状ブロック波 ──
             if (mob.level() instanceof ServerLevel) {
                 final BlockPos center = mob.blockPosition();
                 double angle = Math.atan2(mob.getLookAngle().z, mob.getLookAngle().x);
@@ -414,6 +366,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
             cooldown = cd;
             mob.setAttackState(0);
         }
+
         private void tickScheduledBlockWaves() {
             Iterator<ScheduledBlockWave> it = scheduledBlockWaves.iterator();
             while (it.hasNext()) {
@@ -532,9 +485,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
     // ──────────────────────────────────────────
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        // ── 待機・歩行コントローラー ──
         controllers.add(new AnimationController<>(this, "base_controller", 5, state -> {
-            // 死体は動かさないための楔
             if (this.isDeadOrDying()) return PlayState.STOP;
 
             if (this.getAttackState() > 0) {
@@ -546,15 +497,12 @@ public class GaleosEntity extends Monster implements GeoEntity {
             return state.setAndContinue(RawAnimation.begin().thenLoop("idle"));
         }));
 
-        // ── アクション（攻撃）コントローラー ──
         controllers.add(new AnimationController<>(this, "action_controller", 3, state -> {
             if (this.isActuallyDying()) {
-
                 return state.setAndContinue(
                         RawAnimation.begin().thenPlayAndHold("death")
                 );
             }
-            // 死体は攻撃しないための楔
             if (this.isDeadOrDying()) return PlayState.STOP;
 
             AnimationController<?> controller = state.getController();
@@ -563,7 +511,6 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
             int atk = this.getAttackState();
 
-            // ---- 攻撃中 ----
             if (atk > 0) {
                 if (this.previousAttackState != atk) {
                     controller.forceAnimationReset();
@@ -578,12 +525,9 @@ public class GaleosEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(RawAnimation.begin().thenPlay(animName));
             }
 
-            // ---- 攻撃終了後（attackState == 0） ----
             if (hasAnim && !isFinished) {
-                // まだアニメーションが終わっていない → 継続
                 return PlayState.CONTINUE;
             } else {
-                // アニメーションが終了した、または何も再生されていない → 停止して base に移行
                 this.previousAttackState = 0;
                 return PlayState.STOP;
             }
