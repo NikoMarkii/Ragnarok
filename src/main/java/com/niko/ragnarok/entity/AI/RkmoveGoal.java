@@ -9,8 +9,8 @@ import java.util.EnumSet;
 import java.util.function.Predicate;
 
 /**
- * 直接移動追跡ゴール – ナビゲーションに頼らない直接制御
- * プレイヤー移動に即座に反応
+ * 改善版追跡ゴール – ナビゲーション + 高速再計算
+ * プレイヤー移動に即座に反応しつつ、障害物対応も可能
  */
 public class RkmoveGoal extends Goal {
 
@@ -19,6 +19,10 @@ public class RkmoveGoal extends Goal {
     private final Predicate<Mob> canMovePredicate;
 
     private LivingEntity target;
+    private int pathRecalcTimer = 0;
+    private Vec3 lastTargetPos = Vec3.ZERO;
+    private static final double RECALC_DISTANCE_THRESHOLD = 0.5D; // 0.5ブロック移動で再計算
+    private static final int MIN_RECALC_INTERVAL = 1; // 最小1tick間隔で再計算可能
 
     public RkmoveGoal(Mob mob, double speed, Predicate<Mob> canMovePredicate) {
         this.mob = mob;
@@ -42,15 +46,14 @@ public class RkmoveGoal extends Goal {
     @Override
     public void start() {
         this.target = mob.getTarget();
-        mob.getNavigation().stop();
+        this.pathRecalcTimer = 0;
+        this.lastTargetPos = target != null ? target.position() : Vec3.ZERO;
     }
 
     @Override
     public void stop() {
         this.target = null;
         mob.getNavigation().stop();
-        mob.setZza(0.0F);
-        mob.setXxa(0.0F);
     }
 
     @Override
@@ -69,65 +72,39 @@ public class RkmoveGoal extends Goal {
         // ターゲットを見つめる
         mob.getLookControl().setLookAt(t, 30F, 30F);
         
-        // 直接移動
-        moveTowardTarget(t);
+        // 経路の再計算判定
+        updatePath(t);
     }
 
     /**
-     * ターゲットに向かって直接移動する
-     * NavigationSystem を使わずに直接 DeltaMovement を操作
+     * ナビゲーション経路を積極的に更新
+     * プレイヤーの移動に素早く反応
      */
-    private void moveTowardTarget(LivingEntity target) {
-        Vec3 mobPos = mob.position();
+    private void updatePath(LivingEntity target) {
         Vec3 targetPos = target.position();
-        Vec3 direction = targetPos.subtract(mobPos);
         
-        // XZ平面の距離を計算
-        double xzDistSq = direction.x * direction.x + direction.z * direction.z;
+        // ターゲット移動距離を計算
+        double distFromLastPos = targetPos.distanceToSqr(this.lastTargetPos);
         
-        // 十分近い場合は移動を止める
-        if (xzDistSq < 0.01D) {
-            mob.setZza(0.0F);
-            mob.setXxa(0.0F);
-            return;
+        // 毎tick再計算（または閾値以上の移動で即座に再計算）
+        if (distFromLastPos > RECALC_DISTANCE_THRESHOLD * RECALC_DISTANCE_THRESHOLD) {
+            // プレイヤーが大きく移動した → 即座に経路再計算
+            this.pathRecalcTimer = 0;
+            this.lastTargetPos = targetPos;
         }
         
-        // 正規化して方向を取得（Y成分は除外）
-        double xzDist = Math.sqrt(xzDistSq);
-        double dirX = direction.x / xzDist;
-        double dirZ = direction.z / xzDist;
+        // カウントダウン
+        this.pathRecalcTimer--;
         
-        // ターゲット方向に向く（スムーズな回転）
-        float targetYaw = (float) (Math.atan2(dirZ, dirX) * (180F / Math.PI)) - 90F;
-        float currentYaw = mob.getYRot();
-        float yawDiff = net.minecraft.util.Mth.wrapDegrees(targetYaw - currentYaw);
-        float maxTurn = 15F; // 1tick あたりの最大回転角
-        
-        if (yawDiff > maxTurn) yawDiff = maxTurn;
-        if (yawDiff < -maxTurn) yawDiff = -maxTurn;
-        
-        float newYaw = currentYaw + yawDiff;
-        mob.setYRot(newYaw);
-        mob.yBodyRot = newYaw;
-        mob.yHeadRot = newYaw;
-        
-        // 速度を直接設定（移動速度属性を参照）
-        double moveSpeed = speed * mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
-        
-        // 前進方向に移動（現在の向きに基づいて）
-        Vec3 lookAngle = mob.getLookAngle();
-        double moveX = lookAngle.x * moveSpeed;
-        double moveZ = lookAngle.z * moveSpeed;
-        
-        // 重力は保持
-        double moveY = mob.getDeltaMovement().y;
-        
-        mob.setDeltaMovement(moveX, moveY, moveZ);
-        
-        // 段差を越えられるようにジャンプ判定
-        if (targetPos.y > mobPos.y + 0.1D && 
-            targetPos.y <= mobPos.y + mob.getStepHeight() + 0.1D) {
-            mob.getJumpControl().jump();
+        // 経路の再計算実行
+        if (this.pathRecalcTimer <= 0) {
+            // 毎tickナビゲーション指令を送信（ただし非常に短い間隔で）
+            // これにより、ナビゲーションシステムがプレイヤーの最新位置を常に参照する
+            this.mob.getNavigation().moveTo(target, this.speed);
+            
+            // 次の再計算までの短い間隔（1-2tick）
+            this.pathRecalcTimer = MIN_RECALC_INTERVAL;
+            this.lastTargetPos = targetPos;
         }
     }
 }
