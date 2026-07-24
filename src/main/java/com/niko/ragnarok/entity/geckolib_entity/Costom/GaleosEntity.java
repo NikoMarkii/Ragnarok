@@ -90,26 +90,23 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
     public GaleosEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
-        this.moveControl = new SmoothMoveControl(this, 15.0F);
+        this.moveControl = new DirectiveMoveControl(this);
     }
 
     /**
-     * 1tickあたりの最大回転角を制限したMoveControl。
-     * バニラ実装(net.minecraft.world.entity.ai.control.MoveControl)とほぼ同じだが、
-     * rotlerpに渡すmaxTurnを小さくすることで急な回頭を防ぐ。
+     * 高速応答型MoveControl
+     * 回転速度を上げ、常に目標方向に向きながら移動
      */
-    static class SmoothMoveControl extends MoveControl {
-        private final float maxTurnPerTick;
+    static class DirectiveMoveControl extends MoveControl {
 
-        SmoothMoveControl(net.minecraft.world.entity.Mob mob, float maxTurnPerTick) {
+        DirectiveMoveControl(net.minecraft.world.entity.Mob mob) {
             super(mob);
-            this.maxTurnPerTick = maxTurnPerTick;
         }
 
         @Override
         public void tick() {
-            // カニ歩き(STRAFE)時はバニラの処理に任せる
             if (this.operation == MoveControl.Operation.STRAFE) {
+                // カニ歩きモード（現状では使用されないが、念のため処理）
                 super.tick();
             } else if (this.operation == MoveControl.Operation.MOVE_TO) {
                 this.operation = MoveControl.Operation.WAIT;
@@ -123,11 +120,12 @@ public class GaleosEntity extends Monster implements GeoEntity {
                     return;
                 }
 
-                // 目標の角度を算出
+                // 目標方向への角度
                 float targetYaw = (float)(net.minecraft.util.Mth.atan2(dz, dx) * (180F / Math.PI)) - 90.0F;
-
-                // ここが要！バニラでは90.0Fで急回転するところを、maxTurnPerTickを使って滑らかに回頭させる
-                this.mob.setYRot(this.rotlerp(this.mob.getYRot(), targetYaw, this.maxTurnPerTick));
+                
+                // 高速な回転（1tick あたり45度まで）
+                float maxTurn = 45.0F;
+                this.mob.setYRot(this.rotlerp(this.mob.getYRot(), targetYaw, maxTurn));
 
                 // 向いている方向に対して前進速度を設定
                 this.mob.setSpeed((float)(this.speedModifier * this.mob.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED)));
