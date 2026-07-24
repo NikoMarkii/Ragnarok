@@ -6,6 +6,8 @@ import com.niko.ragnarok.entity.Boss_Monster;
 import com.niko.ragnarok.entity.Projectile.BlueFireballEntity;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.GhostKnightEntity;
+import com.niko.ragnarok.entity.others.RkBodyRotationControl;
+import com.niko.ragnarok.entity.others.RkSmoothMoveControl;
 import com.niko.ragnarok.item.Ragnarok_mainItems;
 import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.network.ScreenShakePacket;
@@ -165,6 +167,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         super(type, level);
         this.xpReward = 500;
         this.bossEvent.setVisible(false);
+        this.moveControl = new RkSmoothMoveControl(this, 8.0F);
     }
 
     private void sendScreenShake(float intensity, int duration) {
@@ -204,7 +207,6 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         this.goalSelector.addGoal(1, new GradiusAttackGoal(this, 1.1D));
         this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1.0D));
         this.goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 12.0F));
-
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
     }
@@ -305,6 +307,11 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         // 有益なエフェクト（カテゴリがBENEFICIAL）のみ受け付ける
         return effectInstance.getEffect().getCategory()
                 == net.minecraft.world.effect.MobEffectCategory.BENEFICIAL;
+    }
+
+    @Override
+    protected net.minecraft.world.entity.ai.control.BodyRotationControl createBodyControl() {
+        return new RkBodyRotationControl(this);
     }
 
     // ──────────────────────────────────────────

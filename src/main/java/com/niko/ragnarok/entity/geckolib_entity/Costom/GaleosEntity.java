@@ -1,5 +1,7 @@
 package com.niko.ragnarok.entity.geckolib_entity.Costom;
 
+import com.niko.ragnarok.entity.others.RkBodyRotationControl;
+import com.niko.ragnarok.entity.others.RkSmoothMoveControl;
 import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.network.ScreenShakePacket;
 import net.minecraft.core.BlockPos;
@@ -83,7 +85,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
     public GaleosEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
-        // DirectiveMoveControl は撤去し、デフォルトの MoveControl を使用
+        this.moveControl = new RkSmoothMoveControl(this, 8.0F);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -109,11 +111,9 @@ public class GaleosEntity extends Monster implements GeoEntity {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        // GaleosAttackGoal 自体が移動と攻撃の両方を統合処理する
         this.goalSelector.addGoal(1, new GaleosAttackGoal(this, 1.05D));
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 1.0D));
         this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 12.0F));
-
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
     }
@@ -153,6 +153,11 @@ public class GaleosEntity extends Monster implements GeoEntity {
     protected void tickDeath() {}
 
     @Override
+    protected net.minecraft.world.entity.ai.control.BodyRotationControl createBodyControl() {
+        return new RkBodyRotationControl(this);
+    }
+
+    @Override
     public boolean isDeadOrDying() {
         return this.isActuallyDying() || super.isDeadOrDying();
     }
@@ -179,9 +184,8 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
         private int attackTimer = 0;
         private int cooldown    = 0;
-        private int pathUpdateTimer = 0; // バニラ標準の経路更新用タイマー
 
-        private static final double ATTACK_START_SQ = 16.0D; // 4ブロック以内で攻撃（扱いやすい距離に微調整）
+        private static final double ATTACK_START_SQ = 25.0D;
 
         private final List<ScheduledBlockWave> scheduledBlockWaves = new ArrayList<>();
         private final List<net.minecraft.world.entity.item.FallingBlockEntity> activeWaveBlocks = new ArrayList<>();
@@ -195,15 +199,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
         @Override
         public boolean canUse() {
             LivingEntity t = mob.getTarget();
-            // ターゲットが存在すれば距離に関わらず発動可能にする
             return t != null && t.isAlive();
-        }
-
-        @Override
-        public boolean canContinueToUse() {
-            LivingEntity t = mob.getTarget();
-            if (t == null || !t.isAlive()) return false;
-            return true;
         }
 
         @Override
@@ -211,7 +207,6 @@ public class GaleosEntity extends Monster implements GeoEntity {
             this.target = mob.getTarget();
             this.attackTimer = 0;
             this.cooldown = 0;
-            this.pathUpdateTimer = 0;
         }
 
         @Override
@@ -238,57 +233,31 @@ public class GaleosEntity extends Monster implements GeoEntity {
             }
             this.target = t;
 
-            // クールダウン処理
+            mob.getLookControl().setLookAt(t, 30F, 30F);
+
+            // クールダウン中は接近のみ（Gradiusと同じく、硬直中もじりじり近づく）
             if (cooldown > 0) {
                 cooldown--;
+                mob.getNavigation().moveTo(t, speed);
+                return;
             }
 
-            // ---- 1. 攻撃実行中 ----
+            // ---- 攻撃実行中 ----
             if (mob.getAttackState() > 0) {
-                mob.getNavigation().stop(); // 攻撃中は足を止める
-                faceTarget(t);              // 体をターゲットに向ける
                 attackTimer++;
+                mob.getNavigation().stop();
                 executeAttack(t);
                 return;
             }
 
-            // ---- 2. 間合いに入った & クールダウン終了 → 攻撃開始 ----
+            // ---- 行動選択：射程内なら攻撃、外なら接近 ----
             double distSq = mob.distanceToSqr(t);
-            if (distSq <= ATTACK_START_SQ && cooldown <= 0) {
+            if (distSq <= ATTACK_START_SQ) {
                 mob.getNavigation().stop();
                 startAttack();
-                return;
+            } else {
+                mob.getNavigation().moveTo(t, speed);
             }
-
-            // ---- 3. 間合いの外 → バニラ標準の安全なナビゲーションで接近 ----
-            // 毎tick再計算せず、10tick(0.5秒)ごとにナビゲーションを更新する（これでガタつきが消える）
-            if (--this.pathUpdateTimer <= 0) {
-                this.pathUpdateTimer = 10;
-                this.mob.getNavigation().moveTo(t, this.speed);
-            }
-
-            // 移動中も頭と視線は自然にターゲットに向ける
-            this.mob.getLookControl().setLookAt(t, 30.0F, 30.0F);
-        }
-
-        private void faceTarget(LivingEntity t) {
-            double dx = t.getX() - mob.getX();
-            double dz = t.getZ() - mob.getZ();
-            float targetYaw = (float) (Math.atan2(dz, dx) * (180F / Math.PI)) - 90F;
-
-            float maxTurn = 25F;
-            float newYaw = rotlerp(mob.getYRot(), targetYaw, maxTurn);
-
-            mob.setYRot(newYaw);
-            mob.yBodyRot = newYaw;
-            mob.yHeadRot = newYaw;
-        }
-
-        private static float rotlerp(float current, float target, float maxChange) {
-            float diff = net.minecraft.util.Mth.wrapDegrees(target - current);
-            if (diff > maxChange) diff = maxChange;
-            if (diff < -maxChange) diff = -maxChange;
-            return current + diff;
         }
 
         private void startAttack() {
