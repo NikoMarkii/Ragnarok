@@ -1,10 +1,14 @@
 package com.niko.ragnarok.entity.geckolib_entity.Costom;
 
+import com.niko.ragnarok.entity.Mid_Boss_Monster;
 import com.niko.ragnarok.entity.others.RkBodyRotationControl;
+import com.niko.ragnarok.entity.others.RkCombatUtil;
 import com.niko.ragnarok.entity.others.RkSmoothMoveControl;
 import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.network.ScreenShakePacket;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -16,6 +20,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.control.BodyRotationControl;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
@@ -44,7 +49,7 @@ import java.util.List;
 /**
  * ガレオス - 中ボス
  */
-public class GaleosEntity extends Monster implements GeoEntity {
+public class GaleosEntity extends Mid_Boss_Monster implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -94,7 +99,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
                 .add(Attributes.MOVEMENT_SPEED,    0.24D)
                 .add(Attributes.ATTACK_DAMAGE,     10.0D)
                 .add(Attributes.FOLLOW_RANGE,      32.0D)
-                .add(Attributes.ARMOR,              8.0D)
+                .add(Attributes.ARMOR,              10.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D);
     }
 
@@ -115,7 +120,11 @@ public class GaleosEntity extends Monster implements GeoEntity {
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 1.0D));
         this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 12.0F));
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
-        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
+        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(
+                this, Player.class, 10, true, false,
+                livingEntity -> !(livingEntity instanceof Player player
+                        && (player.isCreative() || player.isSpectator()))
+        ));
     }
 
     @Override
@@ -128,6 +137,22 @@ public class GaleosEntity extends Monster implements GeoEntity {
     }
 
     @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("IsDying", this.isActuallyDying());
+        tag.putInt("CustomDeathTime", this.customDeathTime);
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains("IsDying")) {
+            this.setDying(tag.getBoolean("IsDying"));
+        }
+        this.customDeathTime = tag.getInt("CustomDeathTime");
+    }
+
+    @Override
     public void aiStep() {
         super.aiStep();
 
@@ -135,8 +160,22 @@ public class GaleosEntity extends Monster implements GeoEntity {
             this.customDeathTime++;
             this.setDeltaMovement(Vec3.ZERO);
 
+            // ダメージを受けた時の赤い明滅表示を死亡演出中ずっと維持する
+            this.hurtTime = this.hurtDuration;
+
             if (this.customDeathTime >= DEATH_DURATION) {
                 if (!this.level().isClientSide) {
+
+                    if (this.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+                        sl.sendParticles(
+                                ParticleTypes.POOF,
+                                this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
+                                25,
+                                this.getBbWidth() * 0.5D, this.getBbHeight() * 0.5D, this.getBbWidth() * 0.5D,
+                                0.05D
+                        );
+                    }
+
                     this.dropFromLootTable(this.damageSources().generic(), true);
                     this.remove(RemovalReason.KILLED);
                 }
@@ -153,7 +192,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
     protected void tickDeath() {}
 
     @Override
-    protected net.minecraft.world.entity.ai.control.BodyRotationControl createBodyControl() {
+    protected BodyRotationControl createBodyControl() {
         return new RkBodyRotationControl(this);
     }
 
@@ -184,6 +223,12 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
         private int attackTimer = 0;
         private int cooldown    = 0;
+        private boolean forceFinishAttack = false;
+        private int noTargetFreezeTicks = 0;
+
+        // forceFinishAttack中でも、ターゲット不在のままこのtick数を超えたら
+        // 強制的にあきらめてGoalを手放す（でないと永久にその場で固まる）
+        private static final int MAX_NO_TARGET_FREEZE_TICKS = 20;
 
         private static final double ATTACK_START_SQ = 25.0D;
 
@@ -198,6 +243,9 @@ public class GaleosEntity extends Monster implements GeoEntity {
 
         @Override
         public boolean canUse() {
+            if (this.forceFinishAttack) {
+                return true;
+            }
             LivingEntity t = mob.getTarget();
             return t != null && t.isAlive();
         }
@@ -213,6 +261,8 @@ public class GaleosEntity extends Monster implements GeoEntity {
         public void stop() {
             mob.setAttackState(0);
             attackTimer = 0;
+            forceFinishAttack = false;
+            noTargetFreezeTicks = 0;
             mob.getNavigation().stop();
             scheduledBlockWaves.clear();
             activeWaveBlocks.clear();
@@ -226,11 +276,36 @@ public class GaleosEntity extends Monster implements GeoEntity {
             tickScheduledBlockWaves();
             tickWaveBlockDamage();
 
+            // 常にターゲットの方を向く（体・頭とも固定）
+            if (target != null) {
+                this.mob.getLookControl().setLookAt(target, 30.0F, 30.0F);
+
+                Vec3 lookVec = target.position().subtract(this.mob.position());
+                float yRot = (float) (Math.toDegrees(Math.atan2(lookVec.z, lookVec.x)) - 90F);
+
+                this.mob.setYRot(yRot);
+                this.mob.yBodyRot = yRot;
+                this.mob.yHeadRot = yRot;
+            }
+
             LivingEntity t = mob.getTarget();
             if (t == null || !t.isAlive()) {
+                if (this.forceFinishAttack) {
+                    // 攻撃アニメーション再生中はターゲットが消えても状態を維持し、最後まで再生させる。
+                    // ただし、ターゲットが戻ってこないまま長時間経過したら、Goalが
+                    // 永久に居座って動けなくなるのを防ぐため強制的にあきらめる。
+                    noTargetFreezeTicks++;
+                    if (noTargetFreezeTicks > MAX_NO_TARGET_FREEZE_TICKS) {
+                        forceFinishAttack = false;
+                        mob.setAttackState(0);
+                        noTargetFreezeTicks = 0;
+                    }
+                    return;
+                }
                 mob.setAttackState(0);
                 return;
             }
+            noTargetFreezeTicks = 0;
             this.target = t;
 
             mob.getLookControl().setLookAt(t, 30F, 30F);
@@ -246,6 +321,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
             if (mob.getAttackState() > 0) {
                 attackTimer++;
                 mob.getNavigation().stop();
+                RkCombatUtil.faceTarget(mob, t); // 攻撃中はターゲットへ体・頭を向ける
                 executeAttack(t);
                 return;
             }
@@ -264,6 +340,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
             int roll = mob.random.nextInt(3);
             mob.setAttackState(roll + 1); // 1,2,3
             attackTimer = 0;
+            forceFinishAttack = true;
         }
 
         private void executeAttack(LivingEntity t) {
@@ -334,6 +411,7 @@ public class GaleosEntity extends Monster implements GeoEntity {
             attackTimer = 0;
             cooldown = cd;
             mob.setAttackState(0);
+            forceFinishAttack = false;
         }
 
         private void tickScheduledBlockWaves() {

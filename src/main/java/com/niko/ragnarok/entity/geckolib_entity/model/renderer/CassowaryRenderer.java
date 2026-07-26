@@ -1,4 +1,4 @@
-package com.niko.ragnarok.entity.geckolib_entity.renderer;
+package com.niko.ragnarok.entity.geckolib_entity.model.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.CassowaryEntity;

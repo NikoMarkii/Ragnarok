@@ -9,7 +9,7 @@ import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.Model.scorpion_model;
 import com.niko.ragnarok.entity.Model.t_lex_model;
 import com.niko.ragnarok.entity.Model.magic_golem_model;
-import com.niko.ragnarok.entity.geckolib_entity.renderer.*;
+import com.niko.ragnarok.entity.geckolib_entity.model.renderer.*;
 import com.niko.ragnarok.entity.Projectile.Renderer.VoidSlashRenderer;
 import com.niko.ragnarok.entity.renderer.*;
 import net.minecraft.client.renderer.entity.EntityRenderers;

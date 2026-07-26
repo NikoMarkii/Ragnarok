@@ -1,7 +1,12 @@
 package com.niko.ragnarok.entity.geckolib_entity.Costom;
 
+import com.niko.ragnarok.entity.Mid_Boss_Monster;
+import com.niko.ragnarok.entity.others.RkBodyRotationControl;
+import com.niko.ragnarok.entity.others.RkCombatUtil;
+import com.niko.ragnarok.entity.others.RkSmoothMoveControl;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -35,15 +40,13 @@ import java.util.EnumSet;
 /**
  * エンダーソルジャー - 8種類の攻撃を持つ強力な敵
  */
-public class EnderSoldierEntity extends Monster implements GeoEntity {
+public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
     // データシンク
     private static final EntityDataAccessor<Integer> ATTACK_STATE =
             SynchedEntityData.defineId(EnderSoldierEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> IS_DYING =
-            SynchedEntityData.defineId(EnderSoldierEntity.class, EntityDataSerializers.BOOLEAN);
-    private static final EntityDataAccessor<Boolean> IS_STUNNED =
             SynchedEntityData.defineId(EnderSoldierEntity.class, EntityDataSerializers.BOOLEAN);
 
     // 内部状態
@@ -54,6 +57,7 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
     public EnderSoldierEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
         this.xpReward = 20;
+        this.moveControl = new RkSmoothMoveControl(this, 8.0F);
     }
 
     @Override
@@ -82,7 +86,10 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
         super.defineSynchedData();
         this.entityData.define(ATTACK_STATE, 0);
         this.entityData.define(IS_DYING, false);
-        this.entityData.define(IS_STUNNED, false);
+    }
+    @Override
+    protected net.minecraft.world.entity.ai.control.BodyRotationControl createBodyControl() {
+        return new RkBodyRotationControl(this);
     }
 
     public void setAttackState(int state) {
@@ -101,14 +108,6 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
         this.entityData.set(IS_DYING, dying);
     }
 
-    public boolean isStunned() {
-        return this.entityData.get(IS_STUNNED);
-    }
-
-    public void setStunned(boolean stunned) {
-        this.entityData.set(IS_STUNNED, stunned);
-    }
-
     @Override
     public void die(DamageSource damageSource) {
         if (!this.level().isClientSide && !this.isActuallyDying()) {
@@ -119,16 +118,45 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
     }
 
     @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putBoolean("IsDying", this.isActuallyDying());
+        tag.putInt("CustomDeathTime", this.customDeathTime);
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains("IsDying")) {
+            this.setDying(tag.getBoolean("IsDying"));
+        }
+        this.customDeathTime = tag.getInt("CustomDeathTime");
+    }
+
+    @Override
     public void aiStep() {
         super.aiStep();
 
         if (this.isActuallyDying()) {
             this.customDeathTime++;
             this.setDeltaMovement(Vec3.ZERO);
+            this.hurtTime = this.hurtDuration;
 
             // アニメーションが終了する直前（あるいは終了時）にドロップを実行
             if (this.customDeathTime >= DEATH_DURATION) {
                 if (!this.level().isClientSide) {
+
+                    // 消滅する瞬間に煙を出す
+                    if (this.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+                        sl.sendParticles(
+                                ParticleTypes.POOF,
+                                this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
+                                25,
+                                this.getBbWidth() * 0.5D, this.getBbHeight() * 0.5D, this.getBbWidth() * 0.5D,
+                                0.05D
+                        );
+                    }
+
                     // ここでドロップアイテムを放出する
                     this.dropFromLootTable(this.damageSources().generic(), true);
 
@@ -164,11 +192,6 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
     }
 
     @Override
-    public boolean causeFallDamage(float fallDistance, float damageMultiplier, DamageSource source) {
-        return false;
-    }
-
-    @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
 
         // 移動・待機
@@ -181,13 +204,6 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
 
             // 攻撃中は完全停止
             if (this.getAttackState() > 0) {
-                return state.setAndContinue(
-                        RawAnimation.begin().thenLoop("idle")
-                );
-            }
-
-            // スタン
-            if (this.isStunned()) {
                 return state.setAndContinue(
                         RawAnimation.begin().thenLoop("idle")
                 );
@@ -215,14 +231,6 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
 
                 return state.setAndContinue(
                         RawAnimation.begin().thenPlayAndHold("death")
-                );
-            }
-
-            // スタン
-            if (this.isStunned()) {
-
-                return state.setAndContinue(
-                        RawAnimation.begin().thenLoop("idle")
                 );
             }
 
@@ -355,12 +363,17 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
 
         private int attackTimer;
         private int cooldownTimer;
-        private int stunTimer;
         private Vec3 chargeDirection;
 
         private int consecutiveAttackCount;
 
         private LivingEntity lockedTarget;
+        private boolean forceFinishAttack;
+        private int noTargetFreezeTicks;
+
+        // forceFinishAttack中でも、ターゲット不在のままこのtick数を超えたら
+        // 強制的にあきらめてGoalを手放す（でないと永久にその場で固まる）
+        private static final int MAX_NO_TARGET_FREEZE_TICKS = 20;
 
         public SoldierAttackGoal(EnderSoldierEntity mob, double speedModifier) {
 
@@ -376,194 +389,114 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
 
         @Override
         public boolean canUse() {
-
-            if (this.mob.isActuallyDying() || this.mob.isStunned()) {
+            if (this.mob.isActuallyDying()) {
                 return false;
             }
-
+            // 攻撃アニメーションを最後まで再生させるため、
+            // 空振りやターゲット消失中でもこのGoalは離さない
+            if (this.forceFinishAttack) {
+                return true;
+            }
             LivingEntity target = this.mob.getTarget();
-
             return target != null && target.isAlive();
         }
 
         @Override
-        public boolean canContinueToUse() {
-
-            return (this.mob.getTarget() != null
-                    && this.mob.getTarget().isAlive())
-                    || this.mob.getAttackState() > 0
-                    || this.mob.isStunned();
-        }
-
-        @Override
         public void start() {
-
             this.attackTimer = 0;
             this.cooldownTimer = 0;
-            this.stunTimer = 0;
-
             this.consecutiveAttackCount = 0;
         }
 
         @Override
         public void stop() {
-
             this.mob.getNavigation().stop();
-
             this.mob.setAttackState(0);
-            this.mob.setStunned(false);
-
             this.consecutiveAttackCount = 0;
+            this.forceFinishAttack = false;
+            this.noTargetFreezeTicks = 0;
+            this.lockedTarget = null;
         }
 
         @Override
         public void tick() {
+            LivingEntity target = this.mob.getTarget();
 
-            LivingEntity target =
-                    this.mob.getAttackState() > 0
-                            ? this.lockedTarget
-                            : this.mob.getTarget();
-
-            if (this.mob.isActuallyDying()) {
-                return;
+            // 常にターゲットの方を向く（体・頭とも固定）。
+            // ターゲットが一時的にnullでも、直前まで狙っていた相手(lockedTarget)へ向け続ける。
+            LivingEntity faceAt = target != null ? target : this.lockedTarget;
+            if (faceAt != null) {
+                RkCombatUtil.faceTarget(this.mob, faceAt, 360F);
+                this.mob.getLookControl().setLookAt(faceAt, 30.0F, 30.0F);
             }
 
-            // 常にターゲットを見る
-            if (target != null) {
-
-                this.mob.getLookControl().setLookAt(
-                        target,
-                        30.0F,
-                        30.0F
-                );
-
-                Vec3 lookVec = target.position()
-                        .subtract(this.mob.position());
-
-                float yRot = (float)(
-                        Math.toDegrees(
-                                Math.atan2(lookVec.z, lookVec.x)
-                        ) - 90F
-                );
-
-                this.mob.setYRot(yRot);
-                this.mob.yBodyRot = yRot;
-                this.mob.yHeadRot = yRot;
-            }
-
-            // 向き固定
-            if (target != null) {
-
-                Vec3 lookVec = target.position()
-                        .subtract(this.mob.position());
-
-                float yRot = (float) (
-                        Math.toDegrees(
-                                Math.atan2(lookVec.z, lookVec.x)
-                        ) - 90F
-                );
-
-                this.mob.setYRot(yRot);
-                this.mob.yBodyRot = yRot;
-                this.mob.yHeadRot = yRot;
-            }
-
-            // スタン
-            if (this.mob.isStunned()) {
-
-                stunTimer++;
-
-                this.mob.setDeltaMovement(Vec3.ZERO);
-
-                if (stunTimer >= 60) {
-
-                    this.mob.setStunned(false);
-
-                    this.stunTimer = 0;
-                    this.consecutiveAttackCount = 0;
-                }
-
-                return;
-            }
-
-            // クールダウン
-            if (this.cooldownTimer > 0) {
-
-                this.cooldownTimer--;
-
-                this.mob.getNavigation().moveTo(
-                        target,
-                        this.speedModifier
-                );
-
-                return;
-            }
-
-            // 攻撃していない時
-            if (this.mob.getAttackState() == 0) {
-
-                double distanceSq =
-                        this.mob.distanceToSqr(target);
-
-                // 近距離
-                if (distanceSq <= 16.0D) {
-
+            if (target == null || !target.isAlive()) {
+                if (this.forceFinishAttack) {
+                    // 攻撃アニメーション再生中はターゲットが消えても状態を維持し、最後まで再生させる。
+                    // ただし、ターゲットが戻ってこないまま長時間経過したら、Goalが
+                    // 永久に居座って動けなくなるのを防ぐため強制的にあきらめる。
                     this.mob.getNavigation().stop();
-
-                    Vec3 dash = target.position()
-                            .subtract(this.mob.position())
-                            .normalize()
-                            .scale(0.45D);
-
-                    this.mob.setDeltaMovement(
-                            dash.x,
-                            this.mob.getDeltaMovement().y,
-                            dash.z
-                    );
-
-                    this.attackTimer = 0;
-
-                    int attackType =
-                            selectAttackType(distanceSq);
-
-                    this.mob.setAttackState(attackType);
-
-                    this.lockedTarget = target;
-
-                    this.mob.playSound(
-                            SoundEvents.ENDERMAN_SCREAM,
-                            1.0F,
-                            1.0F
-                    );
-
-                    // 空中急襲準備
-                    if (attackType == 7) {
-
-                        this.chargeDirection =
-                                target.position()
-                                        .subtract(this.mob.position())
-                                        .normalize();
+                    noTargetFreezeTicks++;
+                    if (noTargetFreezeTicks > MAX_NO_TARGET_FREEZE_TICKS) {
+                        this.forceFinishAttack = false;
+                        this.mob.setAttackState(0);
+                        noTargetFreezeTicks = 0;
                     }
-
-                    // 連撃カウント
-                    if (attackType >= 1 && attackType <= 5) {
-
-                        this.consecutiveAttackCount++;
-                    }
-
-                } else {
-
-                    // 接近
-                    this.mob.getNavigation().moveTo(
-                            target,
-                            this.speedModifier
-                    );
+                    return;
                 }
-
-            } else {
-
-                executeAttack();
+                this.mob.setAttackState(0);
+                return;
             }
+            noTargetFreezeTicks = 0;
+            this.lockedTarget = target;
+
+            // クールダウン中は接近のみ
+            if (this.cooldownTimer > 0) {
+                this.cooldownTimer--;
+                this.mob.getNavigation().moveTo(target, this.speedModifier);
+                return;
+            }
+
+            // 攻撃実行中
+            if (this.mob.getAttackState() > 0) {
+                this.attackTimer++;
+                this.mob.getNavigation().stop();
+                executeAttack();
+                return;
+            }
+
+            // 行動選択：射程内なら攻撃開始、外なら接近
+            double distanceSq = this.mob.distanceToSqr(target);
+            if (distanceSq <= 25.0D) {
+                this.mob.getNavigation().stop();
+                startAttack(target, distanceSq);
+            } else {
+                this.mob.getNavigation().moveTo(target, this.speedModifier);
+            }
+        }
+
+        // 攻撃開始処理
+        private void startAttack(LivingEntity target, double distanceSq) {
+            Vec3 dash = target.position().subtract(this.mob.position()).normalize().scale(0.45D);
+            this.mob.setDeltaMovement(dash.x, this.mob.getDeltaMovement().y, dash.z);
+
+            this.attackTimer = 0;
+            int attackType = selectAttackType(distanceSq);
+            this.mob.setAttackState(attackType);
+            this.lockedTarget = target;
+            this.mob.playSound(SoundEvents.ENDERMAN_SCREAM, 1.0F, 1.0F);
+
+            // 上空急襲の突進方向を保存
+            if (attackType == 7) {
+                this.chargeDirection = target.position().subtract(this.mob.position()).normalize();
+            }
+
+            // 連撃カウント
+            if (attackType >= 1 && attackType <= 5) {
+                this.consecutiveAttackCount++;
+            }
+
+            this.forceFinishAttack = true;
         }
 
         private int selectAttackType(double distanceSq) {
@@ -600,8 +533,6 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
         private void executeAttack() {
 
             LivingEntity target = this.lockedTarget;
-
-            this.attackTimer++;
 
             this.mob.getNavigation().stop();
 
@@ -758,6 +689,10 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
                     // 突進下降
                     if (this.attackTimer >= 5
                             && this.attackTimer <= 14) {
+
+                        if (this.chargeDirection == null) {
+                            this.chargeDirection = new Vec3(0, -1, 0);
+                        }
 
                         this.mob.setDeltaMovement(
                                 this.chargeDirection.scale(1.8D)
@@ -922,6 +857,12 @@ public class EnderSoldierEntity extends Monster implements GeoEntity {
             this.mob.setDeltaMovement(Vec3.ZERO);
 
             this.mob.getNavigation().stop();
+
+            // アニメーションは最後まで再生し終えたので、ここで解除する。
+            // （Gradius本体はここでリセットしていないが、それだと一度も
+            // 　ターゲットを見失わないボス専用の設計に依存してしまうため、
+            // 　汎用モブのEnderSoldierでは安全のためここで戻す）
+            this.forceFinishAttack = false;
 
             this.lockedTarget = null;
         }

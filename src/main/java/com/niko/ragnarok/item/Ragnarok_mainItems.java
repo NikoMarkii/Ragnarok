@@ -111,7 +111,13 @@ public class Ragnarok_mainItems {
                     0x000000,
                     new Item.Properties()
             ));
-
+    public static final RegistryObject<Item> GALEOS_SPAWN_EGG = ITEMS.register("galeos_spawn_egg",
+            () -> new ForgeSpawnEggItem(
+                    RagnarokEntities.GALEOS,
+                    0x696969,
+                    0x2e8b57,
+                    new Item.Properties()
+            ));
     public static final RegistryObject<Item> GRADIUS_SPAWN_EGG = ITEMS.register("gradius_spawn_egg",
             () -> new ForgeSpawnEggItem(
                     RagnarokEntities.GRADIUS,

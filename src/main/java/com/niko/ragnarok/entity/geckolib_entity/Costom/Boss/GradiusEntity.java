@@ -7,6 +7,7 @@ import com.niko.ragnarok.entity.Projectile.BlueFireballEntity;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.GhostKnightEntity;
 import com.niko.ragnarok.entity.others.RkBodyRotationControl;
+import com.niko.ragnarok.entity.others.RkCombatUtil;
 import com.niko.ragnarok.entity.others.RkSmoothMoveControl;
 import com.niko.ragnarok.item.Ragnarok_mainItems;
 import com.niko.ragnarok.network.RagnarokNetwork;
@@ -208,7 +209,12 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1.0D));
         this.goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 12.0F));
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
-        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
+        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(
+                this, Player.class, 10, true, false,
+                livingEntity -> !(livingEntity instanceof Player player
+                        && (player.isCreative() || player.isSpectator()))
+        ));
+
     }
 
     // ──────────────────────────────────────────
@@ -530,6 +536,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         // ──── 死亡カウント ────
         if (this.isActuallyDying()) {
             this.customDeathTime++;
+            this.hurtTime = this.hurtDuration;
 
             if (!this.level().isClientSide && this.customDeathTime % 5 == 0) {
                 spawnDeathParticles();
@@ -556,6 +563,14 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                                     sl,
                                     this.getX(), this.getY(), this.getZ(),
                                     this.xpReward));
+
+                    sl.sendParticles(
+                            ParticleTypes.POOF,
+                            this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
+                            25,
+                            this.getBbWidth() * 0.5D, this.getBbHeight() * 0.5D, this.getBbWidth() * 0.5D,
+                            0.05D
+                    );
                 }
 
                 this.remove(RemovalReason.KILLED);
@@ -1080,6 +1095,11 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         private int jumpSlamTimer = 0;
         private boolean slamDone = false;
         private boolean forceFinishAttack = false;
+        private int noTargetFreezeTicks = 0;
+
+        // forceFinishAttack中でも、ターゲット不在のままこのtick数を超えたら
+        // 強制的にあきらめてGoalを手放す（でないと永久にその場で固まる）
+        private static final int MAX_NO_TARGET_FREEZE_TICKS = 20;
 
         // ── 攻撃判定距離 ──
         private static final double MELEE_RANGE_SQ = 16.0D; // 4ブロック以内で近接
@@ -1166,6 +1186,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             this.slamDone = false;         // ← 追加
             this.chargeAttackDone = false; // ← 追加
             this.forceFinishAttack = false;// ← 追加
+            this.noTargetFreezeTicks = 0;
             this.comboActive = false;      // ← 追加
             this.comboStep = 0;            // ← 追加
             scheduledBlockWaves.clear();   // ← 追加
@@ -1189,6 +1210,19 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
 
             if (summonCooldown > 0) summonCooldown--;
 
+
+            // 常にターゲットの方を向く（体・頭とも固定）
+            if (target != null) {
+                this.mob.getLookControl().setLookAt(target, 30.0F, 30.0F);
+
+                Vec3 lookVec = target.position().subtract(this.mob.position());
+                float yRot = (float) (Math.toDegrees(Math.atan2(lookVec.z, lookVec.x)) - 90F);
+
+                this.mob.setYRot(yRot);
+                this.mob.yBodyRot = yRot;
+                this.mob.yHeadRot = yRot;
+            }
+
             if (t == null || !t.isAlive()) {
                 // ── ターゲット死亡時：突進・ジャンプ切りは即中断してリセット ──
                 if (this.mob.getChargePhase() > 0
@@ -1203,18 +1237,30 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                     this.mob.setDeltaMovement(Vec3.ZERO);
                     this.forceFinishAttack = false;
                     this.mob.setAttackState(0);
+                    this.mob.getNavigation().stop();
                     return;
                 }
 
                 if (!this.forceFinishAttack) {
                     this.mob.setAttackState(0);
                     this.mob.setChargePhase(0);
+                    this.mob.getNavigation().stop();
                     return;
                 }
 
-                // 通常攻撃アニメ継続（attackStateのみ維持）
+                // 通常攻撃アニメ継続（attackStateのみ維持）。移動だけは止める。
+                // ただし、ターゲットが戻ってこないまま長時間経過したら、Goalが
+                // 永久に居座って動けなくなるのを防ぐため強制的にあきらめる。
+                this.mob.getNavigation().stop();
+                noTargetFreezeTicks++;
+                if (noTargetFreezeTicks > MAX_NO_TARGET_FREEZE_TICKS) {
+                    this.forceFinishAttack = false;
+                    this.mob.setAttackState(0);
+                    noTargetFreezeTicks = 0;
+                }
                 return;
             }
+            noTargetFreezeTicks = 0;
             if (mob.awakening) {
                 return;
             }
@@ -1264,6 +1310,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             if (this.mob.getAttackState() > 0) {
                 this.attackTimer++;
                 this.mob.getNavigation().stop();
+                RkCombatUtil.faceTarget(mob, t); // 攻撃中はターゲットへ体・頭を向ける
                 executeAttack(t);
                 return;
             }
