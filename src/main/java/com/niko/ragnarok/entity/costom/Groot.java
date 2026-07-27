@@ -127,8 +127,19 @@ public class Groot extends Animal {
         if (this.isActuallyDying()) {
             this.customDeathTime++;
             this.setDeltaMovement(Vec3.ZERO);
+            this.hurtTime = this.hurtDuration;
 
             if (!this.level().isClientSide && this.customDeathTime >= 46) {
+                if (this.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+                    sl.sendParticles(
+                            ParticleTypes.POOF,
+                            this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
+                            25,
+                            this.getBbWidth() * 0.5D, this.getBbHeight() * 0.5D, this.getBbWidth() * 0.5D,
+                            0.05D
+                    );
+                }
+                this.dropFromLootTable(this.damageSources().generic(), true);
                 this.remove(RemovalReason.KILLED);
             }
             return;
@@ -345,12 +356,6 @@ public class Groot extends Animal {
         } else {
             super.travel(pTravelVector);
         }
-    }
-
-    @Override
-    public ResourceLocation getDefaultLootTable() {
-        return ResourceLocation.fromNamespaceAndPath(
-                Ragnarok.MOD_ID, "entities/groot");
     }
 
     @Override

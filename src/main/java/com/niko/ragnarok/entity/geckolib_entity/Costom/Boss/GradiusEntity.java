@@ -12,6 +12,7 @@ import com.niko.ragnarok.entity.others.RkSmoothMoveControl;
 import com.niko.ragnarok.item.Ragnarok_mainItems;
 import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.network.ScreenShakePacket;
+import com.niko.ragnarok.sound.RagnarokSoundEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -696,6 +697,11 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
     }
 
     @Override
+    public SoundEvent getBossMusic() {
+        return RagnarokSoundEvents.GRADIUS_MUSIC.get(); // 自分のSoundEvent登録に合わせて
+    }
+
+    @Override
     public boolean hurt(DamageSource source, float amount) {
 
         if (awakening) {
@@ -1213,14 +1219,23 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
 
             // 常にターゲットの方を向く（体・頭とも固定）
             if (target != null) {
-                this.mob.getLookControl().setLookAt(target, 30.0F, 30.0F);
+                if (this.mob.getChargePhase() > 0) {
+                    // 突進フェーズ中は chargeVec の方向を向く
+                    float chargeYaw = (float) (Math.toDegrees(Math.atan2(this.chargeVec.z, this.chargeVec.x)) - 90F);
+                    this.mob.setYRot(chargeYaw);
+                    this.mob.yBodyRot = chargeYaw;
+                    this.mob.yHeadRot = chargeYaw;
+                } else {
+                    // それ以外はターゲットの方を向く
+                    this.mob.getLookControl().setLookAt(target, 30.0F, 30.0F);
 
-                Vec3 lookVec = target.position().subtract(this.mob.position());
-                float yRot = (float) (Math.toDegrees(Math.atan2(lookVec.z, lookVec.x)) - 90F);
+                    Vec3 lookVec = target.position().subtract(this.mob.position());
+                    float yRot = (float) (Math.toDegrees(Math.atan2(lookVec.z, lookVec.x)) - 90F);
 
-                this.mob.setYRot(yRot);
-                this.mob.yBodyRot = yRot;
-                this.mob.yHeadRot = yRot;
+                    this.mob.setYRot(yRot);
+                    this.mob.yBodyRot = yRot;
+                    this.mob.yHeadRot = yRot;
+                }
             }
 
             if (t == null || !t.isAlive()) {
@@ -1819,6 +1834,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             // 25tickで発動（ここが本体）
             if (attackTimer == FIRE_HIT_TICK && !firePillarSpawned) {
                 firePillarSpawned = true;
+                mob.sendScreenShake(2.5F, 25);
 
                 spawnFirePillarLines(target);
             }

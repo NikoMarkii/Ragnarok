@@ -394,7 +394,7 @@ public class GaleosEntity extends Mid_Boss_Monster implements GeoEntity {
                 final BlockPos center = mob.blockPosition();
                 double angle = Math.atan2(mob.getLookAngle().z, mob.getLookAngle().x);
 
-                for (int r = 1; r <= 6; r++) {
+                for (int r = 4; r <= 10; r++) {
                     scheduledBlockWaves.add(new ScheduledBlockWave(r * 2, center, r,
                             angle - Math.toRadians(60),
                             angle + Math.toRadians(60)));

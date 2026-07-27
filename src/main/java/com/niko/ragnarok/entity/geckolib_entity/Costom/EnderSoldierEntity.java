@@ -118,6 +118,13 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
     }
 
     @Override
+    protected void dropAllDeathLoot(DamageSource damageSource) {
+        // 何もしない。バニラのdie()が即座にドロップしてしまうのを防ぎ、
+        // ドロップは死亡演出が終わったタイミング(aiStep側)の
+        // dropFromLootTable()呼び出しだけに一本化する。
+    }
+
+    @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("IsDying", this.isActuallyDying());
@@ -159,7 +166,6 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
 
                     // ここでドロップアイテムを放出する
                     this.dropFromLootTable(this.damageSources().generic(), true);
-
                     this.remove(RemovalReason.KILLED);
                 }
             }

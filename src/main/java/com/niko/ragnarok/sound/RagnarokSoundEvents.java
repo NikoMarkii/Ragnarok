@@ -20,6 +20,9 @@ public class RagnarokSoundEvents {
     public static final RegistryObject<SoundEvent> TLEX_ROAR =
             register("entity.tlex.roar");
 
+    public static final RegistryObject<SoundEvent> GRADIUS_MUSIC =
+            register("entity.gradius.music");
+
 
 
 

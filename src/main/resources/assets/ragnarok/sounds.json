@@ -25,5 +25,13 @@
         "attenuation_distance": 16
       }
     ]
+  },
+  "entity.gradius.music": {
+    "sounds": [
+      {
+        "name": "ragnarok:entity/gradius/miguel-johnson-good-day-to-die",
+        "stream": true
+      }
+    ]
   }
 }

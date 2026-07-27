@@ -1,11 +1,24 @@
 package com.niko.ragnarok.entity;
 
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.world.level.Level;
 
+import javax.annotation.Nullable;
+
 public abstract class Boss_Monster extends Monster {
+
+    // 現在ターゲットしているエンティティのID（誰もいなければ-1）。
+    // クライアント側でBGM再生の判定に使うため同期する。
+    private static final EntityDataAccessor<Integer> BOSS_MUSIC_TARGET_ID =
+            SynchedEntityData.defineId(Boss_Monster.class, EntityDataSerializers.INT);
 
     private static final float MAX_DAMAGE_PER_HIT = 21.0F;
     private static final int DAMAGE_REDUCTION_DURATION = 10;
@@ -25,6 +38,26 @@ public abstract class Boss_Monster extends Monster {
 
     protected Boss_Monster(EntityType<? extends Monster> type, Level level) {
         super(type, level);
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(BOSS_MUSIC_TARGET_ID, -1);
+    }
+
+    /**
+     * このボスのBGMを返す。nullを返せばBGM再生対象にならない。
+     * サブクラス側で「このボスの時はこの曲」という形でオーバーライドして設定する。
+     */
+    @Nullable
+    public SoundEvent getBossMusic() {
+        return null;
+    }
+
+    /** クライアント側から「このプレイヤーが現在このボスにターゲットされているか」を判定するために使う */
+    public boolean isTargeting(Player player) {
+        return this.entityData.get(BOSS_MUSIC_TARGET_ID) == player.getId();
     }
 
     @Override
@@ -80,6 +113,15 @@ public abstract class Boss_Monster extends Monster {
     @Override
     public void aiStep() {
         super.aiStep();
+
+        // BGM判定用に、現在のターゲットIDをクライアントへ同期する
+        if (!this.level().isClientSide) {
+            LivingEntity t = this.getTarget();
+            int newTargetId = (t != null && t.isAlive()) ? t.getId() : -1;
+            if (this.entityData.get(BOSS_MUSIC_TARGET_ID) != newTargetId) {
+                this.entityData.set(BOSS_MUSIC_TARGET_ID, newTargetId);
+            }
+        }
 
         if (damageReductionTimer > 0) {
             damageReductionTimer--;
