@@ -5,7 +5,10 @@ import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -69,19 +72,19 @@ public class BlueFireballEntity extends Projectile {
         super.tick();
 
         // ホーミング処理
-        if (target != null && target.isAlive()) {
-            Vec3 toTarget = target.position()
-                    .add(0, target.getBbHeight() * 0.5, 0)
-                    .subtract(position())
-                    .normalize()
-                    .scale(SPEED);
+        //if (target != null && target.isAlive()) {
+            //Vec3 toTarget = target.position()
+                    //.add(0, target.getBbHeight() * 0.5, 0)
+                    //.subtract(position())
+                    //.normalize()
+                    //.scale(SPEED);
 
-            Vec3 current = getDeltaMovement();
-            setDeltaMovement(
-                    current.scale(1.0 - TURN_RATE)
-                            .add(toTarget.scale(TURN_RATE))
-            );
-        }
+            //Vec3 current = getDeltaMovement();
+            //setDeltaMovement(
+                    //current.scale(1.0 - TURN_RATE)
+                            //.add(toTarget.scale(TURN_RATE))
+            //);
+        //}
 
         HitResult hitResult = ProjectileUtil.getHitResultOnMoveVector(
                 this,
@@ -119,7 +122,6 @@ public class BlueFireballEntity extends Projectile {
         Entity hit = result.getEntity();
         if (hit instanceof LivingEntity living
                 && hit != getOwner()
-                && !(hit instanceof GradiusEntity)  // グラディウス自身には当たらない
                 && !level().isClientSide()) {
 
             LivingEntity owner = (getOwner() instanceof LivingEntity l) ? l : null;
@@ -127,7 +129,32 @@ public class BlueFireballEntity extends Projectile {
                     ? damageSources().mobAttack(owner)
                     : damageSources().magic();
 
-            living.hurt(source, 16.0F);
+            living.hurt(source, 40F);
+
+            // 弱体化を付与
+            living.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 1));
+
+            // soulパーティクルの爆発演出と爆発音
+            if (level() instanceof ServerLevel sl) {
+                sl.sendParticles(
+                        ParticleTypes.SOUL,
+                        getX(), getY(), getZ(),
+                        30,
+                        0.4, 0.4, 0.4,
+                        0.05
+                );
+                sl.sendParticles(
+                        ParticleTypes.SOUL_FIRE_FLAME,
+                        getX(), getY(), getZ(),
+                        20,
+                        0.3, 0.3, 0.3,
+                        0.02
+                );
+            }
+            level().playSound(null, getX(), getY(), getZ(),
+                    SoundEvents.GENERIC_EXPLODE, net.minecraft.sounds.SoundSource.HOSTILE,
+                    1.0F, 1.0F);
+
             discard();
         }
     }

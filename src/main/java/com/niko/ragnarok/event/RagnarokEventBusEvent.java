@@ -50,6 +50,8 @@ public class RagnarokEventBusEvent {
                 GhostKnightEntity.createAttributes().build());
         event.put(RagnarokEntities.GALEOS.get(),
                 GaleosEntity.createAttributes().build());
+        event.put(RagnarokEntities.GHOST_WIZARD.get(),
+                GhostWizardEntity.createAttributes().build());
     }
 
     @SubscribeEvent

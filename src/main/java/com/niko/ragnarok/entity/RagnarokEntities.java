@@ -124,6 +124,14 @@ public class RagnarokEntities {
                             .updateInterval(1)
                             .build("ghost_knight")
             );
+    public static final RegistryObject<EntityType<GhostWizardEntity>> GHOST_WIZARD =
+            ENTITY_TYPES.register("ghost_wizard", () ->
+                    EntityType.Builder.<GhostWizardEntity>of(GhostWizardEntity::new, MobCategory.MONSTER)
+                            .sized(0.6F, 1.95F)
+                            .clientTrackingRange(64)
+                            .updateInterval(1)
+                            .build("ghost_wizard")
+            );
     public static void register(IEventBus eventBus) {
         ENTITY_TYPES.register(eventBus);
     }

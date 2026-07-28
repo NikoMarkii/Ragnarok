@@ -39,6 +39,7 @@ public class RagnarokEventBusClientEvent {
         event.registerEntityRenderer(RagnarokEntities.GLOWING_DUST_PROJECTILE.get(), ThrownItemRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.BLUE_FIREBALL.get(), BlueFireballRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.GALEOS.get(), GaleosRenderer::new);
+        event.registerEntityRenderer(RagnarokEntities.GHOST_WIZARD.get(), GhostWizardRenderer::new);
     }
 
     @SubscribeEvent

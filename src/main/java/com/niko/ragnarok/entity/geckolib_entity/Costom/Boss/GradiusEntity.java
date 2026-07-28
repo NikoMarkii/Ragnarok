@@ -566,7 +566,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                                     this.xpReward));
 
                     sl.sendParticles(
-                            ParticleTypes.SOUL_FIRE_FLAME,
+                            ParticleTypes.SOUL,
                             this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
                             25,
                             this.getBbWidth() * 0.5D, this.getBbHeight() * 0.5D, this.getBbWidth() * 0.5D,
