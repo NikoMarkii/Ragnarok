@@ -64,6 +64,52 @@ import java.util.*;
  * - summon_attack : 召喚    (発生30tick, 円形にゾンビを召喚)
  * - charge     : 突進      (charge_start→charge_loop→charge_end)
  * - death      : 死亡アニメーション
+ *
+ * ────────────────────────────────────────────────────────────
+ * ■ このクラス全体の設計方針（なぜこう作っているか）
+ * ────────────────────────────────────────────────────────────
+ *
+ * 1) 「サーバー側の状態」と「見た目（アニメーション）」を分離している
+ *    Minecraftは、ワールドの実際のロジック(当たり判定・ダメージ・移動)を計算する
+ *    「サーバー側」と、それを画面に表示するだけの「クライアント側」に分かれている。
+ *    しかし通常、モブのAI(Goal)はサーバー側でしか動かない。
+ *    そのため、クライアント側のアニメーション再生ロジックがGoalの内部変数を
+ *    直接参照することはできない（クライアント側では絶対に更新されないため）。
+ *    これを解決するために、「今どの攻撃をしていて、経過tickは何か」を表す値を
+ *    ATTACK_STATE / CHARGE_PHASE / GUARD_PHASE のような
+ *    SynchedEntityData（EntityDataAccessor）としてサーバー→クライアントへ
+ *    自動同期し、アニメーションコントローラーはそちらだけを見て再生内容を決める。
+ *    ＝「Goalの内部状態を直接見ない、同期された値だけを信頼する」が鉄則。
+ *
+ * 2) 攻撃・移動・クールダウンを1つのGoal（GradiusAttackGoal）にまとめている
+ *    「移動用Goal」「攻撃用Goal」を分けるやり方も可能だが、優先度とフラグ(Flag.MOVE等)
+ *    の取り合いで、思ったとおりに制御を渡し合わせるのが難しくなりがち
+ *    （実際、開発の過程で「別Goalに移動を任せたら、優先度の高い攻撃Goalが
+ *    　常にFlagを握ったままで一切出番が来なかった」というバグが起きた）。
+ *    そのため、1つのGoalのtick()の中で「クールダウン中か」「攻撃中か」
+ *    「間合いの中か外か」を毎tick判定し、その場で移動 or 攻撃を選ぶ、
+ *    という単純な状態機械（ステートマシン）にしている。
+ *
+ * 3) forceFinishAttack というフラグで「攻撃を出したら最後まで再生する」を保証している
+ *    素直に実装すると、詠唱/攻撃モーションの途中でターゲットが死んだり
+ *    見失ったりした瞬間に、Goalが canUse()==false と判断されて強制終了し、
+ *    アニメーションが再生途中でカクッと止まる（不自然）。
+ *    それを防ぐため、攻撃を開始した瞬間に forceFinishAttack=true にしておき、
+ *    「たとえターゲットがいなくなっても、このフラグが立っている間はGoalを離さない」
+ *    というルールを canUse()/tick() に入れている。
+ *    ただし、これを入れっぱなしにすると「二度とターゲットが見つからない」場合に
+ *    永久にその場で固まる新しいバグを生むので、
+ *    noTargetFreezeTicks で「一定時間探しても見つからなければ諦める」という
+ *    タイムアウトを必ずセットで入れている。
+ *
+ * 4) MoveControl / BodyRotationControl を自作のものに差し替えている
+ *    バニラのMoveControlは、パスの再計算のたびに一瞬で（最大90度/tick）
+ *    体の向きを変えてしまい、近距離ですれ違う時などに不自然にクルッと
+ *    反転して見えることがある。RkSmoothMoveControl は、この回転速度に
+ *    上限をかけて滑らかにしつつ、バニラのジャンプ・段差処理はそのまま活かす
+ *    （＝内部ロジックを丸ごと再実装するのではなく、super.tick()に処理を
+ *    委譲した上で「回転量だけ」後から制限する、というリスクの低いやり方）。
+ * ────────────────────────────────────────────────────────────
  */
 public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBossBar {
 
@@ -72,6 +118,10 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
     // ──────────────────────────────────────────
     // データシンク
     // ──────────────────────────────────────────
+    // ↓ すべて「サーバーで計算した状態を、描画を担当するクライアントに配る箱」。
+    //   Goal（AI）はサーバーでしか動かないので、アニメーションの分岐に使う値は
+    //   必ずここを経由させる。逆に言うと、ここに乗っていない値は
+    //   クライアント側のアニメーションコントローラーからは絶対に見えない。
     /**
      * 0=なし  1~3=通常攻撃  4=召喚  5=突進中  6=突進終了処理
      */
@@ -168,7 +218,11 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
     public GradiusEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
         this.xpReward = 500;
-        this.bossEvent.setVisible(false);
+        this.bossEvent.setVisible(false); // ボスバーは「初めて視認された時」に表示するため、生成直後は隠しておく
+        // バニラのMoveControlは急な回頭をするため、独自のものに差し替える。
+        // 第2引数(8.0F)は「1tickあたり最大8度まで回転してよい」という上限。
+        // 小さいほど滑らかに曲がるが、追跡の反応が遅く感じられるので、
+        // モブの体格・移動速度に合わせて調整するパラメータ。
         this.moveControl = new RkSmoothMoveControl(this, 8.0F);
     }
 
@@ -205,13 +259,17 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
     // ──────────────────────────────────────────
     @Override
     protected void registerGoals() {
-        this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(1, new GradiusAttackGoal(this, 1.1D));
-        this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1.0D));
-        this.goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 12.0F));
-        this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
+        // 数字は優先度（小さいほど優先）。同じFlag(MOVE/LOOK等)を要求するGoal同士は
+        // 優先度が高い方だけが動き、低い方は自動的に待機状態になる。
+        this.goalSelector.addGoal(0, new FloatGoal(this)); // 溺れ防止（水中で浮く）。常に最優先。
+        this.goalSelector.addGoal(1, new GradiusAttackGoal(this, 1.1D)); // 移動・攻撃をまとめて担当（詳細はクラス内コメント参照）
+        this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1.0D)); // ターゲットがいない時の徘徊
+        this.goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 12.0F)); // 非戦闘時に近くのプレイヤーを見る
+        this.targetSelector.addGoal(1, new HurtByTargetGoal(this)); // 殴られたら殴った相手を最優先でターゲットにする
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(
                 this, Player.class, 10, true, false,
+                // クリエイティブ/スペクテイターのプレイヤーは殴っても無敵で意味が無く、
+                // 見た目上「攻撃してこないのにずっと追いかけてくる」という不自然な挙動になるため除外する
                 livingEntity -> !(livingEntity instanceof Player player
                         && (player.isCreative() || player.isSpectator()))
         ));
@@ -324,6 +382,20 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
     // ──────────────────────────────────────────
     // 死亡処理（カスタム：アニメーションが終わってから消滅）
     // ──────────────────────────────────────────
+    // ★重要な設計判断：あえて super.die(source) を一切呼んでいない。
+    //   バニラのLivingEntity#die()は、呼んだ瞬間に
+    //   ・ロットテーブルからのドロップ
+    //   ・死亡アニメーション状態への遷移
+    //   ・経験値のドロップ
+    //   などを全部その場でまとめて行ってしまう。
+    //   しかしこのボスは「死亡モーションを最後まで再生してから消える」演出にしたいので、
+    //   即座に色々処理されると都合が悪い。
+    //   そこで super.die() は一切呼ばず、代わりに isDying フラグだけを立てて、
+    //   実際のドロップ・消滅処理はすべて aiStep() 側で
+    //   customDeathTime がアニメーションの長さに達した時に自分で行う
+    //   （tickDeath()もバニラの処理を止めるために空実装で上書きしている）。
+    //   ＝ 「バニラの自動処理に相乗りしてから後始末する」のではなく
+    //   　「最初から自動処理を一切発生させない」というアプローチ。
     @Override
     public void die(DamageSource source) {
 
@@ -377,11 +449,18 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
 
     @Override
     protected void tickDeath() { /* バニラ無効 */ }
+    // ↑ バニラのtickDeath()は「死亡してから一定tickでdiscard(消滅)する」処理そのもの。
+    //   die()でsuper.die()を呼んでいない以上、本来tickDeath()が呼ばれることはあまりないが、
+    //   念のためバニラの消滅処理が紛れ込まないよう、丸ごと空にして無効化している。
+    //   消滅タイミングは前述の通り aiStep() 側で自前管理する。
 
     @Override
     public boolean isDeadOrDying() {
         return this.isActuallyDying() || super.isDeadOrDying();
     }
+    // ↑ 「体力が0になった直後〜死亡モーションが終わるまで」の間も
+    //   isDeadOrDying()==true にしておかないと、他の判定（例えばターゲットに
+    //   選ばれ続けてしまう等）と噛み合わなくなるための調整。
 
     @Override
     public boolean shouldDropExperience() {
@@ -535,8 +614,14 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             return;
         }
         // ──── 死亡カウント ────
+        // super.die()を呼んでいないので、ここが実質的な「死亡シーケンス本体」になる。
+        // customDeathTimeを毎tick進め、DEATH_DURATION(=2.5秒)経ったら
+        // ドロップ・経験値・演出・discard(消滅)をまとめて実行する。
         if (this.isActuallyDying()) {
             this.customDeathTime++;
+            // hurtTime/hurtDurationはバニラの「被ダメ時の赤い明滅」を制御するフィールド。
+            // 死んでいる間は毎tick最大値に上書きし続けることで、
+            // 時間経過で自然に消える処理を上書きし、死亡演出中ずっと赤いままにしている。
             this.hurtTime = this.hurtDuration;
 
             if (!this.level().isClientSide && this.customDeathTime % 5 == 0) {
@@ -553,6 +638,10 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 if (this.level() instanceof ServerLevel sl) {
 
                     // ── 正しい死亡原因を渡す ──
+                    // 通常のダメージソース(source)ではなく、
+                    // 直近でトドメを刺したプレイヤー基準のDamageSourceを
+                    // 作り直している。ロットテーブルの条件（"killer_entity"等）や
+                    // 実績の判定を正しく機能させるための工夫。
                     DamageSource deathSource = this.lastAttacker != null
                             ? this.damageSources().playerAttack(this.lastAttacker)
                             : this.damageSources().generic();
@@ -575,6 +664,8 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                     this.playSound(SoundEvents.WARDEN_SONIC_BOOM, 2.0F, 0.8F);
                 }
 
+                // discard(即消滅)ではなく、死因を伴うremove(KILLED)を使うことで、
+                // 他のMod/実績システムが「討伐された」と正しく認識できるようにしている。
                 this.remove(RemovalReason.KILLED);
             }
             return;
@@ -824,13 +915,21 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
     // ──────────────────────────────────────────
     // アニメーション登録（GeckoLib）
     // ──────────────────────────────────────────
+    // ここは完全にクライアント側（描画側）のロジック。
+    // 参照しているのは getAttackState()/getChargePhase() など「同期された値」だけで、
+    // GradiusAttackGoalの内部変数(attackTimer等)を直接見ることは絶対にない
+    // （クラス冒頭のコメントで説明した「1) サーバー側の状態と見た目を分離している」の実践部分）。
+    // AnimationControllerは複数登録でき、それぞれが「レイヤー」のように重なる。
+    // ここでは「base_controller（歩行/待機など下地の動き）」と、
+    // 別途「攻撃専用のコントローラー」を分け、attackState等に応じて
+    // どちらを優先表示するかをPlayStateの返し方で制御している。
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
 
         // ── 移動 / 待機レイヤー ──
         controllers.add(new AnimationController<>(this,
                 "base_controller",
-                5,
+                5, // トランジション（アニメ同士の補間）にかけるtick数。大きいほど滑らかに繋がるが反応が遅れる
                 state -> {
 
                     if (this.isActuallyDying())
@@ -1170,9 +1269,19 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             if (this.mob.isStandby() || this.mob.isStandbyEnding()) return false;
 
             LivingEntity t = this.mob.getTarget();
+
+            // forceFinishAttackが立っている＝「攻撃/詠唱の途中」を意味するので、
+            // ターゲットの有無に関係なく無条件でtrueを返す。
+            // これを先にチェックしないと、攻撃モーションの途中でターゲットを見失った瞬間に
+            // canUse()がfalseになり、Goalそのものが強制終了して
+            // アニメーションが再生途中でぶつ切りになってしまう。
             if (this.forceFinishAttack) return true;
+
             return t != null && t.isAlive();
         }
+        // 注：canContinueToUse()はあえてオーバーライドしていない。
+        //   デフォルト実装は「毎tick canUse()をもう一度呼ぶ」だけなので、
+        //   上のforceFinishAttackの分岐がそのままGoal継続の判定にも使い回される。
 
         @Override
         public void start() {
@@ -1183,6 +1292,10 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
 
         @Override
         public void stop() {
+            // Goalが（何らかの理由で）中断された時のリセット処理。
+            // 「攻撃の演出用に使っている一時変数」を一つでも戻し忘れると、
+            // 次に攻撃を始めた時に前回の値が残ったままバグる可能性があるため、
+            // ここで使っているフラグ・タイマー類は基本的に全部リストアップして初期化する。
             this.mob.setAttackState(0);
             this.mob.setChargePhase(0);
             this.mob.setJumpSlamPhase(0);  // ← 追加
@@ -1211,6 +1324,10 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         @Override
         public void tick() {
             LivingEntity t = this.mob.getTarget();
+            // このボスは「毎tick必ず呼ばれる処理」をここでまとめて先に消化する。
+            // スケジュール済みの火柱・崩落ブロックの進行や、それらによる
+            // 継続ダメージ判定は、攻撃中かどうかに関わらず常に更新し続ける必要がある
+            // （例えば突進などで別の攻撃に切り替わっても、既に発生済みの火柱は消えない）。
             tickScheduledPillars();
             tickScheduledBlockWaves();
             tickWaveBlockDamage();
@@ -1219,9 +1336,16 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
 
 
             // 常にターゲットの方を向く（体・頭とも固定）
+            // ここでMoveControlに向きを任せず、毎tick明示的にyRot/yBodyRot/yHeadRotを
+            // 上書きしているのは「攻撃中・突進中は移動方向とは無関係に、
+            // 必ずターゲット（または突進方向）へ正面を向かせたい」ため。
+            // MoveControl任せだと「移動していない時は向きが更新されない」ので、
+            // 停止して攻撃するこのボスには向かない。
             if (target != null) {
                 if (this.mob.getChargePhase() > 0) {
-                    // 突進フェーズ中は chargeVec の方向を向く
+                    // 突進フェーズ中だけは例外：ターゲットではなく、
+                    // 発動時に決めた突進方向(chargeVec)を向き続ける。
+                    // （突進中にターゲットが横に避けても、律儀にそちらへ首を振らせない）
                     float chargeYaw = (float) (Math.toDegrees(Math.atan2(this.chargeVec.z, this.chargeVec.x)) - 90F);
                     this.mob.setYRot(chargeYaw);
                     this.mob.yBodyRot = chargeYaw;
@@ -1241,6 +1365,11 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
 
             if (t == null || !t.isAlive()) {
                 // ── ターゲット死亡時：突進・ジャンプ切りは即中断してリセット ──
+                // 突進やジャンプ切りは「ターゲットに向かって高速で移動し続ける」演出なので、
+                // ターゲットが消えた状態でforceFinishAttackのルールに従って
+                // 最後まで再生させてしまうと、誰もいない方向へ突進し続ける
+                // 見た目上おかしい動きになる。そのためこの2つだけは
+                // forceFinishAttackを無視して即座に中断・リセットする特別扱いにしている。
                 if (this.mob.getChargePhase() > 0
                         || this.mob.getJumpSlamPhase() > 0) {
                     this.mob.setChargePhase(0);
@@ -1258,13 +1387,17 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 }
 
                 if (!this.forceFinishAttack) {
+                    // 攻撃中でも突進中でもない、単なる「ターゲットがいない」状態。
+                    // 普通に攻撃状態を解除して待機に戻る。
                     this.mob.setAttackState(0);
                     this.mob.setChargePhase(0);
                     this.mob.getNavigation().stop();
                     return;
                 }
 
-                // 通常攻撃アニメ継続（attackStateのみ維持）。移動だけは止める。
+                // ここに来るのは「通常攻撃/詠唱の最中に、ターゲットだけがいなくなった」場合。
+                // アニメーションを不自然に中断させたくないので、attackStateは維持したまま
+                // その場で待機する（＝アニメーションだけは進行し続ける想定）。
                 // ただし、ターゲットが戻ってこないまま長時間経過したら、Goalが
                 // 永久に居座って動けなくなるのを防ぐため強制的にあきらめる。
                 this.mob.getNavigation().stop();
@@ -1276,6 +1409,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 }
                 return;
             }
+            // ここまで来た＝ターゲットが有効。念のためタイムアウトカウンターをリセットしておく。
             noTargetFreezeTicks = 0;
             if (mob.awakening) {
                 return;
@@ -1303,6 +1437,9 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             this.mob.getLookControl().setLookAt(t, 30F, 30F);
 
             // クールダウン中は接近のみ
+            // 「攻撃を出し切ったら、しばらく無防備になる代わりに、その間もじりじり
+            // 距離を詰める」という設計。完全に足を止めると単調になりやすいので、
+            // クールダウン＝待機時間ではなく「次の攻撃の準備をしながら近づく時間」にしている。
             if (this.cooldown > 0) {
                 this.cooldown--;
                 this.mob.getNavigation().moveTo(t, this.speed);
@@ -1310,6 +1447,11 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             }
 
             // ── 突進フェーズ処理 ──
+            // 突進・ジャンプ切りは他の通常攻撃(attack1〜4)とは別の
+            // 独立したフェーズ変数(CHARGE_PHASE/JUMP_SLAM_PHASE)で管理している。
+            // 理由：これらは複数tickにまたがる「予備動作→加速→着地」のような
+            // 複数ステップを持つ攻撃で、ATTACK_STATE(単純な1〜4の値)だけでは
+            // 表現しきれないため、専用のフェーズ管理を用意している。
             int cp = this.mob.getChargePhase();
             if (cp > 0) {
                 tickCharge(t, cp);
@@ -1332,9 +1474,13 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             }
 
             // ── 行動選択 ──
+            // ここが「次に何をするか」の分岐点。距離に応じて使える選択肢が変わる。
             double distSq = this.mob.distanceToSqr(t);
             double chargeRangeSq = CHARGE_RANGE * CHARGE_RANGE; // 400
             if (distSq > chargeRangeSq) {
+                // 遠すぎて突進の射程(20ブロック)にも入っていない距離。
+                // 4分の1の確率でジャンプ切りを織り交ぜつつ、基本は普通に接近する。
+                // （毎回同じ動きだと単調になるため、確率で行動にブレを持たせている）
                 if (this.mob.random.nextInt(4) == 0) {
                     startJumpSlam(t);
                 } else {
@@ -1422,21 +1568,36 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         // ──────────────────────────────────────
         // 攻撃実行（毎tick）
         // ──────────────────────────────────────
+        // executeAttack()は「今のATTACK_STATEの値」を見て、対応する攻撃の
+        // タイムライン処理を分岐実行する巨大switch。各caseの中身は基本的に
+        // 「attackTimerが特定の値になったら判定/ダメージ/次への遷移を行う」の
+        // 繰り返しなので、attack1（薙ぎ払い）だけ詳しくコメントし、
+        // 他のcase（attack2〜4, summon等）は同じ考え方の応用として省略気味にしている。
         private void executeAttack(LivingEntity t) {
             switch (this.mob.getAttackState()) {
 
                 // ── attack1：薙ぎ払い ──
                 case 1 -> {
+                    // 攻撃モーションの「踏み込み」部分(20〜24tick目)だけ、ゆっくり前進させる。
+                    // 予備動作中に少しだけ距離を詰めることで、ギリギリ届かない位置に
+                    // いたターゲットにも当たるようにする調整。
                     if (this.attackTimer >= 20
                             && this.attackTimer < 25) {
 
                         moveTowardTarget(t, 0.25D);
                     }
+                    // ATK1_HIT(=25)tick目が「実際に判定が発生する瞬間」。
+                    // ここで強めに前進させてから、実際のダメージ処理(doSwipe)を呼ぶ。
                     if (attackTimer == ATK1_HIT) {
                         moveTowardTarget(t, 1.0D);
                         doSwipe(t);
                     }
 
+                    // ATK1_END(=45)tick目でアニメーションの再生自体は終わるが、
+                    // ここでは単純にクールダウンへ移行せず、確率で「次の攻撃へ
+                    // そのまま繋げるコンボ」に派生させている（comboActive/comboStep）。
+                    // ＝1回の攻撃で必ず終わるのではなく、演出の途中で分岐する
+                    // 「モーションキャンセル」的な仕組み。
                     if (attackTimer >= ATK1_END) {
                         if (comboActive && comboStep == 10) {
 
@@ -2040,6 +2201,15 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             );
         }
 
+        // ── 予約済み火柱 ──
+        // 「今すぐ全部の火柱を発生させる」のではなく、位置(x,z)と
+        // 「あと何tickで発生するか(remainingTicks)」だけを持ったデータとして
+        // リストに溜めておき、tickScheduledPillars()で毎tickカウントダウンする方式。
+        // こうすることで「範囲内にランダムに複数の火柱を、時間差でバラバラに
+        // 発生させる」という演出を、Goalの状態を複雑にせず単純なリスト管理で実現している。
+        // TickTask（Minecraftの汎用遅延実行）を使わず自前のリストにしているのは、
+        // 突進などで攻撃自体が中断された時に scheduledBlockWaves.clear() のように
+        // 一括でキャンセルしやすくするため。
         private static class ScheduledFirePillar {
 
             int remainingTicks;
@@ -2291,6 +2461,12 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         // ──────────────────────────────────────
         // 突進：毎tick処理
         // ──────────────────────────────────────
+        // CHARGE_PHASEの値で「予備動作(1)→加速中(2)→着地硬直(3)」のように
+        // 複数tickにまたがる状態を管理する、いわば「攻撃専用の小さなステートマシン」。
+        // executeAttack()のswitchと違い、こちらは同期された1つの整数値
+        // (setChargePhase)を進行させながら、tick()側で毎回phaseを見て分岐している。
+        // 通常攻撃(attack1〜4)よりも「移動そのものが攻撃の一部」という性質が強いため、
+        // ATTACK_STATEとは別の変数で管理する方が見通しが良い、という判断。
         private void tickCharge(LivingEntity t, int phase) {
             this.chargeTimer++;
 
@@ -2514,6 +2690,8 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             this.mob.setChargePhase(3);
         }
 
+        // tickChargeと同じ考え方のもう一つの複数フェーズ攻撃（ジャンプ切り）。
+        // JUMP_SLAM_PHASEで「予備動作→滞空・落下→着地衝撃」を管理する。
         private void tickJumpSlam(LivingEntity target, int phase) {
             jumpSlamTimer++;
 
@@ -2585,12 +2763,15 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             }
         }
 
+        // ガード（防御）もCHARGE/JUMP_SLAMと同じ「専用フェーズ変数」方式。
+        // hurt()側で「一定条件を満たしたらガードに入る」という判定を行い、
+        // ここでは純粋にガード中の演出・硬直だけを進行させている。
         private void tickGuard() {
 
             guardTimer++;
 
             Vec3 mv = this.mob.getDeltaMovement();
-            this.mob.setDeltaMovement(0, mv.y, 0);
+            this.mob.setDeltaMovement(0, mv.y, 0); // ガード中は水平方向の慣性を殺して足を完全に止める
 
             switch (mob.getGuardPhase()) {
 
@@ -2763,6 +2944,12 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             while (diff > Math.PI * 2) diff -= Math.PI * 2;
             return diff;
         }
+        // ── 予約済みブロック衝撃波 ──
+        // ScheduledFirePillarと同じ「今すぐ実行せず、条件だけ持たせて後で処理する」方式。
+        // こちらは「同心円状に広がる衝撃波」を表現するため、中心座標(center)・半径(radius)・
+        // 角度範囲(startAngle〜endAngle)を持つ。扇状攻撃(叩きつけ)と全周攻撃(踏みつけ)を
+        // 同じクラスで表現できるよう、角度範囲を「-π*3」という通常あり得ない値にすることで
+        // 「全周（角度制限なし）」を表すフラグとして流用している。
         private static class ScheduledBlockWave {
             int remainingTicks;
             BlockPos center;

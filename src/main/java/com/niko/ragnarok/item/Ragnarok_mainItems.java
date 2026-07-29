@@ -125,6 +125,15 @@ public class Ragnarok_mainItems {
                     0x800000,
                     new Item.Properties()
             ));
+
+    public static final RegistryObject<Item> GHOST_WIZARD_SPAWN_EGG = ITEMS.register("ghost_wizard_spawn_egg",
+            () -> new ForgeSpawnEggItem(
+                    RagnarokEntities.GHOST_WIZARD,
+                    0x8b4513,
+                    0x800000,
+                    new Item.Properties()
+            ));
+
     public static final RegistryObject<Item> GRADIUS_TREASURE_BAG =
             ITEMS.register("gradius_treasure_bag", () ->
                     new TreasureBagItem(

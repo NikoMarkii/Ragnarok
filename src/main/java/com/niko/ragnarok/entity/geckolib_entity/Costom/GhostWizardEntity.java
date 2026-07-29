@@ -19,10 +19,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.FloatGoal;
-import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.ai.goal.*;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
@@ -49,17 +46,21 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
     private static final EntityDataAccessor<Integer> ATTACK_STATE =
             SynchedEntityData.defineId(GhostWizardEntity.class, EntityDataSerializers.INT);
 
-    // ── 死亡演出 ──
-    private static final EntityDataAccessor<Boolean> IS_DYING =
-            SynchedEntityData.defineId(GhostWizardEntity.class, EntityDataSerializers.BOOLEAN);
-    private int customDeathTime = 0;
-    private static final int DEATH_DURATION = 30;
+    private static final EntityDataAccessor<Integer> ATTACK_TYPE =
+            SynchedEntityData.defineId(GhostWizardEntity.class, EntityDataSerializers.INT);
 
     private WizardAttackGoal wizardAttackGoalRef;
 
     public GhostWizardEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
         this.moveControl = new RkSmoothMoveControl(this, 15.0F);
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(ATTACK_TYPE, 0);
+        this.entityData.define(ATTACK_STATE, 0);
     }
 
     @Override
@@ -80,6 +81,7 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
         this.goalSelector.addGoal(1, new WizardAttackGoal(this, 1.0D));
+        this.goalSelector.addGoal(2, new AvoidEntityGoal<>(this, Player.class, 8.0F, 0.6F, 1.0D));
         this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1.0D));
         this.goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 12.0F));
 
@@ -91,13 +93,6 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
         ));
     }
 
-    @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(ATTACK_STATE, 0);
-        this.entityData.define(IS_DYING, false);
-    }
-
     public int getAttackState() {
         return this.entityData.get(ATTACK_STATE);
     }
@@ -106,90 +101,88 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
         this.entityData.set(ATTACK_STATE, state);
     }
 
-    public boolean isActuallyDying() {
-        return this.entityData.get(IS_DYING);
+    public int getAttacktype() {
+        return this.entityData.get(ATTACK_TYPE);
     }
 
-    private void setDying(boolean dying) {
-        this.entityData.set(IS_DYING, dying);
-    }
-
-    @Override
-    public void die(DamageSource damageSource) {
-        if (!this.level().isClientSide && !this.isActuallyDying()) {
-            super.die(damageSource);
-            this.setDying(true);
-            this.customDeathTime = 0;
-        }
-    }
-
-    @Override
-    protected void dropAllDeathLoot(DamageSource damageSource) {}
-
-    @Override
-    public void addAdditionalSaveData(CompoundTag tag) {
-        super.addAdditionalSaveData(tag);
-        tag.putBoolean("IsDying", this.isActuallyDying());
-        tag.putInt("CustomDeathTime", this.customDeathTime);
-    }
-
-    @Override
-    public void readAdditionalSaveData(CompoundTag tag) {
-        super.readAdditionalSaveData(tag);
-        if (tag.contains("IsDying")) {
-            this.setDying(tag.getBoolean("IsDying"));
-        }
-        this.customDeathTime = tag.getInt("CustomDeathTime");
+    public void setAttackType(int type) {
+        this.entityData.set(ATTACK_TYPE, type);
     }
 
     @Override
     public void aiStep() {
         super.aiStep();
 
-        if (this.isActuallyDying()) {
-            this.customDeathTime++;
-            this.setDeltaMovement(Vec3.ZERO);
-            this.hurtTime = this.hurtDuration;
+        if (this.level().isClientSide && this.getAttackState() > 0) {
+            spawnCastingParticles();
+        }
+    }
 
-            if (this.customDeathTime % 4 == 0 && this.level() instanceof ServerLevel sl) {
-                sl.sendParticles(
-                        ParticleTypes.LARGE_SMOKE,
-                        this.getX() + (this.random.nextDouble() - 0.5D) * this.getBbWidth(),
-                        this.getY() + this.random.nextDouble() * this.getBbHeight(),
-                        this.getZ() + (this.random.nextDouble() - 0.5D) * this.getBbWidth(),
-                        2, 0.1D, 0.1D, 0.1D, 0.02D
+    private void spawnCastingParticles() {
+        int type = this.getAttacktype();
+
+        double px = this.getX() + (this.random.nextDouble() - 0.5D) * 0.8D;
+        double py = this.getY() + 1.2D + (this.random.nextDouble() - 0.5D) * 0.5D; // 胸〜頭の高さ
+        double pz = this.getZ() + (this.random.nextDouble() - 0.5D) * 0.8D;
+
+        switch (type) {
+            case 1 -> { // 技1：火の玉（青い炎）
+                this.level().addParticle(
+                        ParticleTypes.SOUL_FIRE_FLAME,
+                        px, py, pz,
+                        0.0D, 0.02D, 0.0D
                 );
             }
-
-            if (this.customDeathTime >= DEATH_DURATION) {
-                if (!this.level().isClientSide) {
-                    if (this.level() instanceof ServerLevel sl) {
-                        sl.sendParticles(
-                                ParticleTypes.LARGE_SMOKE,
-                                this.getX(), this.getY() + this.getBbHeight() * 0.5D, this.getZ(),
-                                25,
-                                this.getBbWidth() * 0.5D, this.getBbHeight() * 0.5D, this.getBbWidth() * 0.5D,
-                                0.05D
-                        );
-                    }
-                    this.dropFromLootTable(this.damageSources().generic(), true);
-                    this.remove(RemovalReason.KILLED);
-                }
+            case 2 -> { // 技2：火柱（ソウル＋青い炎で激しく）
+                this.level().addParticle(
+                        ParticleTypes.SOUL,
+                        px, py, pz,
+                        (this.random.nextDouble() - 0.5D) * 0.1D, 0.05D, (this.random.nextDouble() - 0.5D) * 0.1D
+                );
+            }
+            case 3 -> { // 技3：直線火柱（怪しげなエンチャント文字＋煙）
+                this.level().addParticle(
+                        ParticleTypes.ENCHANT,
+                        px, py, pz,
+                        (this.random.nextDouble() - 0.5D) * 0.5D, (this.random.nextDouble() - 0.5D) * 0.5D, (this.random.nextDouble() - 0.5D) * 0.5D
+                );
+            }
+            case 4 -> { // 技4：召喚（不気味な煙・ポーション粒子）
+                this.level().addParticle(
+                        ParticleTypes.WITCH,
+                        px, py, pz,
+                        0.0D, 0.0D, 0.0D
+                );
+            }
+            case 5 -> {
+                this.level().addParticle(
+                        ParticleTypes.HAPPY_VILLAGER,
+                        px, py, pz,
+                        0.0D, 0.05D, 0.0D
+                );
             }
         }
     }
 
     @Override
-    public boolean causeFallDamage(float d, float m, DamageSource s) {
-        return false;
+    protected void dropAllDeathLoot(DamageSource damageSource) {
     }
 
     @Override
-    protected SoundEvent getAmbientSound() { return SoundEvents.SKELETON_AMBIENT; }
+    protected SoundEvent getAmbientSound() {
+        return SoundEvents.SKELETON_AMBIENT;
+    }
+
     @Override
-    protected SoundEvent getHurtSound(DamageSource s) { return SoundEvents.SKELETON_HURT; }
+    protected SoundEvent getHurtSound(DamageSource s) {
+        return SoundEvents.SKELETON_HURT;
+    }
+
     @Override
-    protected SoundEvent getDeathSound() { return SoundEvents.SKELETON_DEATH; }
+    protected SoundEvent getDeathSound() {
+        return SoundEvents.SKELETON_DEATH;
+    }
+
     @Override
     protected void playStepSound(BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
         this.playSound(SoundEvents.SKELETON_STEP, 1.0F, 1.0F);
@@ -222,7 +215,7 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
             // 召喚用に追加したフェーズ
             case 5 -> state.setAndContinue(RawAnimation.begin().thenPlay("magic_attack_end_2"));
 
-            case 6 -> state.setAndContinue(RawAnimation.begin().thenPlay("magic_attack_end_2"));
+            case 6 -> state.setAndContinue(RawAnimation.begin().thenPlay("magic_attack_end_1"));
             default -> PlayState.STOP;
         };
     }
@@ -265,7 +258,7 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
         private static final int PILLAR_SPAWN_TICK = 35;
         private static final int PILLAR_SPAWN_TICK_2 = 45;
         private static final int PILLAR_FINISH_TICK = 55;
-        private static final int PILLAR_LINE_PRE_SPAWN_TICK =23;
+        private static final int PILLAR_LINE_PRE_SPAWN_TICK = 20;
         private static final int PILLAR_LINE_SPAWN_TICK = 25;
 
         private double lockX;
@@ -281,7 +274,6 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
 
         @Override
         public boolean canUse() {
-            if (this.mob.isActuallyDying()) return false;
             if (this.forceFinishAttack) return true;
             LivingEntity t = mob.getTarget();
             return t != null && t.isAlive();
@@ -305,6 +297,12 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
         @Override
         public void tick() {
             LivingEntity t = mob.getTarget();
+
+            if (attackTimer >= LOOP_START) {
+                if (attackType == 1) {
+
+                }
+            }
 
             if (t == null || !t.isAlive()) {
                 if (this.forceFinishAttack) {
@@ -371,20 +369,28 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
 
             // 周囲のGhostEntityの数を数える
             int ghostCount = mob.level().getEntitiesOfClass(GhostEntity.class, mob.getBoundingBox().inflate(16.0)).size();
+            float healthRatio = mob.getHealth() / mob.getMaxHealth();
 
-            if (ghostCount < 3) {
-                // 3体未満なら 1(火の玉), 2(火柱), 3(直線火柱), 4(召喚) の4つから選ぶ
-                this.attackType = mob.getRandom().nextInt(4) + 1;
+            if (healthRatio <= 0.5F && mob.getRandom().nextBoolean()) {
+                this.attackType = 5;
             } else {
-                // 3体以上なら 1, 2, 3 (攻撃技のみ) から選ぶ
-                this.attackType = mob.getRandom().nextInt(3) + 1;
+                if (ghostCount < 6) {
+                    // 6体未満なら 1(火の玉), 2(火柱), 3(直線火柱), 4(召喚) の4つから選ぶ
+                    this.attackType = mob.getRandom().nextInt(4) + 1;
+                } else {
+                    // 3体以上なら 1, 2, 3 (攻撃技のみ) から選ぶ
+                    this.attackType = mob.getRandom().nextInt(3) + 1;
+                }
             }
 
-            this.soundPlayed = false;
-            this.effectSpawned = false;
-            this.lockedTarget = target;
-            mob.setAttackState(1);
-            this.forceFinishAttack = true;
+
+                mob.setAttackType(this.attackType);
+
+                this.soundPlayed = false;
+                this.effectSpawned = false;
+                this.lockedTarget = target;
+                mob.setAttackState(1);
+                this.forceFinishAttack = true;
         }
 
         private void executeAttack(LivingEntity target) {
@@ -419,6 +425,8 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
                 }
             } else if (attackType == 4) {
                 executeSummonAttack(target);
+            } else if (attackType == 5) {
+                executeHealAttack();
             }
         }
 
@@ -469,6 +477,10 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
         // ── 1. 直線火柱攻撃のメインロジック ──
         private void executePillarLineAttack(LivingEntity target) {
 
+            if (attackTimer == PILLAR_LINE_PRE_SPAWN_TICK){
+             mob.playSound(SoundEvents.ELDER_GUARDIAN_CURSE, 1.0F,1.5F);
+            }
+
             // 25tick目（PILLAR_LINE_SPAWN_TICK）で一直線に火柱を出す
             if (attackTimer == PILLAR_LINE_SPAWN_TICK && !effectSpawned) {
                 effectSpawned = true;
@@ -480,6 +492,43 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
             }
         }
 
+        // 新設：ゴースト召喚攻撃
+        private void executeSummonAttack(LivingEntity target) {
+            // 詠唱中に専用のパーティクルを出す
+            if (attackTimer >= LOOP_START && attackTimer < FIREBALL_SPAWN_TICK) {
+                if (mob.level() instanceof ServerLevel sl) {
+                    sl.sendParticles(ParticleTypes.SOUL, mob.getX(), mob.getY() + 2.0, mob.getZ(), 1, 0.2, 0.2, 0.2, 0.0);
+                }
+            }
+
+            if (attackTimer == FIREBALL_SPAWN_TICK && !effectSpawned) {
+                effectSpawned = true;
+                spawnGhosts();
+            }
+            if (attackTimer >= FIREBALL_FINISH_TICK) {
+                finishAttack(COOLDOWN_TICKS);
+            }
+        }
+        private void executeHealAttack() {
+
+            // 発生タイミング（FIREBALL_SPAWN_TICK = 40 tick 目に回復発動）
+            if (attackTimer == FIREBALL_SPAWN_TICK && !effectSpawned) {
+                effectSpawned = true;
+
+                // 1. 体力を回復（例: 最大HPの35%分を回復）
+                float healAmout = mob.getMaxHealth() * 0.35F;
+                mob.heal(healAmout);
+                mob.playSound(SoundEvents.PLAYER_LEVELUP, 1.0F, 1.5F);
+
+                // 3. サーバー側から周囲に回復の円形エフェクトを飛ばす
+                if (mob.level() instanceof ServerLevel sl) {
+                    spawnHealParticles(sl);
+                }
+            }
+                if (attackTimer >= FIREBALL_FINISH_TICK) {
+                    finishAttack(COOLDOWN_TICKS);
+                }
+        }
         // ── 2. 直線状に火柱を並べる処理 ──
         private void spawnFirePillarLines(LivingEntity target) {
             if (!(mob.level() instanceof ServerLevel sl)) return;
@@ -547,44 +596,6 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
 
             mob.playSound(SoundEvents.TRIDENT_THUNDER, 1.0F, 1.2F);
         }
-
-        // 新設：ゴースト召喚攻撃
-        private void executeSummonAttack(LivingEntity target) {
-            // 詠唱中に専用のパーティクルを出す
-            if (attackTimer >= LOOP_START && attackTimer < FIREBALL_SPAWN_TICK) {
-                if (mob.level() instanceof ServerLevel sl) {
-                    sl.sendParticles(ParticleTypes.SOUL, mob.getX(), mob.getY() + 2.0, mob.getZ(), 1, 0.2, 0.2, 0.2, 0.0);
-                }
-            }
-
-            if (attackTimer == FIREBALL_SPAWN_TICK && !effectSpawned) {
-                effectSpawned = true;
-                spawnGhosts();
-            }
-            if (attackTimer >= FIREBALL_FINISH_TICK) {
-                finishAttack(COOLDOWN_TICKS + 20); // 召喚後は少し長めにクールダウン
-            }
-        }
-
-        private void finishAttack(int cd) {
-            attackTimer = 0;
-            cooldown = cd;
-            mob.setAttackState(0);
-            forceFinishAttack = false;
-            soundPlayed = false;
-            effectSpawned = false;
-        }
-
-        int getAnimPhase(int t) {
-            if (t <= START_END) return 1;               // magic_attack_start
-            if (t <= LOOP_END) return 2;                // magic_attack_loop
-            if (attackType == 1) return 3;              // magic_attack_end_1
-            // ★ 召喚（attackType == 4）の時、スポーンタイマーを超えたら召喚モーション（5）へ
-            if (attackType == 4 && t > FIREBALL_SPAWN_TICK) return 5;
-            if (t <= PILLAR_SPAWN_TICK) return 2;
-            return 4;                                   // magic_attack_end_2
-        }
-
         private void spawnFireball(LivingEntity target) {
             BlueFireballEntity fireball = new BlueFireballEntity(mob.level(), mob, target);
             mob.level().addFreshEntity(fireball);
@@ -633,14 +644,10 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
 
             mob.playSound(SoundEvents.EVOKER_PREPARE_SUMMON, 1.0F, 1.0F);
 
-            int amount = 1 + mob.getRandom().nextInt(2); // 1〜2体召喚
+            int amount = 1 + mob.getRandom().nextInt(3); // 1〜2体召喚
             for (int i = 0; i < amount; i++) {
 
-                // 【重要】ここの "YOUR_MOD_ENTITIES.GHOST.get()" は、ニコ氏のMod環境における
-                // GhostEntity を登録している EntityType の参照に書き換えておくれ！
-                // 例: GhostEntity ghost = ModEntities.GHOST.get().create(sl);
-
-                GhostEntity ghost = RagnarokEntities.GHOST.get().create(sl); // ※書き換えるまで動かない仮置きだよ
+                GhostEntity ghost = RagnarokEntities.GHOST.get().create(sl);
 
                 if (ghost != null) {
                     BlockPos spawnPos = mob.blockPosition().offset(
@@ -656,6 +663,56 @@ public class GhostWizardEntity extends Monster implements GeoEntity {
                     sl.sendParticles(ParticleTypes.POOF, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), 10, 0.5, 0.5, 0.5, 0.05);
                 }
             }
+        }
+
+        private void spawnHealParticles(ServerLevel sl) {
+            int particleCount = 20;
+            double radius = 1.2;
+
+            for(int i = 10; i < particleCount; i++) {
+                double angle = i * (2.0 * Math.PI / particleCount);
+
+                double dx = Math.cos(angle) * radius;
+                double dz = Math.sin(angle) * radius;
+
+                sl.sendParticles(
+                        ParticleTypes.HAPPY_VILLAGER,
+                        mob.getX() + dx,
+                        mob.getY() + 0.2,
+                        mob.getZ() + dz,
+                        1,0.0,0.2,0,0.05
+                );
+                sl.sendParticles(
+                        ParticleTypes.INSTANT_EFFECT,
+                        mob.getX() + dx,
+                        mob.getY() + 1.0,
+                        mob.getZ() + dz,
+                        1, 0.0, 0.0, 0.0, 0.0
+                );
+            }
+        }
+
+        private void finishAttack(int cd) {
+            attackTimer = 0;
+            cooldown = cd;
+            mob.setAttackState(0);
+            mob.setAttackType(0);
+            forceFinishAttack = false;
+            soundPlayed = false;
+            effectSpawned = false;
+        }
+
+        int getAnimPhase(int t) {
+            if (t <= START_END) return 1;               // magic_attack_start
+            if (t <= LOOP_END) return 2;                // magic_attack_loop
+            if (attackType == 1) return 3;              // magic_attack_end_1
+            // ★ 召喚（attackType == 4）の時、スポーンタイマーを超えたら召喚モーション（5）へ
+            if (attackType == 4 && t > FIREBALL_SPAWN_TICK) return 5;
+
+            if (attackType == 5 && t > FIREBALL_SPAWN_TICK) return 6;
+
+            if (t <= PILLAR_SPAWN_TICK) return 2;
+            return 4;                                   // magic_attack_end_2
         }
     }
 }

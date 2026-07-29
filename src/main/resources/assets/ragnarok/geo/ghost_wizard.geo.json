@@ -73,6 +73,11 @@
 					]
 				},
 				{
+					"name": "left_bone",
+					"parent": "left_arm",
+					"pivot": [5, 13, 0]
+				},
+				{
 					"name": "right_arm",
 					"parent": "body",
 					"pivot": [-5, 22, 0],
@@ -80,6 +85,11 @@
 						{"origin": [-6, 12, -1], "size": [2, 12, 2], "uv": [16, 37]},
 						{"origin": [-6, 12, -1], "size": [2, 12, 2], "inflate": 0.3, "uv": [32, 44]}
 					]
+				},
+				{
+					"name": "right_bone",
+					"parent": "right_arm",
+					"pivot": [-5, 13, 0]
 				},
 				{
 					"name": "left_leg",
