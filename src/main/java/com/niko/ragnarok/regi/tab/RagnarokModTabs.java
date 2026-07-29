@@ -42,6 +42,7 @@ public class RagnarokModTabs {
                                 output.accept(Ragnarok_mainItems.RAW_NAITOMEA.get());
                                 output.accept(RagnarokBlocks.RAW_NAITOMEA_BLOCK.get());
                                 output.accept(RagnarokBlocks.NAITOMEA_ORE.get());
+                                output.accept(RagnarokBlocks.DOORS_KING_ROOM.get());
                                 output.accept(Ragnarok_mainItems.DRAGON_SCALE.get());
                                 output.accept(Ragnarok_mainItems.ENDER_SOLDIER_CLAW.get());
                                 output.accept(Ragnarok_mainItems.FLOWER_NECKLACE.get());

@@ -20,13 +20,32 @@ import java.util.function.Supplier;
 public class RagnarokBlocks {
     public static final DeferredRegister<Block> BLOCKS =
             DeferredRegister.create(ForgeRegistries.BLOCKS, Ragnarok.MOD_ID);
+
             public static final RegistryObject<Block> NAITOMEA_BLOCK = regiserBlockItem("naitomea_block",
                     () -> new Block(BlockBehaviour.Properties.copy(Blocks.NETHERITE_BLOCK).sound(SoundType.NETHERITE_BLOCK) ));
+
             public static final RegistryObject<Block> RAW_NAITOMEA_BLOCK = regiserBlockItem("raw_naitomea_block",
                     () -> new Block(BlockBehaviour.Properties.copy(Blocks.NETHERITE_BLOCK).sound(SoundType.NETHERITE_BLOCK) ));
+
             public static final RegistryObject<Block> NAITOMEA_ORE = regiserBlockItem("naitomea_ore",
                     () -> new DropExperienceBlock(BlockBehaviour.Properties.copy(Blocks.ANCIENT_DEBRIS).sound(SoundType.NETHERITE_BLOCK),
                           UniformInt.of(3, 7)));
+
+    public static final RegistryObject<Block> DOORS_KING_ROOM = regiserBlockItem("doors_king_room",
+            () -> new DoorsofKingroomBlock(BlockBehaviour.Properties.copy(Blocks.WARPED_DOOR)
+                    .sound(SoundType.WOOD)
+                    .destroyTime(-1.0F)
+                    .explosionResistance(3600000.0F)
+            ));
+
+            public static final RegistryObject<Block> DOOR_DUMMY_BLOCK = BLOCKS.register("door_dummy_block",
+                    () -> new DoorDummyBlock(BlockBehaviour.Properties.copy(Blocks.BARRIER)
+                          .noOcclusion() // 光を遮らない透明処理
+                          .noLootTable() // 破壊時にドロップを出さない
+                            .destroyTime(-1.0F)
+                            .explosionResistance(3600000.0F)
+                    ));
+
             private static <T extends Block> RegistryObject<T> regiserBlockItem(String name,
                                                                                 Supplier<T> Supplier) {
                 RegistryObject<T> block = BLOCKS.register(name,Supplier);

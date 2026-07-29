@@ -187,7 +187,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
     private boolean standbyEnding = false;
     private int standbyEndTimer = 0;
     private static final int STANDBY_END_DURATION = 70;
-    private static final double STANDBY_DETECT_RANGE = 16.0; // 感知距離（ブロック）
+    private static final double STANDBY_DETECT_RANGE = 7.0; // 感知距離（ブロック）
 
     private LivingEntity pendingTarget = null;
 
@@ -402,6 +402,10 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         if (!this.level().isClientSide
                 && !this.isActuallyDying()) {
 
+            // ── 待機状態を強制解除 ──
+            this.setStandby(false);
+            this.setStandbyEnding(false);
+
             // ★トドメを刺したプレイヤーを取得して lastAttacker に保存
             if (source.getEntity() instanceof ServerPlayer sp) {
                 this.lastAttacker = sp;
@@ -546,7 +550,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         super.aiStep();
 
         // ── 待機状態処理 ──
-        if (standby || standbyEnding) {
+        if ((standby || standbyEnding) && !this.isActuallyDying()) {
             tickStandby();
             return; // 待機中はAI・攻撃・ボスバー更新をスキップ
         }

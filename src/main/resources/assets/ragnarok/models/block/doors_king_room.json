@@ -1,0 +1,6 @@
+{
+  "parent": "block/thin_block",
+  "textures": {
+    "particle": "ragnarok:item/doors_of_king_room"
+  }
+}

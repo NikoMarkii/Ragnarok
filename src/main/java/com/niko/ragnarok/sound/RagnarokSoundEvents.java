@@ -23,6 +23,9 @@ public class RagnarokSoundEvents {
     public static final RegistryObject<SoundEvent> GRADIUS_MUSIC =
             register("entity.gradius.music");
 
+    public static final RegistryObject<SoundEvent> OPEN_DOORS_KING_ROOM =
+            register("blockentity.doors_king_room.open");
+
 
 
 

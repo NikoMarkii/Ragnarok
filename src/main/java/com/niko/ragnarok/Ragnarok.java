@@ -1,6 +1,7 @@
 package com.niko.ragnarok;
 
 import com.niko.ragnarok.block.RagnarokBlocks;
+import com.niko.ragnarok.blockentities.RagnarokBlockEntities;
 import com.niko.ragnarok.effect.ModMobEffects;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.item.Ragnarok_mainItems;
@@ -26,6 +27,7 @@ public class Ragnarok {
                 Ragnarok_mainItems.ITEMS.register(bus);
                 RagnarokModTabs.MOD_TABS.register(bus);
                 RagnarokBlocks.BLOCKS.register(bus);
+                RagnarokBlockEntities.BLOCK_ENTITIES.register(bus);
                 RagnarokLootModifiers.register(bus);
                 RagnarokEntities.register(bus);
                 RagnarokSoundEvents.SOUND_EVENTS.register(bus);

@@ -1,6 +1,8 @@
 package com.niko.ragnarok.event;
 
 import com.niko.ragnarok.Ragnarok;
+import com.niko.ragnarok.blockentities.RagnarokBlockEntities;
+import com.niko.ragnarok.blockentities.Renderer.DoorsofKingroomRenderer;
 import com.niko.ragnarok.entity.Model.groot_model;
 import com.niko.ragnarok.entity.Model.mini_groot_model;
 import com.niko.ragnarok.entity.Projectile.Model.slash_model;
@@ -40,6 +42,7 @@ public class RagnarokEventBusClientEvent {
         event.registerEntityRenderer(RagnarokEntities.BLUE_FIREBALL.get(), BlueFireballRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.GALEOS.get(), GaleosRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.GHOST_WIZARD.get(), GhostWizardRenderer::new);
+        event.registerBlockEntityRenderer(RagnarokBlockEntities.DOORS_KING_ROOM.get(), DoorsofKingroomRenderer::new);
     }
 
     @SubscribeEvent

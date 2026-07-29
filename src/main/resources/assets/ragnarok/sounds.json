@@ -33,5 +33,14 @@
         "stream": true
       }
     ]
+  },
+  "blockentity.doors_king_room.open": {
+    "sounds": [
+      {
+        "name": "ragnarok:blockentities/doors_king_rooms/open_doors_king_room",
+        "stream": false,
+        "attenuation_distance": 16
+      }
+    ]
   }
 }
