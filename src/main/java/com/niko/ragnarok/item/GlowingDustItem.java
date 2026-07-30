@@ -19,7 +19,7 @@ public class GlowingDustItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack itemstack = player.getItemInHand(hand);
 
-        // 投擲音（アレイの声などを使うと妖精らしいね）
+        // 投擲音
         level.playSound(null, player.getX(), player.getY(), player.getZ(),
                 SoundEvents.ALLAY_THROW, SoundSource.NEUTRAL, 0.5F, 0.4F / (level.getRandom().nextFloat() * 0.4F + 0.8F));
 

@@ -1,6 +1,7 @@
 package com.niko.ragnarok.client.gui.bossbar;
 
 import com.niko.ragnarok.Ragnarok;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -38,10 +39,10 @@ public class UniversalBossBarOverlay {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
-        // カスタムボスバーを持つエンティティを検索
+// カスタムボスバーを持つエンティティを検索（表示フラグがtrueのもののみに絞り込む）
         List<LivingEntity> bosses = mc.level.getEntitiesOfClass(LivingEntity.class,
                 mc.player.getBoundingBox().inflate(64.0D),
-                entity -> entity instanceof ICustomBossBar);
+                entity -> entity instanceof ICustomBossBar boss && boss.shouldShowBossBar());
 
         // ボスがいない場合はマップをクリアして終了
         if (bosses.isEmpty()) {
@@ -76,7 +77,6 @@ public class UniversalBossBarOverlay {
             if (drawnCount >= 3) {
                 break;
             }
-
             ICustomBossBar boss = (ICustomBossBar) entity;
             int entityId = entity.getId();
 

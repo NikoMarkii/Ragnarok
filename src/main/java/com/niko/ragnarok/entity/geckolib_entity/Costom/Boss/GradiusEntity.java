@@ -413,8 +413,8 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
 
             if (this.lastAttacker != null) {
                 this.lastAttacker.displayClientMessage(
-                        Component.literal(
-                                "'貴様こそが...真の英雄であったか...'"
+                        Component.translatable(
+                                "message.ragnarok.gradius.death",this.lastAttacker.getName().getString()
                         ).withStyle(ChatFormatting.GOLD),
                         true
                 );
@@ -574,7 +574,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                     && lastAttacker.isAlive()) {
 
                 lastAttacker.displayClientMessage(
-                        Component.literal("'まだ終わりではない'")
+                        Component.translatable("message.ragnarok.gradius.awakening")
                                 .withStyle(ChatFormatting.DARK_RED),
                         true
                 );
@@ -794,7 +794,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
 
     @Override
     public SoundEvent getBossMusic() {
-        return RagnarokSoundEvents.GRADIUS_MUSIC.get(); // 自分のSoundEvent登録に合わせて
+        return RagnarokSoundEvents.GRADIUS_MUSIC.get();
     }
 
     @Override
@@ -1179,6 +1179,12 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
     @Override
     public int getFrameOffsetY() {
         return -12;
+    }
+
+    @Override
+    public boolean shouldShowBossBar() {
+        // 待機中（standby）または待機終了演出中（standbyEnding）はボスバーを表示しない
+        return !this.isStandby() && !this.isStandbyEnding();
     }
 
     // ══════════════════════════════════════════

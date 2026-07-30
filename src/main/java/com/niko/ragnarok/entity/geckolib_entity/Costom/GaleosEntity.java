@@ -192,6 +192,10 @@ public class GaleosEntity extends Mid_Boss_Monster implements GeoEntity {
     protected void tickDeath() {}
 
     @Override
+    protected void dropAllDeathLoot(DamageSource damageSource) {
+    }
+
+    @Override
     protected BodyRotationControl createBodyControl() {
         return new RkBodyRotationControl(this);
     }

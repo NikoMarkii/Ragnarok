@@ -12,6 +12,11 @@ public interface ICustomBossBar {
     // ボスの体力割合（0.0F ~ 1.0F）
     float getBossProgress();
 
+    // ★ 追加：ボスバーを表示すべきかどうか（デフォルトはtrue）
+    default boolean shouldShowBossBar() {
+        return true;
+    }
+
     // --- 描画用のサイズと位置調整 ---
 
     // フレーム画像の実際の幅と高さ
@@ -19,7 +24,6 @@ public interface ICustomBossBar {
     int getFrameHeight();
 
     // ゲージ本体（120x3）の左上を原点(0,0)としたときの、フレーム描画開始位置(X, Y)
-    // （例：フレームがゲージより大きく、ゲージを包み込む形ならマイナスの値になる）
     int getFrameOffsetX();
     int getFrameOffsetY();
 

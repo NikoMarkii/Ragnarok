@@ -2,6 +2,8 @@ package com.niko.ragnarok.blockentities;
 
 import com.niko.ragnarok.block.DoorDummyBlock;
 import com.niko.ragnarok.block.DoorsofKingroomBlock;
+import com.niko.ragnarok.network.RagnarokNetwork;
+import com.niko.ragnarok.network.ScreenShakePacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -9,6 +11,7 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -33,6 +36,26 @@ public class DoorsofkingroomBlockEntity extends BlockEntity implements GeoBlockE
 
     public DoorsofkingroomBlockEntity(BlockPos pos, BlockState state) {
         super(RagnarokBlockEntities.DOORS_KING_ROOM.get(), pos, state);
+    }
+
+    private void sendScreenShake(float intensity, int duration) {
+        // BlockEntity では .level() ではなく .getLevel() または .level を使用する
+        Level level = this.getLevel(); // または this.level
+        if (level == null || level.isClientSide()) return;
+        if (!(level instanceof ServerLevel sl)) return;
+
+        // BlockEntity の位置（BlockPos）を中心座標（Vec3）に変換
+        net.minecraft.world.phys.Vec3 pos = net.minecraft.world.phys.Vec3.atCenterOf(this.getBlockPos());
+
+        // 範囲内のプレイヤーにパケット送信（範囲：64ブロック以内）
+        for (net.minecraft.server.level.ServerPlayer player :
+                sl.getPlayers(p -> p.distanceToSqr(pos) < 64 * 64)) {
+            RagnarokNetwork.CHANNEL.sendTo(
+                    new ScreenShakePacket(intensity, duration),
+                    player.connection.connection,
+                    net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT
+            );
+        }
     }
 
     @Override
@@ -79,6 +102,7 @@ public class DoorsofkingroomBlockEntity extends BlockEntity implements GeoBlockE
         this.isOpening = true;
         this.openTimer = 80; // 4秒 = 80 ticks
         this.setChanged();
+        sendScreenShake(0.5F, 80);
 
         if (this.level != null && !this.level.isClientSide) {
             this.level.sendBlockUpdated(this.worldPosition, this.getBlockState(), this.getBlockState(), 3);
@@ -134,9 +158,16 @@ public class DoorsofkingroomBlockEntity extends BlockEntity implements GeoBlockE
     }
 
     private PlayState predicate(AnimationState<DoorsofkingroomBlockEntity> event) {
-        // 開閉アニメーション中、または既に開ききっている（ロード後含む）場合
-        if (this.isOpening() || this.isOpen()) {
+        // 開いている最中（アニメーション再生）
+        if (this.isOpening()) {
             event.getController().setAnimation(RawAnimation.begin().thenPlayAndHold("open"));
+            return PlayState.CONTINUE;
+        }
+
+        // 既に開ききっている状態（固定姿勢）
+        if (this.isOpen()) {
+            // 開ききった状態の静止アニメーションをループまたは保持再生
+            event.getController().setAnimation(RawAnimation.begin().thenLoop("opened"));
             return PlayState.CONTINUE;
         }
 

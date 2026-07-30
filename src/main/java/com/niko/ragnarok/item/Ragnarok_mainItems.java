@@ -45,6 +45,8 @@ public class Ragnarok_mainItems {
 
     public static final RegistryObject<Item> FLOWER_NECKLACE = ITEMS.register("flower_necklace",() -> new FlowerNecklaceItem(new Item.Properties()));
 
+    public static final RegistryObject<Item> KING_KEY = ITEMS.register("king_key",() -> new Item(new Item.Properties()));
+
     public static final RegistryObject<Item> RED_CREEPER_SPAWN_EGG = ITEMS.register("red_creeper_spawn_egg",
             () -> new ForgeSpawnEggItem(RagnarokEntities.RED_CREEPER,
                     Color.RED.getRGB(),Color.BLACK.getRGB(),new Item.Properties()));

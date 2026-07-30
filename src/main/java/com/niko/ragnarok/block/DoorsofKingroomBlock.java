@@ -2,6 +2,7 @@ package com.niko.ragnarok.block;
 
 import com.niko.ragnarok.blockentities.DoorsofkingroomBlockEntity;
 import com.niko.ragnarok.blockentities.RagnarokBlockEntities;
+import com.niko.ragnarok.item.Ragnarok_mainItems;
 import com.niko.ragnarok.sound.RagnarokSoundEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -172,15 +173,11 @@ public class DoorsofKingroomBlock extends Block implements EntityBlock {
         if (hand == InteractionHand.MAIN_HAND) {
             ItemStack heldItem = player.getItemInHand(hand);
 
-            if (heldItem.is(Items.ENDER_EYE)) {
+            if (heldItem.is(Ragnarok_mainItems.KING_KEY.get())) {
                 BlockEntity blockEntity = level.getBlockEntity(pos);
                 if (blockEntity instanceof DoorsofkingroomBlockEntity doorBE) {
                     if (doorBE.isOpening() || doorBE.isOpen()) {
                         return InteractionResult.SUCCESS;
-                    }
-
-                    if (!player.getAbilities().instabuild) {
-                        heldItem.shrink(1);
                     }
 
                     doorBE.open();

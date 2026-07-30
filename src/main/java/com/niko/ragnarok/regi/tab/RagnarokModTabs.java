@@ -51,6 +51,7 @@ public class RagnarokModTabs {
                                 output.accept(Ragnarok_mainItems.SCORPION_NEEDLE.get());
                                 output.accept(Ragnarok_mainItems.SCORPION_CELL.get());
                                 output.accept(Ragnarok_mainItems.NIGHTNIUM_UPGRADE_SMITHING_TEMPLATE.get());
+                                output.accept(Ragnarok_mainItems.KING_KEY.get());
                                 output.accept(Ragnarok_mainItems.GRADIUS_TREASURE_BAG.get());
                                 output.accept(Ragnarok_mainItems.GRADIUS_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.GALEOS_SPAWN_EGG.get());
