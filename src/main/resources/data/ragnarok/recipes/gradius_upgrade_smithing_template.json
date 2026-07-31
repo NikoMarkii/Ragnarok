@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "key": {
+    "#": {
+      "item": "minecraft:netherite_upgrade_smithing_template"
+    },
+    "a": {
+      "item": "ragnarok:ectoplasm"
+    },
+    "s": {
+      "item": "minecraft:stone_bricks"
+    }
+  },
+  "pattern": [
+    "sas",
+    "a#a",
+    "sas"
+  ],
+  "result": {
+    "item": "ragnarok:gradius_upgrade_smithing_template"
+  },
+  "show_notification": true
+}
