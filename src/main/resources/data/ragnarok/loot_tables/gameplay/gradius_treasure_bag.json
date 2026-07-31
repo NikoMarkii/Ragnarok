@@ -14,24 +14,24 @@
     {
       "rolls": {
         "type": "minecraft:uniform",
-        "min": 2,
-        "max": 4
+        "min": 5,
+        "max": 20
       },
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "minecraft:diamond",
-          "weight": 3
+          "name": "ragnarok:gradius_soul",
+          "weight": 4
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:netherite_ingot",
-          "weight": 1
+          "name": "ragnarok:ectoplasm",
+          "weight": 17
         },
         {
           "type": "minecraft:item",
-          "name": "minecraft:ancient_debris",
-          "weight": 2
+          "name": "minecraft:iron_ingot",
+          "weight": 10
         }
       ]
     }

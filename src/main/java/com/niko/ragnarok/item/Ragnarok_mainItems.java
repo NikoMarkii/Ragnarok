@@ -2,6 +2,7 @@ package com.niko.ragnarok.item;
 
 import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.RagnarokEntities;
+import com.niko.ragnarok.item.Armor.GradiusArmorItem;
 import com.niko.ragnarok.item.Armor.NaitomeaArmorItem;
 import com.niko.ragnarok.item.Armor.RagnarokArmorMaterials;
 import com.niko.ragnarok.item.Gradius_Great_Sword.GradiusGreatSword;
@@ -46,6 +47,10 @@ public class Ragnarok_mainItems {
     public static final RegistryObject<Item> FLOWER_NECKLACE = ITEMS.register("flower_necklace",() -> new FlowerNecklaceItem(new Item.Properties()));
 
     public static final RegistryObject<Item> KING_KEY = ITEMS.register("king_key",() -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> ECTOPLASM = ITEMS.register("ectoplasm",() -> new Item(new Item.Properties()));
+
+    public static final RegistryObject<Item> GRADIUS_SOUL = ITEMS.register("gradius_soul",() -> new Item(new Item.Properties()));
 
     public static final RegistryObject<Item> RED_CREEPER_SPAWN_EGG = ITEMS.register("red_creeper_spawn_egg",
             () -> new ForgeSpawnEggItem(RagnarokEntities.RED_CREEPER,
@@ -169,6 +174,22 @@ public class Ragnarok_mainItems {
     public static final RegistryObject<Item> NAITOMEA_BOOTS = ITEMS.register("naitomea_boots",
             () -> new NaitomeaArmorItem(RagnarokArmorMaterials.NAITOMEA_ARMOR, ArmorItem.Type.BOOTS, new Item.Properties()));
 
+    public static final RegistryObject<Item> GRADIUS_HELMET = ITEMS.register("gradius_helmet",
+            () -> new GradiusArmorItem(RagnarokArmorMaterials.GRADIUS_ARMOR, ArmorItem.Type.HELMET,
+                    new Item.Properties()));
+
+    public static final RegistryObject<Item> GRADIUS_CHESTPLATE = ITEMS.register("gradius_chestplate",
+            () -> new GradiusArmorItem(RagnarokArmorMaterials.GRADIUS_ARMOR, ArmorItem.Type.CHESTPLATE,
+                    new Item.Properties()));
+
+    public static final RegistryObject<Item> GRADIUS_LEGGINGS = ITEMS.register("gradius_leggings",
+            () -> new GradiusArmorItem(RagnarokArmorMaterials.GRADIUS_ARMOR, ArmorItem.Type.LEGGINGS,
+                    new Item.Properties()));
+
+    public static final RegistryObject<Item> GRADIUS_BOOTS = ITEMS.register("gradius_boots",
+            () -> new GradiusArmorItem(RagnarokArmorMaterials.GRADIUS_ARMOR, ArmorItem.Type.BOOTS,
+                    new Item.Properties()));
+
     public static final RegistryObject<Item> NAITOMEA_SWORD = ITEMS.register("naitomea_sword",
             () -> new SwordItem(RagnarokTooltiers.NAITOMEA_TOOL,4,-2.4F,new Item.Properties()));
     public static final RegistryObject<Item> NAITOMEA_PICKAXE = ITEMS.register("naitomea_pickaxe",
@@ -199,6 +220,24 @@ public class Ragnarok_mainItems {
                     Component.translatable("item.ragnarok.smithing_template.nightnium_upgrade.base_slot_description"),
                     // 5. Additions Slot Description (追加スロットへの指示: 例 "ナイトニウムインゴットを入れてください")
                     Component.translatable("item.ragnarok.smithing_template.nightnium_upgrade.additions_slot_description"),
+                    // 6. Base Slot Icons (シルエットアイコン)
+                    Arrays.asList(ResourceLocation.fromNamespaceAndPath("minecraft", "item/empty_slot_sword")),
+                    // 7. Additions Slot Icons (素材のシルエットアイコン)
+                    Arrays.asList(ResourceLocation.fromNamespaceAndPath("minecraft", "item/empty_slot_ingot"))
+            )
+    );
+    public static final RegistryObject<Item> GRADIUS_UPGRADE_SMITHING_TEMPLATE = ITEMS.register("gradius_upgrade_smithing_template",
+            () -> new SmithingTemplateItem(
+                    // 1. Applies to (適用アイテムの種類)
+                    Component.translatable("item.ragnarok.smithing_template.gradius_upgrade.applies_to").withStyle(ChatFormatting.BLUE),
+                    // 2. Ingredients (必要な素材の種類)
+                    Component.translatable("item.ragnarok.smithing_template.gradius_upgrade.ingredients").withStyle(ChatFormatting.BLUE),
+                    // 3. Upgrade Title (メニュー上のタイトル: 例 "グラディウス強化")
+                    Component.translatable("upgrade.ragnarok.gradius_upgrade").withStyle(ChatFormatting.GRAY),
+                    // 4. Base Slot Description (ベーススロットへの指示: 例 "ネザライト装備を入れてください")
+                    Component.translatable("item.ragnarok.smithing_template.gradius_upgrade.base_slot_description"),
+                    // 5. Additions Slot Description (追加スロットへの指示: 例 "グラディウスの魂を入れてください")
+                    Component.translatable("item.ragnarok.smithing_template.gradius_upgrade.additions_slot_description"),
                     // 6. Base Slot Icons (シルエットアイコン)
                     Arrays.asList(ResourceLocation.fromNamespaceAndPath("minecraft", "item/empty_slot_sword")),
                     // 7. Additions Slot Icons (素材のシルエットアイコン)

@@ -21,8 +21,16 @@ public enum RagnarokArmorMaterials implements ArmorMaterial {
             SoundEvents.ARMOR_EQUIP_GENERIC, // 装備音
             0.0F, // タフネス
             0.0F, // ノックバック耐性
-            // 全ての板材（Planksタグ）で修復可能にする
-            () -> Ingredient.of(ItemTags.PLANKS));
+            () -> Ingredient.of(ItemTags.PLANKS)),
+    GRADIUS_ARMOR("gradius",
+            43, // 耐久度倍率（ネザライトと同等）
+            new int[]{4, 7, 9, 4}, // 防御力（足、脚、胴、頭）計24ポイント
+            15, // エンチャント適性
+            SoundEvents.ARMOR_EQUIP_NETHERITE, // 装備音
+            3.0F, // タフネス
+            0.1F, // ノックバック耐性
+            () -> Ingredient.of(Ragnarok_mainItems.ECTOPLASM.get()));
+
 
     private static final int[] HEALTH_PER_SLOT = new int[]{13, 15, 16, 11};
     private final String name;
@@ -85,4 +93,3 @@ public enum RagnarokArmorMaterials implements ArmorMaterial {
         return this.knockbackResistance;
     }
 }
-

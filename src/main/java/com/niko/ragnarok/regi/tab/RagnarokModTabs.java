@@ -32,6 +32,10 @@ public class RagnarokModTabs {
                                 output.accept(Ragnarok_mainItems.WOODEN_CHESTPLATE.get());
                                 output.accept(Ragnarok_mainItems.WOODEN_LEGGINGS.get());
                                 output.accept(Ragnarok_mainItems.WOODEN_BOOTS.get());
+                                output.accept(Ragnarok_mainItems.GRADIUS_HELMET.get());
+                                output.accept(Ragnarok_mainItems.GRADIUS_CHESTPLATE.get());
+                                output.accept(Ragnarok_mainItems.GRADIUS_LEGGINGS.get());
+                                output.accept(Ragnarok_mainItems.GRADIUS_BOOTS.get());
                                 output.accept(Ragnarok_mainItems.NAITOMEA_HELMET.get());
                                 output.accept(Ragnarok_mainItems.NAITOMEA_CHESTPLATE.get());
                                 output.accept(Ragnarok_mainItems.NAITOMEA_LEGGINGS.get());
@@ -50,7 +54,10 @@ public class RagnarokModTabs {
                                 output.accept(Ragnarok_mainItems.GROOT_HARHT.get());
                                 output.accept(Ragnarok_mainItems.SCORPION_NEEDLE.get());
                                 output.accept(Ragnarok_mainItems.SCORPION_CELL.get());
+                                output.accept(Ragnarok_mainItems.GRADIUS_UPGRADE_SMITHING_TEMPLATE.get());
                                 output.accept(Ragnarok_mainItems.NIGHTNIUM_UPGRADE_SMITHING_TEMPLATE.get());
+                                output.accept(Ragnarok_mainItems.ECTOPLASM.get());
+                                output.accept(Ragnarok_mainItems.GRADIUS_SOUL.get());
                                 output.accept(Ragnarok_mainItems.KING_KEY.get());
                                 output.accept(Ragnarok_mainItems.GRADIUS_TREASURE_BAG.get());
                                 output.accept(Ragnarok_mainItems.GRADIUS_SPAWN_EGG.get());
