@@ -5482,13 +5482,13 @@
 						},
 						"1.25": {
 							"post": {
-								"vector": [0, 52.5, 0]
+								"vector": [0, -32.5, 0]
 							},
 							"lerp_mode": "catmullrom"
 						},
 						"1.75": {
 							"post": {
-								"vector": [0, 52.5, 0]
+								"vector": [0, -32.5, 0]
 							},
 							"lerp_mode": "catmullrom"
 						},
@@ -5767,13 +5767,13 @@
 						},
 						"1.25": {
 							"post": {
-								"vector": [0, -52.5, 0]
+								"vector": [0, 32.5, 0]
 							},
 							"lerp_mode": "catmullrom"
 						},
 						"1.75": {
 							"post": {
-								"vector": [0, -52.5, 0]
+								"vector": [0, 32.5, 0]
 							},
 							"lerp_mode": "catmullrom"
 						},
