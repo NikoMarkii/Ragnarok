@@ -68,6 +68,11 @@
 					]
 				},
 				{
+					"name": "mouth",
+					"parent": "bone",
+					"pivot": [0, 43, -84]
+				},
+				{
 					"name": "bone15",
 					"parent": "head",
 					"pivot": [0, 42, -38.66667],
