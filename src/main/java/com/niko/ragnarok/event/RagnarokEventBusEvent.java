@@ -4,6 +4,7 @@ import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.DinocampusEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity;
 import net.minecraft.world.entity.EntityType;
@@ -50,6 +51,8 @@ public class RagnarokEventBusEvent {
                 GhostKnightEntity.createAttributes().build());
         event.put(RagnarokEntities.GALEOS.get(),
                 GaleosEntity.createAttributes().build());
+        event.put(RagnarokEntities.DINOCAMPUS.get(),
+                DinocampusEntity.createAttributes().build());
         event.put(RagnarokEntities.GHOST_WIZARD.get(),
                 GhostWizardEntity.createAttributes().build());
     }

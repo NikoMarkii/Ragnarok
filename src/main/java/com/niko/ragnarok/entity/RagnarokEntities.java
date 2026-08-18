@@ -2,10 +2,12 @@ package com.niko.ragnarok.entity;
 
 import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.entity.Projectile.BlueFireballEntity;
+import com.niko.ragnarok.entity.Projectile.DinocampusBubbleEntity;
 import com.niko.ragnarok.entity.Projectile.GlowingDustEntity;
 import com.niko.ragnarok.entity.Projectile.VoidSlashEntity;
 import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.DinocampusEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity;
 import net.minecraft.world.entity.EntityType;
@@ -84,6 +86,15 @@ public class RagnarokEntities {
                             .build("galeos")
             );
 
+    public static final RegistryObject<EntityType<DinocampusEntity>> DINOCAMPUS =
+            ENTITY_TYPES.register("dinocampus", () ->
+                    EntityType.Builder.<DinocampusEntity>of(DinocampusEntity::new, MobCategory.MONSTER)
+                            .sized(5.0F, 5.0F)
+                            .clientTrackingRange(64)
+                            .updateInterval(1)
+                            .build("dinocampus")
+            );
+
     public static final RegistryObject<EntityType<VoidSlashEntity>> VOID_SLASH =
             ENTITY_TYPES.register("void_slash", () ->
                     EntityType.Builder.<VoidSlashEntity>of(VoidSlashEntity::new, MobCategory.MISC) // 飛び道具は通常 MISC
@@ -107,6 +118,15 @@ public class RagnarokEntities {
                             .clientTrackingRange(64) // 発射物は広めに（デフォルト64）
                             .updateInterval(1)   // 毎tick同期（発射物は必ず1にする）
                             .build("blue_fireball")
+            );
+
+    public static final RegistryObject<EntityType<DinocampusBubbleEntity>> DINOCAMPUS_BUBBLE =
+            ENTITY_TYPES.register("dinocampus_bubble", () ->
+                    EntityType.Builder.<DinocampusBubbleEntity>of(DinocampusBubbleEntity::new, MobCategory.MISC)
+                            .sized(0.8F, 0.8F)
+                            .clientTrackingRange(64)
+                            .updateInterval(1)
+                            .build("dinocampus_bubble")
             );
     public static final RegistryObject<EntityType<GhostEntity>> GHOST =
             ENTITY_TYPES.register("ghost", () ->

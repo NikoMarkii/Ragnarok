@@ -62,6 +62,7 @@ public class RagnarokModTabs {
                                 output.accept(Ragnarok_mainItems.GRADIUS_TREASURE_BAG.get());
                                 output.accept(Ragnarok_mainItems.GRADIUS_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.GALEOS_SPAWN_EGG.get());
+                                output.accept(Ragnarok_mainItems.DINOCAMPUS_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.GHOST_KNIGHT_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.GHOST_WIZARD_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.ENDER_SOLDIER_SPAWN_EGG.get());

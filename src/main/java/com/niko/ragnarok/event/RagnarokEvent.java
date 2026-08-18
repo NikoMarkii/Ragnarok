@@ -2,6 +2,7 @@ package com.niko.ragnarok.event;
 
 import com.niko.ragnarok.client.ScreenShakeHandler;
 import com.niko.ragnarok.entity.RagnarokEntities;
+import com.niko.ragnarok.entity.Projectile.DinocampusBubbleEntity;
 import com.niko.ragnarok.entity.costom.Groot;
 import com.niko.ragnarok.entity.costom.Magic_Golem;
 import com.niko.ragnarok.item.ItemScorpionNecklace;
@@ -25,6 +26,7 @@ import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import top.theillusivec4.curios.api.CuriosCapability;
@@ -33,6 +35,10 @@ import java.util.List;
 
 @Mod.EventBusSubscriber(modid = "ragnarok")
 public class RagnarokEvent {
+    @SubscribeEvent
+    public static void onLivingTick(LivingEvent.LivingTickEvent event) {
+        DinocampusBubbleEntity.tickSuffocation(event.getEntity());
+    }
 
     @SubscribeEvent
     public static void onPlayerAttack(LivingHurtEvent event) {

@@ -125,6 +125,13 @@ public class Ragnarok_mainItems {
                     0x2e8b57,
                     new Item.Properties()
             ));
+    public static final RegistryObject<Item> DINOCAMPUS_SPAWN_EGG = ITEMS.register("dinocampus_spawn_egg",
+            () -> new ForgeSpawnEggItem(
+                    RagnarokEntities.DINOCAMPUS,
+                    0x2e8b57,
+                    0x00bfff,
+                    new Item.Properties()
+            ));
     public static final RegistryObject<Item> GRADIUS_SPAWN_EGG = ITEMS.register("gradius_spawn_egg",
             () -> new ForgeSpawnEggItem(
                     RagnarokEntities.GRADIUS,

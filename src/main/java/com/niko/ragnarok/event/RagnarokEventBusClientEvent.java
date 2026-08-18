@@ -7,6 +7,7 @@ import com.niko.ragnarok.entity.Model.groot_model;
 import com.niko.ragnarok.entity.Model.mini_groot_model;
 import com.niko.ragnarok.entity.Projectile.Model.slash_model;
 import com.niko.ragnarok.entity.Projectile.Renderer.BlueFireballRenderer;
+import com.niko.ragnarok.entity.Projectile.Renderer.DinocampusBubbleRenderer;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.Model.scorpion_model;
 import com.niko.ragnarok.entity.Model.t_lex_model;
@@ -42,6 +43,8 @@ public class RagnarokEventBusClientEvent {
         event.registerEntityRenderer(RagnarokEntities.BLUE_FIREBALL.get(), BlueFireballRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.GALEOS.get(), GaleosRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.GHOST_WIZARD.get(), GhostWizardRenderer::new);
+        event.registerEntityRenderer(RagnarokEntities.DINOCAMPUS.get(), DinocampusRenderer::new);
+        event.registerEntityRenderer(RagnarokEntities.DINOCAMPUS_BUBBLE.get(), DinocampusBubbleRenderer::new);
         event.registerBlockEntityRenderer(RagnarokBlockEntities.DOORS_KING_ROOM.get(), DoorsofKingroomRenderer::new);
     }
 
