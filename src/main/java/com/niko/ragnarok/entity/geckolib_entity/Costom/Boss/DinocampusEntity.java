@@ -107,6 +107,14 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         return this.getHealth() <= this.getMaxHealth() * 0.5F;
     }
 
+    // CHARGE_START(10)/CHARGE_LOOP(11)/CHARGE_END(12)。
+    // Goal内部のprivate定数を直接参照できないアニメーションモデル側からも
+    // 「突進中かどうか」を判定できるようにするための公開ヘルパー。
+    public boolean isCharging() {
+        int state = this.getAttackState();
+        return state == 10 || state == 11 || state == 12;
+    }
+
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
@@ -218,19 +226,62 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         this.playSound(RagnarokSoundEvents.TLEX_STEP.get(), 1.0F, 0.8F);
     }
 
-    private Vec3 getMouthPosition() {
-        Vec3 look = this.getLookAngle();
-        return this.position()
-                .add(0.0D, this.getBbHeight() * 0.62D, 0.0D)
-                .add(look.x * 2.0D, 0.0D, look.z * 2.0D);
+    /**
+     * dinocampus.animation.json の bubble_attack1 / bubble_attack2 / bubble_attack_loop
+     * それぞれで head・bone ボーンにかかる回転(・boneの位置ズレ)キーフレームを合成し、
+     * 実際に泡を撃つ各tickでの mouth ボーンのローカル座標（モデル原点＝足元基準、単位:ブロック）
+     * をあらかじめ計算した実測値。値は Python で行列計算して求めた。
+     * （GeoBone#getWorldPosition() はクライアント描画時にしか正しい値を返さないため、
+     * 　サーバー側で動くこの攻撃ロジックからは使えない）
+     */
+    private Vec3 getMouthLocalOffset(int attackState, int timer) {
+        return switch (attackState) {
+            // BUBBLE_SHOT（bubble_attack1）t=25tick時点
+            case 5 -> new Vec3(0.0D, 1.61D, -4.87D);
+            // BUBBLE_DOUBLE_RED（bubble_attack2）t=25/35tick、どちらもほぼ同じ姿勢
+            case 6 -> new Vec3(0.0D, 1.26D, -4.59D);
+            // BUBBLE_STREAM_LOOP（bubble_attack_loop）7tickごとに発射されるタイミングそれぞれ
+            case 3 -> switch (timer) {
+                case 1 -> new Vec3(-0.25D, 1.58D, -4.85D);
+                case 8 -> new Vec3(-1.84D, 1.39D, -4.22D);
+                case 15 -> new Vec3(-0.64D, 1.45D, -4.78D);
+                case 22 -> new Vec3(1.08D, 1.43D, -4.68D);
+                default -> new Vec3(1.48D, 1.45D, -4.51D); // 29tick、および想定外の値のフォールバック
+            };
+            // それ以外（静止姿勢）
+            default -> new Vec3(0.0D, 2.86D, -4.5D);
+        };
     }
 
-    private void shootBubble(LivingEntity target, int variant, double yawOffsetDegrees) {
+    private Vec3 getMouthPosition(int attackState, int timer) {
+        Vec3 local = getMouthLocalOffset(attackState, timer);
+
+        // 水平面のforward/right基底ベクトルを作り、ローカルのX(左右)・Z(前後)成分を
+        // 現在の向きに合わせて回転させる。forwardは既存コードで実績のあるgetLookAngle()基準。
+        Vec3 forward = this.getLookAngle();
+        forward = new Vec3(forward.x, 0.0D, forward.z).normalize();
+        Vec3 right = new Vec3(forward.z, 0.0D, -forward.x); // forwardを90度回転させただけの垂直ベクトル
+
+        double forwardDist = -local.z; // ローカルZは前方が負の値なので符号を反転
+        double sideDist = local.x;
+
+        return this.position()
+                .add(0.0D, local.y, 0.0D)
+                .add(forward.scale(forwardDist))
+                .add(right.scale(sideDist));
+    }
+
+    // 攻撃状態・タイマー情報が無い呼び出し元向けの簡易版（静止姿勢を返す）
+    private Vec3 getMouthPosition() {
+        return getMouthPosition(0, 0);
+    }
+
+    private void shootBubble(LivingEntity target, int variant, double yawOffsetDegrees, int timer) {
         if (this.level().isClientSide || target == null) {
             return;
         }
 
-        Vec3 mouth = this.getMouthPosition();
+        Vec3 mouth = this.getMouthPosition(this.getAttackState(), timer);
         Vec3 toTarget = target.position().add(0.0D, target.getBbHeight() * 0.5D, 0.0D)
                 .subtract(mouth)
                 .normalize();
@@ -622,7 +673,7 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                             ? DinocampusBubbleEntity.BLUE
                             : DinocampusBubbleEntity.RED;
                 }
-                this.mob.shootBubble(this.target, variant, 0.0D);
+                this.mob.shootBubble(this.target, variant, 0.0D, this.timer);
             }
             if (this.timer >= 35) {
                 beginState(BUBBLE_STREAM_END);
@@ -642,14 +693,14 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                         ? DinocampusBubbleEntity.BLUE
                         : DinocampusBubbleEntity.RED;
                 if (this.mob.isPhase2()) {
-                    this.mob.shootBubble(this.target, variant, -15.0D);
-                    this.mob.shootBubble(this.target, variant, 0.0D);
-                    this.mob.shootBubble(this.target, variant, 15.0D);
+                    this.mob.shootBubble(this.target, variant, -15.0D, this.timer);
+                    this.mob.shootBubble(this.target, variant, 0.0D, this.timer);
+                    this.mob.shootBubble(this.target, variant, 15.0D, this.timer);
                 } else {
-                    this.mob.shootBubble(this.target, variant, 0.0D);
+                    this.mob.shootBubble(this.target, variant, 0.0D, this.timer);
                 }
             }
-            if (this.timer >= 35) {
+            if (this.timer >= 45) {
                 finish(30);
             }
         }
@@ -657,10 +708,10 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         private void tickBubbleDoubleRed() {
             if (this.timer == 25 || this.timer == 35) {
                 if (this.mob.isPhase2()) {
-                    this.mob.shootBubble(this.target, DinocampusBubbleEntity.RED, -8.0D);
-                    this.mob.shootBubble(this.target, DinocampusBubbleEntity.RED, 8.0D);
+                    this.mob.shootBubble(this.target, DinocampusBubbleEntity.RED, -8.0D, this.timer);
+                    this.mob.shootBubble(this.target, DinocampusBubbleEntity.RED, 8.0D, this.timer);
                 } else {
-                    this.mob.shootBubble(this.target, DinocampusBubbleEntity.RED, 0.0D);
+                    this.mob.shootBubble(this.target, DinocampusBubbleEntity.RED, 0.0D, this.timer);
                 }
             }
             // ★変更: こちらも同様に延長 (例: 45 -> 70)
@@ -733,7 +784,14 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         }
 
         private void faceTarget() {
-            if (this.target == null || this.mob.getAttackState() == CHARGE_LOOP) {
+            int state = this.mob.getAttackState();
+            // 突進は開始(予備動作)〜ループ〜終了まで、首を含めて向きを一切動かさない。
+            // CHARGE_LOOPだけを除外すると、予備動作中・突進終了時に
+            // 首だけカクッと動いてしまうため、突進系の3フェーズすべてを除外している。
+            if (this.target == null
+                    || state == CHARGE_START
+                    || state == CHARGE_LOOP
+                    || state == CHARGE_END) {
                 return;
             }
 
