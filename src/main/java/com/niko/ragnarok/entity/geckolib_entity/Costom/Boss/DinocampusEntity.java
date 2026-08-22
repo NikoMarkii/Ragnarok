@@ -785,13 +785,24 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
 
         private void faceTarget() {
             int state = this.mob.getAttackState();
-            // 突進は開始(予備動作)〜ループ〜終了まで、首を含めて向きを一切動かさない。
-            // CHARGE_LOOPだけを除外すると、予備動作中・突進終了時に
-            // 首だけカクッと動いてしまうため、突進系の3フェーズすべてを除外している。
-            if (this.target == null
-                    || state == CHARGE_START
-                    || state == CHARGE_LOOP
-                    || state == CHARGE_END) {
+
+            if (state == CHARGE_START || state == CHARGE_LOOP || state == CHARGE_END) {
+                // 突進中は「ターゲット」ではなく「実際に決定した突進方向(chargeDirection)」を
+                // 向かせる。ここを完全にスキップすると、突進開始直前の古い向きのまま固まり、
+                // 実際に移動している方向とズレて後ろ向き・横向きに歩いているように見えてしまう。
+                // chargeDirectionはCHARGE_START中のtimer==1で1回だけ決定され、それ以降は
+                // 変わらないので、首がターゲットを追ってカクつくこともない。
+                if (this.chargeDirection.lengthSqr() > 0.0001D) {
+                    float chargeYaw = (float) (Math.toDegrees(
+                            Math.atan2(this.chargeDirection.z, this.chargeDirection.x)) - 90.0F);
+                    this.mob.setYRot(chargeYaw);
+                    this.mob.yBodyRot = chargeYaw;
+                    this.mob.yHeadRot = chargeYaw;
+                }
+                return;
+            }
+
+            if (this.target == null) {
                 return;
             }
 
