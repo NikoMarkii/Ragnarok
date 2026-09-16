@@ -1,8 +1,10 @@
 package com.niko.ragnarok.client.gui;
 
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -13,15 +15,6 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * NPCとの会話用テキストボックス画面。
- *
- * - 本体(textbox1.png, 128x80)を画面下部に表示
- * - 名前欄(textbox2.png, 64x20)を本体の左上に重ねて表示
- * - 選択肢がある場合、同じtextbox2.pngを本体の右側に縦に並べて表示
- * - 本文は1文字ずつタイプ表示。タイプ中にクリック/Enter/Spaceで全文即表示、
- * 　全文表示後にもう一度操作すると次の行へ進む（選択肢がある行は選択肢クリックのみで進行）
- */
 public class NpcDialogueScreen extends Screen {
 
     private static final ResourceLocation TEXTBOX_MAIN =
@@ -29,35 +22,26 @@ public class NpcDialogueScreen extends Screen {
     private static final ResourceLocation TEXTBOX_SUB =
             ResourceLocation.fromNamespaceAndPath("ragnarok", "textures/gui/textbox2.png");
 
-    // 元テクスチャの実サイズ（テクスチャファイルの実寸に合わせてある）
     private static final int MAIN_TEX_W = 128;
     private static final int MAIN_TEX_H = 35;
     private static final int SUB_TEX_W = 64;
     private static final int SUB_TEX_H = 20;
 
-    // ドット絵をくっきり見せるための整数倍拡大率
     private static final int SCALE = 2;
-
     private static final float SUB_SCALE = 1.5f;
-
-    // バニラのホットバー(182x22)の高さ。テキストボックスをこのすぐ上に置くために使う
     private static final int HOTBAR_HEIGHT = 22;
-
-    // タイプ表示の速度：この tick 数ごとに1文字進む（小さいほど速い）
     private static final int TICKS_PER_CHAR = 1;
 
-    // タイピング音の音程バラつき用（levelに依存しない安全な乱数）
     private static final java.util.Random RANDOM = new java.util.Random();
 
     private final List<DialogueLine> lines;
     @Nullable
-    private final SoundEvent typingSound; // NPCごとに割り当てる、1文字表示されるたびに鳴る音
+    private final SoundEvent typingSound;
     private int lineIndex = 0;
 
     private int visibleChars = 0;
     private int tickCounter = 0;
     private boolean lineFullyShown = false;
-
     private int hoveredChoice = -1;
 
     public NpcDialogueScreen(List<DialogueLine> lines, @Nullable SoundEvent typingSound) {
@@ -66,7 +50,6 @@ public class NpcDialogueScreen extends Screen {
         this.typingSound = typingSound;
     }
 
-    /** タイピング音を使わない場合の簡易コンストラクタ */
     public NpcDialogueScreen(List<DialogueLine> lines) {
         this(lines, null);
     }
@@ -75,6 +58,8 @@ public class NpcDialogueScreen extends Screen {
     protected void init() {
         super.init();
         resetTyping();
+        // 会話開始時、押されっぱなしの移動キーなどをすべてリセットする
+        KeyMapping.releaseAll();
     }
 
     private void resetTyping() {
@@ -86,6 +71,9 @@ public class NpcDialogueScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
+
+        // 会話中、毎フレーム移動入力等をリセットしてプレイヤーを停止させる
+        KeyMapping.releaseAll();
 
         DialogueLine current = getCurrentLine();
         if (current == null || lineFullyShown) {
@@ -105,12 +93,8 @@ public class NpcDialogueScreen extends Screen {
     }
 
     private void playTypingSound(DialogueLine current) {
-        // 空白文字では鳴らさない（それっぽいタイプ音になる）
         int idx = visibleChars - 1;
-        if (idx < 0 || idx >= current.text().length()) {
-            return;
-        }
-        if (Character.isWhitespace(current.text().charAt(idx))) {
+        if (idx < 0 || idx >= current.text().length() || Character.isWhitespace(current.text().charAt(idx))) {
             return;
         }
 
@@ -119,7 +103,6 @@ public class NpcDialogueScreen extends Screen {
             return;
         }
 
-        // 音程を少しだけランダムにして単調になりすぎないようにする
         float pitch = 0.95F + RANDOM.nextFloat() * 0.1F;
         this.minecraft.getSoundManager().play(
                 SimpleSoundInstance.forUI(sound, pitch, 1.0F));
@@ -143,35 +126,44 @@ public class NpcDialogueScreen extends Screen {
         int screenW = this.minecraft.getWindow().getGuiScaledWidth();
         int screenH = this.minecraft.getWindow().getGuiScaledHeight();
 
-        // 各パーツの描画サイズ計算（floatからのキャスト）
         int mainW = MAIN_TEX_W * SCALE;
         int mainH = MAIN_TEX_H * SCALE;
-
         int subW = (int) (SUB_TEX_W * SUB_SCALE);
         int subH = (int) (SUB_TEX_H * SUB_SCALE);
 
-        int gap = 4; // 本体と選択肢の間の隙間
+        int gap = 4;
         boolean hasChoices = lineFullyShown && !current.choices().isEmpty();
 
-        // ★選択肢がある場合は「本体 + 隙間 + 選択肢」の全体の幅で画面中央を計算する
         int totalWidth = hasChoices ? (mainW + gap + subW) : mainW;
         int groupStartX = (screenW - totalWidth) / 2;
 
         int mainX = groupStartX;
-        int mainY = screenH - HOTBAR_HEIGHT - mainH - 5;
+
+        // ── 動的Y座標計算（吸収ハート・多重ハート対応）──
+        int baseBottomMargin = HOTBAR_HEIGHT;
+        LocalPlayer player = this.minecraft.player;
+        if (player != null && !player.isCreative() && !player.isSpectator()) {
+            int hudHeight = 18;
+            float totalHealth = player.getMaxHealth() + player.getAbsorptionAmount();
+            int healthRows = (int) Math.ceil(totalHealth / 20.0F);
+            if (healthRows > 1) {
+                hudHeight += (healthRows - 1) * 10;
+            }
+            baseBottomMargin += hudHeight;
+        }
+        int mainY = screenH - baseBottomMargin - mainH - 5;
 
         // ── 本体描画 ──
         graphics.blit(TEXTBOX_MAIN, mainX, mainY, mainW, mainH, 0, 0, MAIN_TEX_W, MAIN_TEX_H, MAIN_TEX_W, MAIN_TEX_H);
 
-        // ── 名前欄（本体の左上に重ねる）──
+        // ── 名前欄 ──
         int nameX = mainX + 4;
         int nameY = mainY - subH + 2;
         graphics.blit(TEXTBOX_SUB, nameX, nameY, subW, subH, 0, 0, SUB_TEX_W, SUB_TEX_H, SUB_TEX_W, SUB_TEX_H);
-
         graphics.drawCenteredString(this.font, current.speaker(),
                 nameX + subW / 2, nameY + (subH - this.font.lineHeight) / 2, 0xFFFFFF);
 
-        // ── 本文（タイプ表示、折り返しあり）──
+        // ── 本文 ──
         String shownText = current.text().substring(0, Math.min(visibleChars, current.text().length()));
         int paddingX = 8 * SCALE;
         int paddingY = 6 * SCALE;
@@ -185,7 +177,7 @@ public class NpcDialogueScreen extends Screen {
             graphics.drawString(this.font, wrapped.get(i), textX, textY + i * lineHeight, 0xFFFFFF);
         }
 
-        // ── 選択肢（本体の右側、全文表示後のみ）──
+        // ── 選択肢 ──
         hoveredChoice = -1;
         if (hasChoices) {
             int choiceX = mainX + mainW + gap;
@@ -204,7 +196,6 @@ public class NpcDialogueScreen extends Screen {
                         choiceX + subW / 2, cy + (subH - this.font.lineHeight) / 2, color);
             }
         } else if (lineFullyShown) {
-            // 続きの矢印印
             graphics.drawString(this.font, "\u25BC",
                     mainX + mainW - paddingX - 4, mainY + mainH - paddingY - 2, 0xFFFFFF);
         }
@@ -213,7 +204,7 @@ public class NpcDialogueScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0) {
-            return super.mouseClicked(mouseX, mouseY, button);
+            return true; // 左クリック以外も無効化・消費する
         }
 
         DialogueLine current = getCurrentLine();
@@ -221,13 +212,11 @@ public class NpcDialogueScreen extends Screen {
             return true;
         }
 
-        // タイプ表示中のクリック → 全文即表示するだけ（進行はさせない）
         if (!lineFullyShown) {
             skipTyping();
             return true;
         }
 
-        // 選択肢がある行は、選択肢をクリックした時だけ進行する
         if (!current.choices().isEmpty()) {
             if (hoveredChoice >= 0) {
                 DialogueChoice choice = current.choices().get(hoveredChoice);
@@ -244,7 +233,7 @@ public class NpcDialogueScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // Enter または Space で「クリックと同じ」進行操作
+        // Enter または Space で進行
         if (keyCode == 257 || keyCode == 335 || keyCode == 32) {
             DialogueLine current = getCurrentLine();
             if (current != null) {
@@ -256,7 +245,19 @@ public class NpcDialogueScreen extends Screen {
             }
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+
+        // ESCキーで閉じる動作はバニラの標準挙動に任せるため super に流す
+        if (keyCode == 256) {
+            return super.keyPressed(keyCode, scanCode, modifiers);
+        }
+
+        // それ以外の全てのキー入力（WASD、インベントリEキー、スワップFキー等）を完全に無効化する
+        return true;
+    }
+
+    @Override
+    public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+        return true; // キー離しイベントも全て消費
     }
 
     private void skipTyping() {
@@ -267,7 +268,6 @@ public class NpcDialogueScreen extends Screen {
         }
     }
 
-    /** 次の行へ進む。行が無くなれば画面を閉じる */
     public void advance() {
         lineIndex++;
         if (getCurrentLine() == null) {
@@ -277,7 +277,6 @@ public class NpcDialogueScreen extends Screen {
         }
     }
 
-    /** 選択肢から任意の行番号へジャンプする（分岐会話用） */
     public void jumpTo(int index) {
         lineIndex = index;
         if (getCurrentLine() == null) {
@@ -289,10 +288,8 @@ public class NpcDialogueScreen extends Screen {
 
     @Override
     public boolean isPauseScreen() {
-        return false; // シングルプレイでもゲームを一時停止させない
+        return false;
     }
-
-    // ── データ定義 ──
 
     public record DialogueLine(String speaker, String text, List<DialogueChoice> choices) {
         public DialogueLine(String speaker, String text) {

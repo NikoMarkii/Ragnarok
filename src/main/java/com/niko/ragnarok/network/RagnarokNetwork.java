@@ -26,5 +26,10 @@ public class RagnarokNetwork {
                 ScreenShakePacket::decode,
                 ScreenShakePacket::handle
         );
+        CHANNEL.registerMessage(id++,
+                ClientBossDialoguePacket.class,
+                ClientBossDialoguePacket::encode,
+                ClientBossDialoguePacket::decode,
+                ClientBossDialoguePacket::handle);
     }
 }

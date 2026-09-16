@@ -412,11 +412,14 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             }
 
             if (this.lastAttacker != null) {
-                this.lastAttacker.displayClientMessage(
-                        Component.translatable(
-                                "message.ragnarok.gradius.death",this.lastAttacker.getName().getString()
-                        ).withStyle(ChatFormatting.GOLD),
-                        true
+                com.niko.ragnarok.network.RagnarokNetwork.CHANNEL.send(
+                        net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> this.lastAttacker),
+                        new com.niko.ragnarok.network.ClientBossDialoguePacket(
+                                Component.translatable(
+                                        "message.ragnarok.gradius.death", this.lastAttacker.getName().getString()
+                                ),
+                                net.minecraft.sounds.SoundEvents.SKELETON_AMBIENT.getLocation() // タイピング音（スケルトンの声）
+                        )
                 );
 
                 // ★ここで進捗をプレイヤーに直接付与するメソッドを呼び出す！
@@ -573,10 +576,12 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                     && lastAttacker != null
                     && lastAttacker.isAlive()) {
 
-                lastAttacker.displayClientMessage(
-                        Component.translatable("message.ragnarok.gradius.awakening")
-                                .withStyle(ChatFormatting.DARK_RED),
-                        true
+                com.niko.ragnarok.network.RagnarokNetwork.CHANNEL.send(
+                        net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> lastAttacker),
+                        new com.niko.ragnarok.network.ClientBossDialoguePacket(
+                                Component.translatable("message.ragnarok.gradius.awakening", this.lastAttacker.getName().getString()),
+                                net.minecraft.sounds.SoundEvents.SKELETON_AMBIENT.getLocation() // タイピング音（スケルトンの声）
+                        )
                 );
             }
         }

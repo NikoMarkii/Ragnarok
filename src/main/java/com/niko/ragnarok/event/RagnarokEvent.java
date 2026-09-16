@@ -1,6 +1,7 @@
 package com.niko.ragnarok.event;
 
 import com.niko.ragnarok.client.ScreenShakeHandler;
+import com.niko.ragnarok.client.gui.NpcDialogueScreen;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.Projectile.DinocampusBubbleEntity;
 import com.niko.ragnarok.entity.costom.Groot;
@@ -27,6 +28,7 @@ import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import top.theillusivec4.curios.api.CuriosCapability;
@@ -116,6 +118,48 @@ public class RagnarokEvent {
             }
         }
     }
+        /**
+         * 会話画面が開いている時、右クリックによる「アイテムの使用（食べる、エッグ使用など）」をブロックする
+         */
+        @SubscribeEvent
+        public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+            if (Minecraft.getInstance().screen instanceof NpcDialogueScreen) {
+                event.setCanceled(true);
+            }
+        }
+
+        /**
+         * 会話画面が開いている時、右クリックによる「ブロックへの使用（設置など）」をブロックする
+         */
+        @SubscribeEvent
+        public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+            if (Minecraft.getInstance().screen instanceof NpcDialogueScreen) {
+                event.setCanceled(true);
+            }
+        }
+
+        /**
+         * 会話画面が開いている時、右クリックによる「エンティティへの使用（NPCへの連続右クリックなど）」をブロックする
+         */
+        @SubscribeEvent
+        public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+            if (Minecraft.getInstance().screen instanceof NpcDialogueScreen) {
+                event.setCanceled(true);
+            }
+        }
+
+        /**
+         * 会話画面が開いている間、バニラの「使用キー（デフォルトで右クリック）」の入力自体を無効化する
+         */
+        @SubscribeEvent
+        public static void onInteractionKey(InputEvent.InteractionKeyMappingTriggered event) {
+            if (Minecraft.getInstance().screen instanceof NpcDialogueScreen) {
+                if (event.isUseItem()) {
+                    event.setCanceled(true);
+                    event.setSwingHand(false); // 手を振るアニメーションも止める
+                }
+            }
+        }
     @SubscribeEvent
     public static void onCameraSetup(net.minecraftforge.client.event.ViewportEvent.ComputeCameraAngles event) {
         float offsetX = ScreenShakeHandler.getCurrentOffsetX();
