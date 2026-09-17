@@ -21,11 +21,15 @@ public class NpcDialogueScreen extends Screen {
             ResourceLocation.fromNamespaceAndPath("ragnarok", "textures/gui/textbox1.png");
     private static final ResourceLocation TEXTBOX_SUB =
             ResourceLocation.fromNamespaceAndPath("ragnarok", "textures/gui/textbox2.png");
+    private static final ResourceLocation TEXTBOX_ICON =
+            ResourceLocation.fromNamespaceAndPath("ragnarok", "textures/gui/icon.png");
 
     private static final int MAIN_TEX_W = 128;
     private static final int MAIN_TEX_H = 35;
     private static final int SUB_TEX_W = 64;
     private static final int SUB_TEX_H = 20;
+    private static final int ICON_TEX_W = 35;
+    private static final int ICON_TEX_H = 35;
 
     private static final int SCALE = 2;
     private static final float SUB_SCALE = 1.5f;
@@ -58,7 +62,6 @@ public class NpcDialogueScreen extends Screen {
     protected void init() {
         super.init();
         resetTyping();
-        // 会話開始時、押されっぱなしの移動キーなどをすべてリセットする
         KeyMapping.releaseAll();
     }
 
@@ -71,8 +74,6 @@ public class NpcDialogueScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
-
-        // 会話中、毎フレーム移動入力等をリセットしてプレイヤーを停止させる
         KeyMapping.releaseAll();
 
         DialogueLine current = getCurrentLine();
@@ -130,16 +131,19 @@ public class NpcDialogueScreen extends Screen {
         int mainH = MAIN_TEX_H * SCALE;
         int subW = (int) (SUB_TEX_W * SUB_SCALE);
         int subH = (int) (SUB_TEX_H * SUB_SCALE);
+        int iconW = ICON_TEX_W * SCALE;
+        int iconH = ICON_TEX_H * SCALE;
 
         int gap = 4;
         boolean hasChoices = lineFullyShown && !current.choices().isEmpty();
 
-        int totalWidth = hasChoices ? (mainW + gap + subW) : mainW;
+        int totalWidth = iconW + gap + (hasChoices ? (mainW + gap + subW) : mainW);
         int groupStartX = (screenW - totalWidth) / 2;
 
-        int mainX = groupStartX;
+        int iconX = groupStartX;
+        int mainX = iconX + iconW + gap;
 
-        // ── 動的Y座標計算（吸収ハート・多重ハート対応）──
+        // ── 動的Y座標計算 ──
         int baseBottomMargin = HOTBAR_HEIGHT;
         LocalPlayer player = this.minecraft.player;
         if (player != null && !player.isCreative() && !player.isSpectator()) {
@@ -152,6 +156,16 @@ public class NpcDialogueScreen extends Screen {
             baseBottomMargin += hudHeight;
         }
         int mainY = screenH - baseBottomMargin - mainH - 5;
+
+        // ── アイコン背景枠の描画 ──
+        graphics.blit(TEXTBOX_ICON, iconX, mainY, iconW, iconH, 0, 0, ICON_TEX_W, ICON_TEX_H, ICON_TEX_W, ICON_TEX_H);
+
+        // ★ 顔グラフィックの描画（指定がある場合のみ、枠の内側に描画）
+        if (current.faceIcon() != null) {
+            int faceOffset = 2 * SCALE; // 枠線の内側に納めるための余白
+            int faceSize = (ICON_TEX_W * SCALE) - (faceOffset * 2);
+            graphics.blit(current.faceIcon(), iconX + faceOffset, mainY + faceOffset, faceSize, faceSize, 0, 0, 32, 32, 32, 32);
+        }
 
         // ── 本体描画 ──
         graphics.blit(TEXTBOX_MAIN, mainX, mainY, mainW, mainH, 0, 0, MAIN_TEX_W, MAIN_TEX_H, MAIN_TEX_W, MAIN_TEX_H);
@@ -203,14 +217,9 @@ public class NpcDialogueScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) {
-            return true; // 左クリック以外も無効化・消費する
-        }
-
+        if (button != 0) return true;
         DialogueLine current = getCurrentLine();
-        if (current == null) {
-            return true;
-        }
+        if (current == null) return true;
 
         if (!lineFullyShown) {
             skipTyping();
@@ -233,7 +242,6 @@ public class NpcDialogueScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // Enter または Space で進行
         if (keyCode == 257 || keyCode == 335 || keyCode == 32) {
             DialogueLine current = getCurrentLine();
             if (current != null) {
@@ -245,19 +253,15 @@ public class NpcDialogueScreen extends Screen {
             }
             return true;
         }
-
-        // ESCキーで閉じる動作はバニラの標準挙動に任せるため super に流す
         if (keyCode == 256) {
             return super.keyPressed(keyCode, scanCode, modifiers);
         }
-
-        // それ以外の全てのキー入力（WASD、インベントリEキー、スワップFキー等）を完全に無効化する
         return true;
     }
 
     @Override
     public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
-        return true; // キー離しイベントも全て消費
+        return true;
     }
 
     private void skipTyping() {
@@ -291,9 +295,26 @@ public class NpcDialogueScreen extends Screen {
         return false;
     }
 
-    public record DialogueLine(String speaker, String text, List<DialogueChoice> choices) {
+    // ★ DialogueLine に faceIcon (顔グラのResourceLocation) を追加
+    public record DialogueLine(
+            String speaker,
+            String text,
+            @Nullable ResourceLocation faceIcon,
+            List<DialogueChoice> choices
+    ) {
+        // 顔グラ指定 + 選択肢なし
+        public DialogueLine(String speaker, String text, ResourceLocation faceIcon) {
+            this(speaker, text, faceIcon, List.of());
+        }
+
+        // 顔グラなし + 選択肢なし（既存コード互換用）
         public DialogueLine(String speaker, String text) {
-            this(speaker, text, List.of());
+            this(speaker, text, null, List.of());
+        }
+
+        // 顔グラなし + 選択肢あり（既存コード互換用）
+        public DialogueLine(String speaker, String text, List<DialogueChoice> choices) {
+            this(speaker, text, null, choices);
         }
     }
 

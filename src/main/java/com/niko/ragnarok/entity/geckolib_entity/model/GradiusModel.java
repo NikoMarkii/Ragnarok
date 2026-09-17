@@ -55,7 +55,7 @@ public class GradiusModel extends GeoModel<GradiusEntity> {
         // 覚醒演出で非表示
         boolean hideArmor =
                 animatable.isPhase2()
-                        || animatable.getAwakeningTimer() >= 25;
+                        || animatable.isPhase2Color();
 
         if (armor != null) {
             armor.setHidden(hideArmor);

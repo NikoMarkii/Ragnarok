@@ -115,6 +115,11 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
+    public static final ResourceLocation ICON_GRADIUS_AWAKEN =
+            ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "textures/gui/faces/icon_gradius_awaken.png");
+    public static final ResourceLocation ICON_GRADIUS_DEATH =
+            ResourceLocation.fromNamespaceAndPath(Ragnarok.MOD_ID, "textures/gui/faces/icon_gradius_death.png");
+
     // ──────────────────────────────────────────
     // データシンク
     // ──────────────────────────────────────────
@@ -125,6 +130,11 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
     /**
      * 0=なし  1~3=通常攻撃  4=召喚  5=突進中  6=突進終了処理
      */
+    // グラディウスが召喚したモブに自動で付けるタグ。
+    // これが付いているモブは、グラディウス自身の攻撃(薙ぎ払い・叩きつけ・踏みつけ等)の
+    // 対象から常に除外される（＝味方誤射を防ぐ）。
+    public static final String SUMMONED_BY_GRADIUS_TAG = "ragnarok_gradius_summon";
+
     private static final EntityDataAccessor<Integer> ATTACK_STATE =
             SynchedEntityData.defineId(GradiusEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> IS_DYING =
@@ -415,14 +425,11 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 com.niko.ragnarok.network.RagnarokNetwork.CHANNEL.send(
                         net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> this.lastAttacker),
                         new com.niko.ragnarok.network.ClientBossDialoguePacket(
-                                Component.translatable(
-                                        "message.ragnarok.gradius.death", this.lastAttacker.getName().getString()
-                                ),
-                                net.minecraft.sounds.SoundEvents.SKELETON_AMBIENT.getLocation() // タイピング音（スケルトンの声）
+                                Component.translatable("message.ragnarok.gradius.death", this.lastAttacker.getName().getString()).getString(),
+                                ICON_GRADIUS_DEATH, // ★ 死亡用の顔グラを指定！
+                                net.minecraft.sounds.SoundEvents.SKELETON_AMBIENT.getLocation()
                         )
                 );
-
-                // ★ここで進捗をプレイヤーに直接付与するメソッドを呼び出す！
                 this.grantDefeatAdvancement(this.lastAttacker);
             }
 
@@ -561,6 +568,23 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         trail.add(this.position());
         if (trail.size() > 6) trail.poll();
 
+        // ── ターゲットを見失っている間に体力が50%を超えて回復したら第一形態へ戻す ──
+        // （見た目のisPhase2()フラグだけでなく、GradiusModel側のhideArmor判定が
+        //   awakeningTimer >= 25 も見ているため、awakeningTimerも一緒にリセットしないと
+        //   フラグを戻してもアーマーが表示されないままになる）
+        boolean outOfCombat = this.getTarget() == null || !this.getTarget().isAlive();
+        if (isPhase2()
+                && !awakening
+                && !isActuallyDying()
+                && outOfCombat
+                && this.getHealth() > this.getMaxHealth() * 0.5F) {
+
+            setPhase2(false);
+            setPhase2Color(false);
+            awakeningTimer = 0;
+            this.bossEvent.setColor(BossEvent.BossBarColor.RED);
+        }
+
         if (!isPhase2()
                 && !awakening
                 && !isActuallyDying()
@@ -579,8 +603,9 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 com.niko.ragnarok.network.RagnarokNetwork.CHANNEL.send(
                         net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> lastAttacker),
                         new com.niko.ragnarok.network.ClientBossDialoguePacket(
-                                Component.translatable("message.ragnarok.gradius.awakening", this.lastAttacker.getName().getString()),
-                                net.minecraft.sounds.SoundEvents.SKELETON_AMBIENT.getLocation() // タイピング音（スケルトンの声）
+                                Component.translatable("message.ragnarok.gradius.awakening", this.lastAttacker.getName().getString()).getString(),
+                                ICON_GRADIUS_AWAKEN, // ★ 覚醒用の顔グラを指定！
+                                net.minecraft.sounds.SoundEvents.SKELETON_AMBIENT.getLocation()
                         )
                 );
             }
@@ -2428,6 +2453,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 ghostKnight.finalizeSpawn((ServerLevel) this.mob.level(),
                         this.mob.level().getCurrentDifficultyAt(spawnPos),
                         MobSpawnType.MOB_SUMMONED, null, null);
+                ghostKnight.addTag(SUMMONED_BY_GRADIUS_TAG); // ← グラディウス自身の攻撃を回避させるためのタグ
                 this.mob.level().addFreshEntity(ghostKnight);
 
                 // ── スポーン直後にターゲットをセット ──
@@ -2889,17 +2915,12 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             }
         }
 
-        // グラディウスに敵対しているかを判定
+        // グラディウスに攻撃が当たる対象かどうかを判定。
+        // 「ターゲット(this.target)にしか当たらない」「グラディウスをtargetにしているモブにしか
+        // 当たらない」という制限は撤廃し、グラディウス自身が召喚したモブ(タグ付き)以外は
+        // 全てヒット対象にする。
         private boolean isHostileToGradius(LivingEntity entity) {
-            if (entity instanceof Player) return true;
-
-            // グラディウスのターゲットは常に対象
-            if (entity == this.target) return true;
-
-            if (entity instanceof net.minecraft.world.entity.Mob hostileMob) {
-                return hostileMob.getTarget() == this.mob;
-            }
-            return false;
+            return !entity.getTags().contains(SUMMONED_BY_GRADIUS_TAG);
         }
         private void spawnBlockWaveRing(ServerLevel level, BlockPos center,
                                         int currentRadius, double startAngle, double endAngle) {

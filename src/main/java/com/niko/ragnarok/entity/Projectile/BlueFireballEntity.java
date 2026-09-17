@@ -70,26 +70,10 @@ public class BlueFireballEntity extends Projectile {
     @Override
     public void tick() {
         super.tick();
-
-        // ホーミング処理
-        //if (target != null && target.isAlive()) {
-            //Vec3 toTarget = target.position()
-                    //.add(0, target.getBbHeight() * 0.5, 0)
-                    //.subtract(position())
-                    //.normalize()
-                    //.scale(SPEED);
-
-            //Vec3 current = getDeltaMovement();
-            //setDeltaMovement(
-                    //current.scale(1.0 - TURN_RATE)
-                            //.add(toTarget.scale(TURN_RATE))
-            //);
-        //}
-
         HitResult hitResult = ProjectileUtil.getHitResultOnMoveVector(
                 this,
                 entity -> entity instanceof LivingEntity
-                        && !(entity instanceof GradiusEntity)  // グラディウスはスルー
+                        && !entity.getTags().contains(GradiusEntity.SUMMONED_BY_GRADIUS_TAG)
                         && entity != getOwner()
                         && entity.isAlive()
         );
@@ -122,14 +106,17 @@ public class BlueFireballEntity extends Projectile {
         Entity hit = result.getEntity();
         if (hit instanceof LivingEntity living
                 && hit != getOwner()
+                && !living.getTags().contains(GradiusEntity.SUMMONED_BY_GRADIUS_TAG) // グラディウスの召喚モブには当たらない
                 && !level().isClientSide()) {
 
             LivingEntity owner = (getOwner() instanceof LivingEntity l) ? l : null;
+            // magic()は防御力を貫通するダメージタイプなので使わない。
+            // ownerがいればmobAttack(防御力を通常通り計算する)、いなければgeneric(同じく通常通り)にする。
             DamageSource source = owner != null
                     ? damageSources().mobAttack(owner)
-                    : damageSources().magic();
+                    : damageSources().generic();
 
-            living.hurt(source, 40F);
+            living.hurt(source, 25F);
 
             // 弱体化を付与
             living.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 1));
