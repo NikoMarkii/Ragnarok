@@ -27,10 +27,13 @@ import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -86,6 +89,20 @@ public class GaleosEntity extends Mid_Boss_Monster implements GeoEntity {
                     net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT
             );
         }
+    }
+    @Override
+    protected PathNavigation createNavigation(Level level) {
+        GroundPathNavigation nav = new GroundPathNavigation(this, level) {
+            @Override
+            protected boolean hasValidPathType(BlockPathTypes type) {
+                // 歩行不能なブロックタイプ（段差など）の制限を緩和
+                return super.hasValidPathType(type);
+            }
+        };
+        // 多少の段差や小さな壁を乗り越えやすく/破壊しやすくする設定
+        nav.setCanOpenDoors(false);
+        nav.setCanPassDoors(true);
+        return nav;
     }
 
     public GaleosEntity(EntityType<? extends Monster> type, Level level) {

@@ -15,7 +15,6 @@ import java.util.List;
 @Mod.EventBusSubscriber(modid = Ragnarok.MOD_ID, value = Dist.CLIENT)
 public class PigDialogueTestHandler {
 
-    // ★ 表情ごとの顔グラテクスチャを用意
     private static final ResourceLocation FACE_NORMAL =
             ResourceLocation.fromNamespaceAndPath("ragnarok", "textures/gui/faces/pig_normal.png");
     private static final ResourceLocation FACE_HAPPY =
@@ -37,18 +36,22 @@ public class PigDialogueTestHandler {
 
     private static List<NpcDialogueScreen.DialogueLine> buildTestDialogue() {
         return List.of(
-                // 通常顔
+                // [0] 通常顔
                 new NpcDialogueScreen.DialogueLine("謎の豚", "ブヒッ……ここは一体……？", FACE_NORMAL),
-                // 驚き顔
+
+                // [1] 驚き顔
                 new NpcDialogueScreen.DialogueLine("謎の豚", "おお、お前は勇者か！", FACE_SURPRISED),
-                // 通常顔 + 選択肢
+
+                // [2] 通常顔 + 選択肢
                 new NpcDialogueScreen.DialogueLine("謎の豚", "力を貸してくれないか？", FACE_NORMAL, List.of(
-                        new NpcDialogueScreen.DialogueChoice("もちろんだ！", screen -> screen.advance()),
+                        new NpcDialogueScreen.DialogueChoice("もちろんだ！", screen -> screen.jumpTo(3)),
                         new NpcDialogueScreen.DialogueChoice("……豚が喋った？", screen -> screen.jumpTo(4))
                 )),
-                // 笑顔
-                new NpcDialogueScreen.DialogueLine("謎の豚", "頼りにしているぞ、勇者よ！", FACE_HAPPY),
-                // 驚き顔
+
+                // [3] 選択肢Aルート: 笑顔（★ 次のインデックスに -1 を指定してクリック時に終了）
+                new NpcDialogueScreen.DialogueLine("謎の豚", "頼りにしているぞ、勇者よ！", FACE_HAPPY, -1),
+
+                // [4] 選択肢Bルート: 驚き顔（※リストの最後なので、普通に進めても自動的に終了）
                 new NpcDialogueScreen.DialogueLine("謎の豚", "……驚くところはそこか。", FACE_SURPRISED)
         );
     }

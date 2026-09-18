@@ -1897,9 +1897,9 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 float dmg = (float) this.mob.getAttributeValue(Attributes.ATTACK_DAMAGE);
                 e.hurt(this.mob.damageSources().mobAttack(this.mob), dmg);
 
-                // ノックバック：グラディウスから離れる方向へ強く吹き飛ばす
-                Vec3 kb = e.position().subtract(this.mob.position()).normalize().scale(2.5);
-                e.setDeltaMovement(kb.x, 0.6, kb.z);
+                // 【変更】Y方向への打ち上げをほぼ無くし(0.05〜0.1程度)、水平方向に後ずさらせる
+                Vec3 kb = e.position().subtract(this.mob.position()).normalize();
+                e.setDeltaMovement(kb.x * 2.0, 0.05, kb.z * 2.0);
                 e.hurtMarked = true;
             }
 
@@ -1916,24 +1916,13 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                     .inflate(4.0, 2.0, 4.0);
 
             for (LivingEntity e : getHittableEntities(box)) {
-
                 e.invulnerableTime = 0;
+                float dmg = (float) this.mob.getAttributeValue(Attributes.ATTACK_DAMAGE);
+                e.hurt(this.mob.damageSources().mobAttack(this.mob), dmg);
 
-                float dmg =
-                        (float) this.mob.getAttributeValue(
-                                Attributes.ATTACK_DAMAGE);
-
-                e.hurt(
-                        this.mob.damageSources().mobAttack(this.mob),
-                        dmg
-                );
-
-                Vec3 kb = e.position()
-                        .subtract(this.mob.position())
-                        .normalize()
-                        .scale(2.0);
-
-                e.setDeltaMovement(kb.x, 0.5, kb.z);
+                // 【変更】Y方向の打ち上げを削り、後ろへ後ずさらせる
+                Vec3 kb = e.position().subtract(this.mob.position()).normalize();
+                e.setDeltaMovement(kb.x * 1.8, 0.05, kb.z * 1.8);
                 e.hurtMarked = true;
             }
 
@@ -2222,12 +2211,11 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
 
                 Vec3 kb = e.position()
                         .subtract(mob.position())
-                        .normalize()
-                        .scale(2.0);
+                        .normalize();
 
                 e.setDeltaMovement(
                         kb.x,
-                        1.0,
+                        1.5,
                         kb.z
                 );
 
@@ -2322,18 +2310,17 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                     .inflate(5.0, 2.0, 5.0);
 
             for (LivingEntity e : getHittableEntities(slamBox)) {
-                // 正面120度の範囲チェック
                 Vec3 toEntity = e.position().subtract(this.mob.position()).normalize();
                 double dot = look.dot(toEntity);
-                if (dot < 0.5) continue; // cos(60°)=0.5
+                if (dot < 0.5) continue;
 
                 e.invulnerableTime = 0;
                 float dmg = (float) this.mob.getAttributeValue(Attributes.ATTACK_DAMAGE) * 1.3f;
                 mob.breakShield(e, 100);
                 e.hurt(this.mob.damageSources().mobAttack(this.mob), dmg);
 
-                // ショックウェーブで前方に吹き飛ばす
-                e.setDeltaMovement(look.x * 2.0, 0.8, look.z * 2.0);
+                // 【変更】lookベクトル方向に滑るように後退させる（Y方向は0.08）
+                e.setDeltaMovement(look.x * 2.2, 0.05, look.z * 2.2);
                 e.hurtMarked = true;
             }
 
@@ -2376,9 +2363,8 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 mob.breakShield(e, 100);
                 e.hurt(this.mob.damageSources().mobAttack(this.mob), dmg);
 
-                // 外側へノックバック
-                Vec3 kb = e.position().subtract(this.mob.position()).normalize().scale(3.0);
-                e.setDeltaMovement(kb.x, 0.9, kb.z);
+                // 【変更】水平移動(x, z)を0にし、Y軸方向（上）のみ強く打ち上げる
+                e.setDeltaMovement(0.0, 0.8, 0.0);
                 e.hurtMarked = true;
             }
 
@@ -2615,10 +2601,9 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 Vec3 kb =
                         e.position()
                                 .subtract(this.mob.position())
-                                .normalize()
-                                .scale(1.0);
+                                .normalize();
 
-                e.setDeltaMovement(kb.x, 1.0, kb.z);
+                e.setDeltaMovement(0.5, 0.05, 0.5);
                 e.hurtMarked = true;
             }
 
@@ -2638,7 +2623,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 mob.breakShield(e, 100);
                 e.hurt(mob.damageSources().mobAttack(mob), dmg);
 
-                Vec3 kb = e.position().subtract(mob.position()).normalize().scale(3.0);
+                Vec3 kb = e.position().subtract(mob.position()).normalize();
                 e.setDeltaMovement(kb.x, 0.8, kb.z);
                 e.hurtMarked = true;
             }
@@ -3032,7 +3017,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                     );
                     Vec3 kb = e.position().subtract(mob.position())
                             .normalize().scale(1.5);
-                    e.setDeltaMovement(kb.x, 0.5, kb.z);
+                    e.setDeltaMovement(kb.x * 1.5, 0.05, kb.z * 1.5);
                     e.hurtMarked = true;
                 }
 

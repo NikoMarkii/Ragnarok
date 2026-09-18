@@ -6,11 +6,15 @@ import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.Projectile.DinocampusBubbleEntity;
 import com.niko.ragnarok.entity.costom.Groot;
 import com.niko.ragnarok.entity.costom.Magic_Golem;
+import com.niko.ragnarok.item.Armor.GradiusArmorItem;
 import com.niko.ragnarok.item.ItemScorpionNecklace;
 import com.niko.ragnarok.item.VoidScythe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -20,6 +24,7 @@ import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.monster.Evoker;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.raid.Raider;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
@@ -172,6 +177,35 @@ public class RagnarokEvent {
     public static void onClientTick(net.minecraftforge.event.TickEvent.ClientTickEvent event) {
         if (event.phase == net.minecraftforge.event.TickEvent.Phase.END) {
             ScreenShakeHandler.tick();
+        }
+    }
+    @SubscribeEvent
+    public static void onPlayerHurt(LivingHurtEvent event) {
+        if (event.getEntity() instanceof Player player && !player.level().isClientSide()) {
+
+            // フルセット判定
+            if (GradiusArmorItem.hasFullSet(player)) {
+                Item helmet = player.getArmorSlots().iterator().next().getItem(); // クールタイム参照用アイテム
+
+                // クールタイム中ではないか確認
+                if (!player.getCooldowns().isOnCooldown(helmet)) {
+
+                    // 確率判定（例: 20%の確率で発動）
+                    if (player.getRandom().nextFloat() < 0.20F) {
+
+                        // ダメージ無効化
+                        event.setCanceled(true);
+
+                        // クールタイム設定（例: 30秒 = 600 ticks）
+                        player.getCooldowns().addCooldown(helmet, 600);
+
+                        player.level().playSound(
+                                null, player.getX(), player.getY(), player.getZ(),
+                                SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.0F, 1.5F
+                        );
+                    }
+                }
+            }
         }
     }
 }

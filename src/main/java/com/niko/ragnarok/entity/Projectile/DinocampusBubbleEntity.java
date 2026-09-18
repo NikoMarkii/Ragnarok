@@ -48,6 +48,9 @@ public class DinocampusBubbleEntity extends Entity implements GeoEntity {
     private int burstTicks;
     private static final Map<UUID, Integer> SUFFOCATION_TICKS = new HashMap<>();
 
+    // 赤い泡（追尾する火の泡）は、当たらなくてもこのtick数が経過したら自然に弾ける
+    private static final int RED_LIFETIME_TICKS = 60;
+
     public DinocampusBubbleEntity(EntityType<? extends DinocampusBubbleEntity> type, Level level) {
         super(type, level);
     }
@@ -118,6 +121,12 @@ public class DinocampusBubbleEntity extends Entity implements GeoEntity {
         Vec3 movement = this.getDeltaMovement();
         this.move(MoverType.SELF, movement);
 
+        // 赤い泡は追尾し続けて当たらないまま長引くことがあるため、専用の寿命で先に弾けさせる
+        if (this.getVariant() == RED && this.tickCount > RED_LIFETIME_TICKS) {
+            burst(null);
+            return;
+        }
+
         // ★変更: 単なる消滅ではなく、時間経過（160tick）ですべての泡が割れる（burst）ようにする
         if (this.tickCount > 160) {
             burst(null);
@@ -127,9 +136,14 @@ public class DinocampusBubbleEntity extends Entity implements GeoEntity {
     // グラディウス装備（防御力24・タフネス12）向けにダメージを上方修正
     private void hit(LivingEntity living) {
         LivingEntity sourceOwner = this.owner;
+        // magic()は防御力を貫通するダメージタイプなので使わない。
+        // ownerがいればmobAttack(防御力を通常通り計算)、いなければgeneric(同じく通常通り)にする。
         DamageSource source = sourceOwner != null
                 ? this.damageSources().mobAttack(sourceOwner)
-                : this.damageSources().magic();
+                : this.damageSources().generic();
+
+        // 直前の被弾による無敵時間で、この泡のダメージだけ判定漏れするのを防ぐ
+        living.invulnerableTime = 0;
 
         switch (this.getVariant()) {
             case RED -> {

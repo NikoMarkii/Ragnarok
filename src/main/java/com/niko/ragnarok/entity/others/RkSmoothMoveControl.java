@@ -96,8 +96,10 @@ public class RkSmoothMoveControl extends MoveControl {
      * モブの現在地と目的地の間にブロックが存在するか判定するレイキャスト
      */
     private boolean hasObstacleInPath(Vec3 start, Vec3 end) {
-        Vec3 eyeStart = start.add(0, this.mob.getEyeHeight() * 0.5, 0);
-        Vec3 eyeEnd = end.add(0, this.mob.getEyeHeight() * 0.5, 0);
+        // 足元ではなく、胸〜目線の高さでレイキャストを行う（1ブロックの低い障害物を無視する）
+        double eyeOffset = Math.max(1.0D, this.mob.getEyeHeight() * 0.8D);
+        Vec3 eyeStart = start.add(0, eyeOffset, 0);
+        Vec3 eyeEnd = end.add(0, eyeOffset, 0);
 
         HitResult result = this.mob.level().clip(new ClipContext(
                 eyeStart,

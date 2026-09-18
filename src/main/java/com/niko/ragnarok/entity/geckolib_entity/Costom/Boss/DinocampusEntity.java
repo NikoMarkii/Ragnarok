@@ -4,7 +4,6 @@ import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.client.gui.bossbar.ICustomBossBar;
 import com.niko.ragnarok.entity.Boss_Monster;
 import com.niko.ragnarok.entity.Projectile.DinocampusBubbleEntity;
-import com.niko.ragnarok.entity.others.RkCombatUtil;
 import com.niko.ragnarok.entity.others.RkSmoothMoveControl;
 import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.network.ScreenShakePacket;
@@ -32,11 +31,15 @@ import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -68,16 +71,33 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         super(type, level);
         this.xpReward = 350;
         this.moveControl = new RkSmoothMoveControl(this, 8.0F);
+
+        // 1.5〜2.0ブロックの段差をジャンプなしでスムーズに乗り越えられるようにする
+        this.setMaxUpStep(1.5F);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, 450.0D)
-                .add(Attributes.MOVEMENT_SPEED, 0.28D) // 少し素早く
-                .add(Attributes.ATTACK_DAMAGE, 28.0D) // ネザライト相当を貫くダメージ (13 -> 28)
+                .add(Attributes.MOVEMENT_SPEED, 0.33D)
+                .add(Attributes.ATTACK_DAMAGE, 28.0D)
                 .add(Attributes.FOLLOW_RANGE, 100.0D)
-                .add(Attributes.ARMOR, 15.0D) // 防御力も強化 (10 -> 15)
+                .add(Attributes.ARMOR, 15.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D);
+    }
+    @Override
+    protected PathNavigation createNavigation(Level level) {
+        GroundPathNavigation nav = new GroundPathNavigation(this, level) {
+            @Override
+            protected boolean hasValidPathType(BlockPathTypes type) {
+                // 歩行不能なブロックタイプ（段差など）の制限を緩和
+                return super.hasValidPathType(type);
+            }
+        };
+        // 多少の段差や小さな壁を乗り越えやすく/破壊しやすくする設定
+        nav.setCanOpenDoors(false);
+        nav.setCanPassDoors(true);
+        return nav;
     }
 
     @Override
@@ -107,9 +127,6 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         return this.getHealth() <= this.getMaxHealth() * 0.5F;
     }
 
-    // CHARGE_START(10)/CHARGE_LOOP(11)/CHARGE_END(12)。
-    // Goal内部のprivate定数を直接参照できないアニメーションモデル側からも
-    // 「突進中かどうか」を判定できるようにするための公開ヘルパー。
     public boolean isCharging() {
         int state = this.getAttackState();
         return state == 10 || state == 11 || state == 12;
@@ -163,11 +180,11 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         this.setDying(tag.getBoolean("IsDying"));
         this.customDeathTime = tag.getInt("CustomDeathTime");
     }
+
     private void sendScreenShake(float intensity, int duration) {
         if (this.level().isClientSide()) return;
         if (!(this.level() instanceof ServerLevel sl)) return;
 
-        // 範囲内のプレイヤーにパケット送信
         for (net.minecraft.server.level.ServerPlayer player :
                 sl.getPlayers(p -> p.distanceToSqr(this) < 64 * 64)) {
             RagnarokNetwork.CHANNEL.sendTo(
@@ -175,6 +192,14 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                     player.connection.connection,
                     net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT
             );
+        }
+    }
+
+    private void breakShield(LivingEntity entity, int cooldown) {
+        if (entity instanceof Player player && player.isBlocking()) {
+            player.getCooldowns().addCooldown(Items.SHIELD, cooldown);
+            player.disableShield(true);
+            this.playSound(SoundEvents.SHIELD_BREAK, 1.2F, 0.8F);
         }
     }
 
@@ -226,43 +251,28 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         this.playSound(RagnarokSoundEvents.TLEX_STEP.get(), 1.0F, 0.8F);
     }
 
-    /**
-     * dinocampus.animation.json の bubble_attack1 / bubble_attack2 / bubble_attack_loop
-     * それぞれで head・bone ボーンにかかる回転(・boneの位置ズレ)キーフレームを合成し、
-     * 実際に泡を撃つ各tickでの mouth ボーンのローカル座標（モデル原点＝足元基準、単位:ブロック）
-     * をあらかじめ計算した実測値。値は Python で行列計算して求めた。
-     * （GeoBone#getWorldPosition() はクライアント描画時にしか正しい値を返さないため、
-     * 　サーバー側で動くこの攻撃ロジックからは使えない）
-     */
     private Vec3 getMouthLocalOffset(int attackState, int timer) {
         return switch (attackState) {
-            // BUBBLE_SHOT（bubble_attack1）t=25tick時点
             case 5 -> new Vec3(0.0D, 1.61D, -4.87D);
-            // BUBBLE_DOUBLE_RED（bubble_attack2）t=25/35tick、どちらもほぼ同じ姿勢
             case 6 -> new Vec3(0.0D, 1.26D, -4.59D);
-            // BUBBLE_STREAM_LOOP（bubble_attack_loop）7tickごとに発射されるタイミングそれぞれ
             case 3 -> switch (timer) {
                 case 1 -> new Vec3(-0.25D, 1.58D, -4.85D);
                 case 8 -> new Vec3(-1.84D, 1.39D, -4.22D);
                 case 15 -> new Vec3(-0.64D, 1.45D, -4.78D);
                 case 22 -> new Vec3(1.08D, 1.43D, -4.68D);
-                default -> new Vec3(1.48D, 1.45D, -4.51D); // 29tick、および想定外の値のフォールバック
+                default -> new Vec3(1.48D, 1.45D, -4.51D);
             };
-            // それ以外（静止姿勢）
             default -> new Vec3(0.0D, 2.86D, -4.5D);
         };
     }
 
     private Vec3 getMouthPosition(int attackState, int timer) {
         Vec3 local = getMouthLocalOffset(attackState, timer);
-
-        // 水平面のforward/right基底ベクトルを作り、ローカルのX(左右)・Z(前後)成分を
-        // 現在の向きに合わせて回転させる。forwardは既存コードで実績のあるgetLookAngle()基準。
         Vec3 forward = this.getLookAngle();
         forward = new Vec3(forward.x, 0.0D, forward.z).normalize();
-        Vec3 right = new Vec3(forward.z, 0.0D, -forward.x); // forwardを90度回転させただけの垂直ベクトル
+        Vec3 right = new Vec3(forward.z, 0.0D, -forward.x);
 
-        double forwardDist = -local.z; // ローカルZは前方が負の値なので符号を反転
+        double forwardDist = -local.z;
         double sideDist = local.x;
 
         return this.position()
@@ -271,7 +281,6 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                 .add(right.scale(sideDist));
     }
 
-    // 攻撃状態・タイマー情報が無い呼び出し元向けの簡易版（静止姿勢を返す）
     private Vec3 getMouthPosition() {
         return getMouthPosition(0, 0);
     }
@@ -302,7 +311,7 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         return new Vec3(vector.x * cos - vector.z * sin, vector.y, vector.x * sin + vector.z * cos);
     }
 
-    private void doMeleeHit(double forward, double inflate, float damageMultiplier, double knockback, double yKnockback) {
+    private void doMeleeHit(double forward, double inflate, float damageMultiplier, double knockback, double yKnockback,boolean breakShield) {
         Vec3 look = this.getLookAngle();
         AABB box = this.getBoundingBox()
                 .move(look.x * forward, 0.0D, look.z * forward)
@@ -310,6 +319,13 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
 
         for (LivingEntity entity : this.level().getEntitiesOfClass(LivingEntity.class, box,
                 living -> living != this && living.isAlive() && !(living instanceof DinocampusEntity))) {
+
+            if (breakShield) {
+                this.breakShield(entity, 100); // 5秒間盾使用不可
+            }
+
+            entity.invulnerableTime = 0;
+
             entity.hurt(this.damageSources().mobAttack(this),
                     (float) this.getAttributeValue(Attributes.ATTACK_DAMAGE) * damageMultiplier);
 
@@ -318,49 +334,30 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
             entity.hurtMarked = true;
         }
     }
+    private void doChargeHit(double forward, double inflate, float damageMultiplier, double knockback, double yKnockback, boolean breakShield) {
+        Vec3 look = this.getLookAngle();
+        AABB box = this.getBoundingBox()
+                .move(look.x * forward, 0.0D, look.z * forward)
+                .inflate(inflate, 1.6D, inflate);
 
-    private void spawnCircularBlockLift() {
-        if (!(this.level() instanceof ServerLevel sl)) {
-            return;
-        }
+        for (LivingEntity entity : this.level().getEntitiesOfClass(LivingEntity.class, box,
+                living -> living != this && living.isAlive() && !(living instanceof DinocampusEntity))) {
 
-        BlockPos center = this.blockPosition();
-        for (int radius = 2; radius <= 7; radius++) {
-            spawnBlockRing(sl, center, radius);
-        }
+            if (breakShield) {
+                this.breakShield(entity, 100); // 5秒間盾不可
+            }
 
-        this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
-                SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 1.4F, 0.65F);
-    }
+            // ★ ここにあった 「entity.invulnerableTime = 0;」 を削除！
+            // これにより、バニラ通りの無敵時間(通常20tick)が適用され、多段ヒットしなくなる。
 
-    private void spawnBlockRing(ServerLevel level, BlockPos center, int radius) {
-        for (int x = -radius; x <= radius; x++) {
-            for (int z = -radius; z <= radius; z++) {
-                double dist = Math.sqrt(x * x + z * z);
-                if (dist < radius - 0.5D || dist > radius + 0.5D) {
-                    continue;
-                }
+            boolean hurt = entity.hurt(this.damageSources().mobAttack(this),
+                    (float) this.getAttributeValue(Attributes.ATTACK_DAMAGE) * damageMultiplier);
 
-                BlockPos targetPos = center.offset(x, -1, z);
-                BlockState state = level.getBlockState(targetPos);
-                if (state.isAir() || state.getDestroySpeed(level, targetPos) < 0) {
-                    continue;
-                }
-
-                FallingBlockEntity block = new FallingBlockEntity(net.minecraft.world.entity.EntityType.FALLING_BLOCK, level);
-                block.setPos(targetPos.getX() + 0.5D, targetPos.getY() + 1.0D, targetPos.getZ() + 0.5D);
-
-                CompoundTag tag = new CompoundTag();
-                block.saveWithoutId(tag);
-                tag.put("BlockState", net.minecraft.nbt.NbtUtils.writeBlockState(state));
-                tag.putInt("Time", 580);
-                tag.putBoolean("DropItem", false);
-                tag.putBoolean("NoPhysics", true);
-                block.load(tag);
-
-                block.noPhysics = true;
-                block.setDeltaMovement(0.0D, 0.28D + radius * 0.03D, 0.0D);
-                level.addFreshEntity(block);
+            // ダメージが実際に通った（＝無敵時間中ではなかった）場合のみノックバックを与える
+            if (hurt) {
+                Vec3 kb = entity.position().subtract(this.position()).normalize().scale(knockback);
+                entity.setDeltaMovement(kb.x, yKnockback, kb.z);
+                entity.hurtMarked = true;
             }
         }
     }
@@ -376,6 +373,32 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                     this.level(), this, target, DinocampusBubbleEntity.YELLOW,
                     center.add(direction.normalize().scale(0.5D)), direction);
             this.level().addFreshEntity(bubble);
+        }
+    }
+
+    private void doAreaSweepHit(double forwardOffset, double inflateX, double inflateZ, float damageMultiplier, double knockback, double yKnockback, boolean breakShield) {
+        if (this.level().isClientSide()) return;
+
+        Vec3 look = this.getLookAngle();
+        AABB box = this.getBoundingBox()
+                .move(look.x * forwardOffset, 0.0D, look.z * forwardOffset)
+                .inflate(inflateX, 2.0D, inflateZ);
+
+        for (LivingEntity entity : this.level().getEntitiesOfClass(LivingEntity.class, box,
+                living -> living != this && living.isAlive() && !(living instanceof DinocampusEntity))) {
+
+            if (breakShield) {
+                this.breakShield(entity, 100);
+            }
+
+            entity.invulnerableTime = 0;
+
+            float damage = (float) this.getAttributeValue(Attributes.ATTACK_DAMAGE) * damageMultiplier;
+            entity.hurt(this.damageSources().mobAttack(this), damage);
+
+            Vec3 kb = entity.position().subtract(this.position()).normalize().scale(knockback);
+            entity.setDeltaMovement(kb.x, yKnockback, kb.z);
+            entity.hurtMarked = true;
         }
     }
 
@@ -479,6 +502,17 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         return this.isAlive() && !this.isActuallyDying();
     }
 
+    // ── グラディウス準拠のウェーブ型ブロック起動スケジュール構造体 ──
+    private static class ScheduledBlockWave {
+        final int triggerTick;
+        final int radius;
+
+        ScheduledBlockWave(int triggerTick, int radius) {
+            this.triggerTick = triggerTick;
+            this.radius = radius;
+        }
+    }
+
     static class DinocampusAttackGoal extends Goal {
         private static final int ATTACK_1 = 1;
         private static final int BUBBLE_STREAM_START = 2;
@@ -501,7 +535,11 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         private boolean hitDone;
         private Vec3 chargeDirection = Vec3.ZERO;
         private int streamShots;
+
+        // ── グラディウスと同じブロックアニメーション管理 ──
         private final List<FallingBlockEntity> activeBlocks = new ArrayList<>();
+        private final List<ScheduledBlockWave> scheduledBlockWaves = new ArrayList<>();
+
         private boolean forceFinishAttack;
         private int noTargetFreezeTicks;
 
@@ -514,7 +552,6 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         @Override
         public boolean canUse() {
             if (this.mob.isActuallyDying()) return false;
-            // 攻撃中はターゲット不在でもGoalを離さない
             if (this.forceFinishAttack) return true;
             LivingEntity living = this.mob.getTarget();
             return living != null && living.isAlive();
@@ -540,23 +577,22 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
             this.hitDone = false;
             this.streamShots = 0;
             this.activeBlocks.clear();
+            this.scheduledBlockWaves.clear();
             this.mob.getNavigation().stop();
         }
 
         @Override
         public void tick() {
+            // グラディウス同等のウェーブ更新およびダメージ判定
+            tickScheduledBlockWaves();
             tickBlockDamage();
-
-            LivingEntity t = this.mob.getTarget();
 
             LivingEntity currentTarget = this.mob.getTarget();
             if (currentTarget == null || !currentTarget.isAlive()) {
                 if (this.mob.getAttackState() == CHARGE_LOOP || this.mob.getAttackState() == CHARGE_START) {
-                    // 突進中などはターゲット不在で即中断
                     this.mob.setAttackState(0);
                     this.forceFinishAttack = false;
                     this.mob.getNavigation().stop();
-                    RkCombatUtil.faceTarget(mob, t);
                     return;
                 }
 
@@ -566,7 +602,6 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                     return;
                 }
 
-                // 攻撃アニメーション中にターゲットが消えた場合、アニメーションが終わるまで待機
                 this.mob.getNavigation().stop();
                 this.noTargetFreezeTicks++;
                 if (this.noTargetFreezeTicks > 30) {
@@ -627,7 +662,7 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
             this.timer = 0;
             this.hitDone = false;
             this.streamShots = 0;
-            this.forceFinishAttack = true; // ★攻撃開始時にフラグを立てる
+            this.forceFinishAttack = true;
             this.mob.getNavigation().stop();
         }
 
@@ -652,7 +687,8 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         private void tickAttack1() {
             if (!this.hitDone && this.timer >= 25) {
                 this.hitDone = true;
-                this.mob.doMeleeHit(2.5D, 2.2D, 1.0F, 1.1D, 0.35D);
+                this.mob.doAreaSweepHit(3.5D, 3.0D, 3.0D, 1.2F, 1.2D, 0.35D, false);
+                this.mob.playSound(SoundEvents.PHANTOM_BITE, 1.5F, 0.8F);
             }
             if (this.timer >= 45) {
                 finish(25);
@@ -714,7 +750,6 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                     this.mob.shootBubble(this.target, DinocampusBubbleEntity.RED, 0.0D, this.timer);
                 }
             }
-            // ★変更: こちらも同様に延長 (例: 45 -> 70)
             if (this.timer >= 45) {
                 finish(35);
             }
@@ -723,10 +758,16 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         private void tickStomp() {
             if (!this.hitDone && this.timer >= 35) {
                 this.hitDone = true;
-                this.mob.doMeleeHit(1.0D, 4.0D, 1.15F, 1.6D, 0.65D);
+                this.mob.doMeleeHit(1.0D, 4.0D, 1.15F, 1.6D, 0.65D,true);
                 mob.sendScreenShake(1.5F, 15);
                 this.mob.playSound(SoundEvents.GENERIC_EXPLODE, 1.5F, 0.8F);
-                this.mob.spawnCircularBlockLift();
+
+                // グラディウスと同じウェーブ型ブロック起動に変更
+                spawnCircularBlockLift();
+
+                if (this.mob.isPhase2()) {
+                    this.mob.spawnYellowSpiralWave();
+                }
             }
             if (this.timer >= 55) {
                 finish(40);
@@ -736,7 +777,8 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         private void tickTailKnockback() {
             if (!this.hitDone && this.timer >= 25) {
                 this.hitDone = true;
-                this.mob.doMeleeHit(-1.5D, 4.0D, 0.95F, 2.8D, 0.75D);
+                this.mob.doAreaSweepHit(-3.0D, 4.5D, 3.5D, 1.0F, 3.2D, 0.8D, true);
+                this.mob.playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 1.8F, 0.6F);
             }
             if (this.timer >= 55) {
                 finish(35);
@@ -746,8 +788,9 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         private void tickTailSpiral() {
             if (this.timer == 35 || this.timer == 55) {
                 this.mob.spawnYellowSpiralWave();
+                this.mob.doAreaSweepHit(0.0D, 5.0D, 5.0D, 1.1F, 2.0D, 0.5D, true);
                 this.mob.playSound(SoundEvents.GENERIC_EXPLODE, 1.5F, 0.8F);
-                mob.sendScreenShake(1.5F, 15);
+                this.mob.sendScreenShake(1.5F, 15);
             }
             if (this.timer >= 80) {
                 finish(45);
@@ -768,8 +811,17 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         }
 
         private void tickChargeLoop() {
-            this.mob.setDeltaMovement(this.chargeDirection.scale(0.85D));
-            this.mob.doMeleeHit(2.0D, 2.0D, 1.1F, 2.0D, 0.45D);
+            double currentY = this.mob.getDeltaMovement().y;
+            this.mob.setDeltaMovement(this.chargeDirection.x * 0.85D, currentY, this.chargeDirection.z * 0.85D);
+
+            // ★ 突進中の進行方向にあるブロックを破壊する処理を追加
+            breakBlocksInPath();
+
+            // まだ今回の突進で当たっていない場合のみ判定
+            if (!this.hitDone) {
+                // doChargeHit（無敵時間を消さない処理）を呼ぶ
+                this.mob.doChargeHit(2.0D, 2.0D, 1.1F, 2.0D, 0.45D, true);
+            }
 
             if (this.mob.horizontalCollision || this.timer >= 100) {
                 beginState(CHARGE_END);
@@ -782,16 +834,45 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                 finish(45);
             }
         }
+        private void breakBlocksInPath() {
+            if (!(this.mob.level() instanceof ServerLevel sl)) return;
+
+            // ボスの当たり判定ボックスを前方（移動方向）に膨らませる
+            AABB boundingBox = this.mob.getBoundingBox();
+            Vec3 dir = this.chargeDirection.scale(1.2D); // 前方への拡張距離
+
+            // 移動方向とボスの体格に応じた検索範囲を作成
+            AABB sweepBox = boundingBox.expandTowards(dir.x, 0.5D, dir.z).inflate(0.5D, 0.0D, 0.5D);
+
+            int minX = Mth.floor(sweepBox.minX);
+            int minY = Mth.floor(sweepBox.minY);
+            int minZ = Mth.floor(sweepBox.minZ);
+            int maxX = Mth.floor(sweepBox.maxX);
+            int maxY = Mth.floor(sweepBox.maxY);
+            int maxZ = Mth.floor(sweepBox.maxZ);
+
+            BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        mutablePos.set(x, y, z);
+                        BlockState state = sl.getBlockState(mutablePos);
+
+                        // 空気、または破壊不可（岩盤・エンドポータルフレーム等：destroySpeed < 0）は除外
+                        if (!state.isAir() && state.getDestroySpeed(sl, mutablePos) >= 0.0F) {
+                            // 第2引数を true にするとアイテム化、false だと消滅
+                            sl.destroyBlock(mutablePos, true, this.mob);
+                        }
+                    }
+                }
+            }
+        }
 
         private void faceTarget() {
             int state = this.mob.getAttackState();
 
             if (state == CHARGE_START || state == CHARGE_LOOP || state == CHARGE_END) {
-                // 突進中は「ターゲット」ではなく「実際に決定した突進方向(chargeDirection)」を
-                // 向かせる。ここを完全にスキップすると、突進開始直前の古い向きのまま固まり、
-                // 実際に移動している方向とズレて後ろ向き・横向きに歩いているように見えてしまう。
-                // chargeDirectionはCHARGE_START中のtimer==1で1回だけ決定され、それ以降は
-                // 変わらないので、首がターゲットを追ってカクつくこともない。
                 if (this.chargeDirection.lengthSqr() > 0.0001D) {
                     float chargeYaw = (float) (Math.toDegrees(
                             Math.atan2(this.chargeDirection.z, this.chargeDirection.x)) - 90.0F);
@@ -819,8 +900,70 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
             this.cooldown = cooldown;
             this.hitDone = false;
             this.streamShots = 0;
-            this.forceFinishAttack = false; // ★攻撃終了でフラグを下ろす
+            this.forceFinishAttack = false;
             this.mob.setDeltaMovement(Vec3.ZERO);
+        }
+
+        // ── グラディウス仕様のブロック生成ロジック ──
+        private void spawnCircularBlockLift() {
+            if (!(this.mob.level() instanceof ServerLevel)) {
+                return;
+            }
+
+            scheduledBlockWaves.clear();
+            // 内側から外側へ順にブロックを打ち上げる（ウェーブ生成）
+            for (int r = 1; r <= 8; r++) {
+                scheduledBlockWaves.add(new ScheduledBlockWave(this.timer + (r * 2), r));
+            }
+
+            this.mob.level().playSound(null, this.mob.getX(), this.mob.getY(), this.mob.getZ(),
+                    SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 1.4F, 0.65F);
+        }
+
+        private void tickScheduledBlockWaves() {
+            if (!(this.mob.level() instanceof ServerLevel sl)) return;
+
+            Iterator<ScheduledBlockWave> iterator = scheduledBlockWaves.iterator();
+            while (iterator.hasNext()) {
+                ScheduledBlockWave wave = iterator.next();
+                if (this.timer >= wave.triggerTick) {
+                    spawnBlockRing(sl, this.mob.blockPosition(), wave.radius);
+                    iterator.remove();
+                }
+            }
+        }
+
+        private void spawnBlockRing(ServerLevel level, BlockPos center, int radius) {
+            for (int x = -radius; x <= radius; x++) {
+                for (int z = -radius; z <= radius; z++) {
+                    double dist = Math.sqrt(x * x + z * z);
+                    if (dist < radius - 0.5D || dist > radius + 0.5D) {
+                        continue;
+                    }
+
+                    BlockPos targetPos = center.offset(x, -1, z);
+                    BlockState state = level.getBlockState(targetPos);
+                    if (state.isAir() || state.getDestroySpeed(level, targetPos) < 0) {
+                        continue;
+                    }
+
+                    FallingBlockEntity block = new FallingBlockEntity(net.minecraft.world.entity.EntityType.FALLING_BLOCK, level);
+                    block.setPos(targetPos.getX() + 0.5D, targetPos.getY() + 1.0D, targetPos.getZ() + 0.5D);
+
+                    CompoundTag tag = new CompoundTag();
+                    block.saveWithoutId(tag);
+                    tag.put("BlockState", net.minecraft.nbt.NbtUtils.writeBlockState(state));
+                    tag.putInt("Time", 1);
+                    tag.putBoolean("DropItem", false);
+                    tag.putBoolean("NoPhysics", true);
+                    block.load(tag);
+
+                    block.noPhysics = true;
+                    block.setDeltaMovement(0.0D, 0.42D, 0.0D); // 上方向への跳ね上げ速度
+                    level.addFreshEntity(block);
+                    activeBlocks.add(block);
+                }
+            }
         }
 
         private void tickBlockDamage() {
@@ -836,9 +979,10 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                     continue;
                 }
 
+                // 落下・飛翔中のブロック判定を判定拡大させてプレイヤーにグラディウス同等のダメージ付与
                 AABB box = block.getBoundingBox().inflate(0.15D);
                 for (LivingEntity living : this.mob.level().getEntitiesOfClass(LivingEntity.class, box,
-                        entity -> entity != this.mob && entity.isAlive())) {
+                        entity -> entity != this.mob && entity.isAlive() && !(entity instanceof DinocampusEntity))) {
                     living.hurt(this.mob.damageSources().mobAttack(this.mob), 8.0F);
                 }
             }
