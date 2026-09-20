@@ -1,20 +1,20 @@
 package com.niko.ragnarok.item.Armor;
 
 import com.niko.ragnarok.item.Armor.Renderer.GradiusArmorRenderer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ArmorMaterial;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.animatable.GeoItem;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -23,6 +23,7 @@ import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.renderer.GeoArmorRenderer;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -32,7 +33,8 @@ import java.util.function.Consumer;
  */
 public class GradiusArmorItem extends ArmorItem implements GeoItem {
 
-    private static final UUID ATTACK_DAMAGE_BONUS_ID = UUID.fromString("c8d7e6f5-4321-1234-8765-abcdef123456");
+    // イベント側からアクセスできるよう public で定義
+    public static final UUID ATTACK_DAMAGE_BONUS_ID = UUID.fromString("c8d7e6f5-4321-1234-8765-abcdef123456");
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -57,21 +59,8 @@ public class GradiusArmorItem extends ArmorItem implements GeoItem {
             }
         });
     }
-    @Override
-    public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean isSelected) {
-        if (!level.isClientSide() && entity instanceof Player player) {
-            // ヘルメットのスロット処理でのみ代表してチェック（二重処理防止）
-            if (this.getType() == Type.HELMET && isEquipped(stack, player)) {
-                if (hasFullSet(player)) {
-                    applyAttackBonus(player);
-                } else {
-                    removeAttackBonus(player);
-                }
-            }
-        }
-    }
 
-    private boolean isEquipped(ItemStack stack, Player player) {
+    public static boolean isEquipped(ItemStack stack, Player player) {
         for (ItemStack armor : player.getArmorSlots()) {
             if (armor == stack) return true;
         }
@@ -91,31 +80,23 @@ public class GradiusArmorItem extends ArmorItem implements GeoItem {
         return true;
     }
 
-    private void applyAttackBonus(Player player) {
-        AttributeInstance attr = player.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (attr != null && attr.getModifier(ATTACK_DAMAGE_BONUS_ID) == null) {
-            // 加算値（例: 近接攻撃力 +3.0D）。必要に応じて加算（ADDITION）か乗算（MULTIPLY_BASE）を選択
-            AttributeModifier modifier = new AttributeModifier(
-                    ATTACK_DAMAGE_BONUS_ID,
-                    "Gradius Fullset Attack Bonus",
-                    3.0D,
-                    AttributeModifier.Operation.ADDITION
-            );
-            attr.addTransientModifier(modifier);
-        }
-    }
+    @Override
+    public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
+        super.appendHoverText(stack, level, tooltip, flag);
 
-    private void removeAttackBonus(Player player) {
-        AttributeInstance attr = player.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (attr != null && attr.getModifier(ATTACK_DAMAGE_BONUS_ID) != null) {
-            attr.removeModifier(ATTACK_DAMAGE_BONUS_ID);
+        if (level != null && level.isClientSide()) {
+            Player player = Minecraft.getInstance().player;
+            // 「プレイヤーがフルセット装備中」かつ「今マウスホバーしているこのスタック自体が装備枠にある」時だけ表示
+            if (player != null && isEquipped(stack, player) && hasFullSet(player)) {
+                tooltip.add(Component.translatable("tooltip.ragnarok.gradius_armor.fullset_title"));
+                tooltip.add(Component.translatable("tooltip.ragnarok.gradius_armor.fullset_effect1"));
+                tooltip.add(Component.translatable("tooltip.ragnarok.gradius_armor.fullset_effect2"));
+            }
         }
     }
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        // 今は特にアニメーションしない（待機ポーズのみ）ので、常にSTOPで固定。
-        // 発光演出などを付けたくなったら、ここに条件を追加する。
         controllers.add(new AnimationController<>(this, "idle", 0, state -> PlayState.STOP));
     }
 

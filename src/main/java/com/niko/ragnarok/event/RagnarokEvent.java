@@ -20,15 +20,19 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.monster.Evoker;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.raid.Raider;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -37,6 +41,8 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import top.theillusivec4.curios.api.CuriosCapability;
+import net.minecraftforge.event.entity.player.ItemTooltipEvent;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 
 import java.util.List;
 
@@ -185,7 +191,7 @@ public class RagnarokEvent {
 
             // フルセット判定
             if (GradiusArmorItem.hasFullSet(player)) {
-                Item helmet = player.getArmorSlots().iterator().next().getItem(); // クールタイム参照用アイテム
+                Item helmet = player.getArmorSlots().iterator().next().getItem(); // クールタイム参照用
 
                 // クールタイム中ではないか確認
                 if (!player.getCooldowns().isOnCooldown(helmet)) {
@@ -196,14 +202,57 @@ public class RagnarokEvent {
                         // ダメージ無効化
                         event.setCanceled(true);
 
-                        // クールタイム設定（例: 30秒 = 600 ticks）
-                        player.getCooldowns().addCooldown(helmet, 600);
+                        // クールタイム設定（30秒 = 600 ticks）
+                        player.getCooldowns().addCooldown(helmet, 1000);
 
+                        // 攻撃してきた敵を吹き飛ばす
+                        Entity attacker = event.getSource().getEntity();
+                        if (attacker instanceof LivingEntity livingAttacker) {
+                            // 強さ（第1引数: 強さ, 第2引数: X方向の差, 第3引数: Z方向の差）
+                            double dx = livingAttacker.getX() - player.getX();
+                            double dz = livingAttacker.getZ() - player.getZ();
+
+                            // 敵にノックバックを与える (強さ1.5F、少し上に打ち上げる)
+                            livingAttacker.knockback(1.5F, -dx, -dz);
+                            livingAttacker.setDeltaMovement(
+                                    livingAttacker.getDeltaMovement().add(0, 0.3D, 0)
+                            );
+                            livingAttacker.hurtMarked = true; // クライアントへ移動同期を強制
+                        }
+
+                        // 効果音とメッセージ演出
                         player.level().playSound(
                                 null, player.getX(), player.getY(), player.getZ(),
                                 SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.0F, 1.5F
                         );
                     }
+                }
+            }
+        }
+    }
+    @SubscribeEvent
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        // Phase.END（チックの終わり）かつサーバー側でのみ処理を実施
+        if (event.phase == TickEvent.Phase.END && !event.player.level().isClientSide()) {
+            Player player = event.player;
+            AttributeInstance attr = player.getAttribute(Attributes.ATTACK_DAMAGE);
+
+            if (attr != null) {
+                boolean hasBonus = attr.getModifier(GradiusArmorItem.ATTACK_DAMAGE_BONUS_ID) != null;
+                boolean isFullSet = GradiusArmorItem.hasFullSet(player);
+
+                if (isFullSet && !hasBonus) {
+                    // フルセットかつボーナス未付与なら付与
+                    AttributeModifier modifier = new AttributeModifier(
+                            GradiusArmorItem.ATTACK_DAMAGE_BONUS_ID,
+                            "Gradius Fullset Attack Bonus",
+                            3.0D,
+                            AttributeModifier.Operation.ADDITION
+                    );
+                    attr.addTransientModifier(modifier);
+                } else if (!isFullSet && hasBonus) {
+                    // フルセット崩壊かつボーナス付与済みなら除去
+                    attr.removeModifier(GradiusArmorItem.ATTACK_DAMAGE_BONUS_ID);
                 }
             }
         }

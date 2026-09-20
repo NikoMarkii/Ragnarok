@@ -30,6 +30,7 @@ public class RagnarokNetwork {
                 ClientBossDialoguePacket.class,
                 ClientBossDialoguePacket::encode,
                 ClientBossDialoguePacket::decode,
-                ClientBossDialoguePacket::handle);
+                ClientBossDialoguePacket::handle
+        );
     }
 }

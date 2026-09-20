@@ -2025,7 +2025,7 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             // 25tickで発動（ここが本体）
             if (attackTimer == FIRE_HIT_TICK && !firePillarSpawned) {
                 firePillarSpawned = true;
-                mob.sendScreenShake(2.5F, 25);
+                mob.sendScreenShake(2.5F, 35);
 
                 spawnFirePillarLines(target);
             }
@@ -2064,8 +2064,8 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 int delay = 0;
 
                 for (double dist = 0;
-                     dist <= 20;
-                     dist += 4) {
+                     dist <= 40;
+                     dist += 2) {
 
                     scheduledPillars.add(
                             new ScheduledFirePillar(
