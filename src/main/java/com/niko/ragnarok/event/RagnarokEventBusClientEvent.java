@@ -46,6 +46,7 @@ public class RagnarokEventBusClientEvent {
         event.registerEntityRenderer(RagnarokEntities.DINOCAMPUS.get(), DinocampusRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.DINOCAMPUS_BUBBLE.get(), DinocampusBubbleRenderer::new);
         event.registerBlockEntityRenderer(RagnarokBlockEntities.DOORS_KING_ROOM.get(), DoorsofKingroomRenderer::new);
+        event.registerEntityRenderer(RagnarokEntities.SAKUBOT.get(), SakubotRenderer::new);
     }
 
     @SubscribeEvent

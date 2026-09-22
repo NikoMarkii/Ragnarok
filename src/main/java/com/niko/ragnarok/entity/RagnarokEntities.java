@@ -152,6 +152,14 @@ public class RagnarokEntities {
                             .updateInterval(1)
                             .build("ghost_wizard")
             );
+    public static final RegistryObject<EntityType<SakuBotEntity>> SAKUBOT =
+            ENTITY_TYPES.register("sakubot", () ->
+                    EntityType.Builder.of(SakuBotEntity::new, MobCategory.MONSTER)
+                    .sized(0.8F,2F)
+                    .clientTrackingRange(64)
+                    .updateInterval(1)
+                    .build("sakubot")
+            );
     public static void register(IEventBus eventBus) {
         ENTITY_TYPES.register(eventBus);
     }

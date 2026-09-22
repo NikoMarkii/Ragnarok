@@ -55,6 +55,8 @@ public class RagnarokEventBusEvent {
                 DinocampusEntity.createAttributes().build());
         event.put(RagnarokEntities.GHOST_WIZARD.get(),
                 GhostWizardEntity.createAttributes().build());
+        event.put(RagnarokEntities.SAKUBOT.get(),
+                SakuBotEntity.createAttributes().build());
     }
 
     @SubscribeEvent
