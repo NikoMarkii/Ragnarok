@@ -127,6 +127,10 @@ dependencies {
     runtimeOnly fg.deobf("curse.maven:playeranimator-658587:4587214")
     runtimeOnly fg.deobf("curse.maven:mowzies-mobs-250498:7815705")
     runtimeOnly fg.deobf("curse.maven:torohealth-damage-indicator-reformed-976223:5850882")
+    runtimeOnly fg.deobf("curse.maven:corpse-316582:7018272")
+    runtimeOnly fg.deobf("curse.maven:corpse-x-curios-api-compat-1138130:7088113")
+    runtimeOnly fg.deobf("curse.maven:baguettelib-1264423:8887462")
+
 }
 
 tasks.named('processResources', ProcessResources).configure {

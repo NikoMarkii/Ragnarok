@@ -4,6 +4,7 @@ import com.niko.ragnarok.Ragnarok;
 import com.niko.ragnarok.client.gui.bossbar.ICustomBossBar;
 import com.niko.ragnarok.entity.Boss_Monster;
 import com.niko.ragnarok.entity.Projectile.DinocampusBubbleEntity;
+import com.niko.ragnarok.entity.others.RkMobPathNavigation;
 import com.niko.ragnarok.entity.others.RkSmoothMoveControl;
 import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.network.ScreenShakePacket;
@@ -87,16 +88,11 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
     }
     @Override
     protected PathNavigation createNavigation(Level level) {
-        GroundPathNavigation nav = new GroundPathNavigation(this, level) {
-            @Override
-            protected boolean hasValidPathType(BlockPathTypes type) {
-                // 歩行不能なブロックタイプ（段差など）の制限を緩和
-                return super.hasValidPathType(type);
-            }
-        };
-        // 多少の段差や小さな壁を乗り越えやすく/破壊しやすくする設定
-        nav.setCanOpenDoors(false);
-        nav.setCanPassDoors(true);
+        // バニラの GroundPathNavigation ではなく、カスタム品を返す
+        RkMobPathNavigation nav = new RkMobPathNavigation(this, level);
+
+        // 直線移動の探索距離・ノード生成の最大範囲を拡大（バニラは標準で小さめ）
+        nav.setCanFloat(true); // 水に浮く設定
         return nav;
     }
 
@@ -687,7 +683,7 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         private void tickAttack1() {
             if (!this.hitDone && this.timer >= 25) {
                 this.hitDone = true;
-                this.mob.doAreaSweepHit(3.5D, 3.0D, 3.0D, 1.2F, 1.2D, 0.35D, false);
+                this.mob.doAreaSweepHit(3.5D, 4.0D, 4.0D, 1.0F, 1.2D, 0.35D, false);
                 this.mob.playSound(SoundEvents.PHANTOM_BITE, 1.5F, 0.8F);
             }
             if (this.timer >= 45) {
@@ -777,7 +773,7 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         private void tickTailKnockback() {
             if (!this.hitDone && this.timer >= 25) {
                 this.hitDone = true;
-                this.mob.doAreaSweepHit(-3.0D, 4.5D, 3.5D, 1.0F, 3.2D, 0.8D, true);
+                this.mob.doAreaSweepHit(-3.0D, 6.5D, 5.5D, 1.2F, 3.2D, 0.8D, true);
                 this.mob.playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 1.8F, 0.6F);
             }
             if (this.timer >= 55) {
