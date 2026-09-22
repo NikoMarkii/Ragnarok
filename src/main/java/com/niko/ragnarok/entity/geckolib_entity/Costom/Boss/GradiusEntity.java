@@ -29,6 +29,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.*;
@@ -167,10 +168,25 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
     private static final EntityDataAccessor<Boolean> IS_PHASE2_COLOR =
             SynchedEntityData.defineId(GradiusEntity.class, EntityDataSerializers.BOOLEAN);
 
+    private static final UUID PHASE2_ATTACK_BOOST_ID = UUID.fromString("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+
+    private static final UUID PHASE2_SPEED_BOOST_ID  = UUID.fromString("b2c3d4e5-f6a7-8901-bcde-f12345678901");
+
     // ──────────────────────────────────────────
     // 内部タイマー
     // ──────────────────────────────────────────
     private int customDeathTime = 0;
+
+    // 召喚は「体力がその閾値を下回った瞬間」に発動する。armed=trueの間だけ発動可能で、
+    // 発動したらfalseにする（再発動を防ぐ）。体力がその閾値を上回って回復したら
+    // 再びtrueに戻す（再アーム）ことで、何度でも「下回るたび」に発動できるようにしている。
+    private boolean summonArmed70 = true;
+    private boolean summonArmed30 = true;
+
+    public boolean isSummonArmed70() { return this.summonArmed70; }
+    public void setSummonArmed70(boolean value) { this.summonArmed70 = value; }
+    public boolean isSummonArmed30() { return this.summonArmed30; }
+    public void setSummonArmed30(boolean value) { this.summonArmed30 = value; }
     private static final int DEATH_DURATION = 50; // 2.5秒
 
     private int previousAttackState = 0;
@@ -263,6 +279,10 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 .add(Attributes.ARMOR, 12.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D); // 突進中に押されない
     }
+    private static final AttributeModifier PHASE2_ATTACK_BOOST = new AttributeModifier(
+            PHASE2_ATTACK_BOOST_ID, "Phase 2 Attack Boost", 2.0D, AttributeModifier.Operation.ADDITION);
+    private static final AttributeModifier PHASE2_SPEED_BOOST = new AttributeModifier(
+            PHASE2_SPEED_BOOST_ID, "Phase 2 Speed Boost", 0.20D, AttributeModifier.Operation.MULTIPLY_BASE);
 
     // ──────────────────────────────────────────
     // ゴール登録
@@ -502,6 +522,8 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         tag.putBoolean("IsDying", this.isActuallyDying());
         tag.putInt("CustomDeathTime", this.customDeathTime);
         tag.putBoolean("Phase2Color", this.isPhase2Color());
+        tag.putBoolean("SummonArmed70", this.summonArmed70);
+        tag.putBoolean("SummonArmed30", this.summonArmed30);
     }
 
     @Override
@@ -521,14 +543,20 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         if (tag.contains("Phase2")) {
             boolean p2 = tag.getBoolean("Phase2");
             this.entityData.set(PHASE2, p2);
-            // NBT読み込み時点でもbossEventに色を反映
-            // （startSeenByPlayerより前に呼ばれる場合の保険）
             if (p2 && !this.level().isClientSide()) {
                 this.bossEvent.setColor(BossEvent.BossBarColor.BLUE);
+                this.applyPhase2Buffs(); // ★追加: セーブデータ読み込み時に第二形態ならバフを再適用
             }
         }
         if (tag.contains("Phase2Color")) {
             setPhase2Color(tag.getBoolean("Phase2Color"));
+        }
+        // タグに無い場合（古いセーブデータ）はデフォルトのtrue（発動可能）のままにする
+        if (tag.contains("SummonArmed70")) {
+            this.summonArmed70 = tag.getBoolean("SummonArmed70");
+        }
+        if (tag.contains("SummonArmed30")) {
+            this.summonArmed30 = tag.getBoolean("SummonArmed30");
         }
         if (tag.contains("Awakening")) {
             this.awakening = tag.getBoolean("Awakening");
@@ -568,6 +596,15 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         trail.add(this.position());
         if (trail.size() > 6) trail.poll();
 
+        // ── 召喚の再アーム：体力が閾値を上回って回復したら、再びその閾値で発動できるようにする ──
+        float hpRatioForSummon = this.getHealth() / this.getMaxHealth();
+        if (hpRatioForSummon > 0.70F) {
+            this.summonArmed70 = true;
+        }
+        if (hpRatioForSummon > 0.30F) {
+            this.summonArmed30 = true;
+        }
+
         // ── ターゲットを見失っている間に体力が50%を超えて回復したら第一形態へ戻す ──
         // （見た目のisPhase2()フラグだけでなく、GradiusModel側のhideArmor判定が
         //   awakeningTimer >= 25 も見ているため、awakeningTimerも一緒にリセットしないと
@@ -583,6 +620,9 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             setPhase2Color(false);
             awakeningTimer = 0;
             this.bossEvent.setColor(BossEvent.BossBarColor.RED);
+
+            // ★追加: 第二形態バフの解除
+            this.removePhase2Buffs();
         }
 
         if (!isPhase2()
@@ -628,6 +668,9 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                 setPhase2(true);
 
                 this.setAttackState(0);
+
+                // ★追加: 第二形態バフの付与
+                this.applyPhase2Buffs();
             }
             if (this.level() instanceof ServerLevel sl
                     && this.tickCount % 2 == 0) {
@@ -800,6 +843,36 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         this.pendingTarget = target;
         if (!this.level().isClientSide()) {
             this.bossEvent.setProgress(this.getHealth() / this.getMaxHealth());
+        }
+    }
+
+    // 第二形態バフ付与
+    private void applyPhase2Buffs() {
+        if (!this.level().isClientSide()) {
+            var attackAttr = this.getAttribute(Attributes.ATTACK_DAMAGE);
+            if (attackAttr != null && !attackAttr.hasModifier(PHASE2_ATTACK_BOOST)) {
+                attackAttr.addTransientModifier(PHASE2_ATTACK_BOOST);
+            }
+
+            var speedAttr = this.getAttribute(Attributes.MOVEMENT_SPEED);
+            if (speedAttr != null && !speedAttr.hasModifier(PHASE2_SPEED_BOOST)) {
+                speedAttr.addTransientModifier(PHASE2_SPEED_BOOST);
+            }
+        }
+    }
+
+    // 第二形態バフ解除
+    private void removePhase2Buffs() {
+        if (!this.level().isClientSide()) {
+            var attackAttr = this.getAttribute(Attributes.ATTACK_DAMAGE);
+            if (attackAttr != null) {
+                attackAttr.removeModifier(PHASE2_ATTACK_BOOST_ID);
+            }
+
+            var speedAttr = this.getAttribute(Attributes.MOVEMENT_SPEED);
+            if (speedAttr != null) {
+                speedAttr.removeModifier(PHASE2_SPEED_BOOST_ID);
+            }
         }
     }
 
@@ -1294,7 +1367,8 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         private boolean fireballsSpawned = false;
         private boolean fireballsShot = false;
 
-        private int summonCooldown = 0;
+        // 召喚の発動可否は GradiusEntity 本体側（summonArmed70/30）で
+        // NBT保存込みで管理している。ここでは持たない。
 
         public GradiusAttackGoal(GradiusEntity mob, double speed) {
             this.mob = mob;
@@ -1371,8 +1445,6 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             tickScheduledPillars();
             tickScheduledBlockWaves();
             tickWaveBlockDamage();
-
-            if (summonCooldown > 0) summonCooldown--;
 
 
             // 常にターゲットの方を向く（体・頭とも固定）
@@ -1554,9 +1626,29 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
         }
 
         // ──────────────────────────────────────
-        // 攻撃選択（ランダム）
+        // 攻撃選択
         // ──────────────────────────────────────
         private void startAttack() {
+
+            // ── HPが70%・30%を下回っている間、ランダム抽選より優先して召喚を割り込ませる ──
+            // （下回った直後の1回だけ発動し、armedはfalseになる。再び閾値を上回って
+            //   回復すると、GradiusEntity#aiStep()側でarmedがtrueに戻り、また発動できるようになる）
+            double hpRatio = this.mob.getHealth() / this.mob.getMaxHealth();
+            if (mob.isSummonArmed70() && hpRatio <= 0.70D) {
+                mob.setSummonArmed70(false);
+                mob.setAttackState(4);
+                attackTimer = 0;
+                forceFinishAttack = true;
+                return;
+            }
+            if (mob.isSummonArmed30() && hpRatio <= 0.30D) {
+                mob.setSummonArmed30(false);
+                mob.setAttackState(4);
+                attackTimer = 0;
+                forceFinishAttack = true;
+                return;
+            }
+
             int roll = this.mob.random.nextInt(100);
 
             if (mob.isPhase2()) {
@@ -1570,16 +1662,8 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                     mob.setAttackState(5);
                 } else if (roll < 80) {
                     mob.setAttackState(2);
-                } else if (roll < 96) { // ★ 94 から 96 に変更（召喚確率を 6% から 4% へ引き下げ）
-                    mob.setAttackState(3);
                 } else {
-                    // 召喚：クールタイム中は別の攻撃に差し替え
-                    if (summonCooldown <= 0) {
-                        mob.setAttackState(4);
-                        summonCooldown = 2400; // ★ 1500tick(75秒) から 2400tick(120秒) へ延長
-                    } else {
-                        mob.setAttackState(3); // 踏みつけに差し替え
-                    }
+                    mob.setAttackState(3);
                 }
             } else {
                 if (roll < 25) {
@@ -1588,16 +1672,8 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
                     mob.setAttackState(5);
                 } else if (roll < 70) {
                     mob.setAttackState(2);
-                } else if (roll < 94) { // ★ 88 から 94 に変更（召喚確率を 12% から 6% へ引き下げ）
-                    mob.setAttackState(3);
                 } else {
-                    // 召喚：クールタイム中は薙ぎ払いに差し替え
-                    if (summonCooldown <= 0) {
-                        mob.setAttackState(4);
-                        summonCooldown = 1200; // ★ 600tick(30秒) から 1200tick(60秒) へ延長
-                    } else {
-                        mob.setAttackState(1);
-                    }
+                    mob.setAttackState(3);
                 }
             }
 
@@ -2900,12 +2976,21 @@ public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBos
             }
         }
 
-        // グラディウスに攻撃が当たる対象かどうかを判定。
-        // 「ターゲット(this.target)にしか当たらない」「グラディウスをtargetにしているモブにしか
-        // 当たらない」という制限は撤廃し、グラディウス自身が召喚したモブ(タグ付き)以外は
-        // 全てヒット対象にする。
         private boolean isHostileToGradius(LivingEntity entity) {
-            return !entity.getTags().contains(SUMMONED_BY_GRADIUS_TAG);
+            // 召喚タグを持っている場合でも...
+            if (entity.getTags().contains(SUMMONED_BY_GRADIUS_TAG)) {
+                // グラディウスをターゲットにしている、またはグラディウスからターゲットにされている場合は「敵対」とみなして攻撃を当てる
+                boolean isAttackingGradius = entity instanceof Mob mob && mob.getTarget() == this.mob;
+                boolean isTargetedByGradius = this.mob.getTarget() == entity;
+
+                if (isAttackingGradius || isTargetedByGradius) {
+                    return true; // 敵対しているので攻撃を当てる！
+                }
+                return false; // 完全な味方状態なら攻撃をスキップ（誤射防止）
+            }
+
+            // タグを持たない一般的なエンティティはそのまま攻撃対象
+            return true;
         }
         private void spawnBlockWaveRing(ServerLevel level, BlockPos center,
                                         int currentRadius, double startAngle, double endAngle) {
