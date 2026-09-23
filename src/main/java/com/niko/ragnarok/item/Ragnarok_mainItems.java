@@ -148,6 +148,14 @@ public class Ragnarok_mainItems {
                     new Item.Properties()
             ));
 
+    public static final RegistryObject<Item> SAKUBOT_SPAWN_EGG = ITEMS.register("sakubot_spawn_egg",
+            () -> new ForgeSpawnEggItem(
+                    RagnarokEntities.SAKUBOT,
+                    0x20b2aa,
+                    0xdc143c,
+                    new Item.Properties()
+            ));
+
     public static final RegistryObject<Item> GRADIUS_TREASURE_BAG =
             ITEMS.register("gradius_treasure_bag", () ->
                     new TreasureBagItem(
