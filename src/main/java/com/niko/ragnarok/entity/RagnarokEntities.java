@@ -1,10 +1,7 @@
 package com.niko.ragnarok.entity;
 
 import com.niko.ragnarok.Ragnarok;
-import com.niko.ragnarok.entity.Projectile.BlueFireballEntity;
-import com.niko.ragnarok.entity.Projectile.DinocampusBubbleEntity;
-import com.niko.ragnarok.entity.Projectile.GlowingDustEntity;
-import com.niko.ragnarok.entity.Projectile.VoidSlashEntity;
+import com.niko.ragnarok.entity.Projectile.*;
 import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.DinocampusEntity;
@@ -127,6 +124,14 @@ public class RagnarokEntities {
                             .clientTrackingRange(64)
                             .updateInterval(1)
                             .build("dinocampus_bubble")
+            );
+    public static final RegistryObject<EntityType<SakubotBeamEntity>> SAKUBOT_BEAM =
+            ENTITY_TYPES.register("sakubot_beam", () ->
+                    EntityType.Builder.<SakubotBeamEntity>of(SakubotBeamEntity::new, MobCategory.MISC) // 飛び道具は通常 MISC
+                            .sized(1F, 1F) // 当たり判定の大きさ。斬撃なら小さめでOK
+                            .clientTrackingRange(4) // どのくらいの距離から表示を開始するか
+                            .updateInterval(5) // 位置同期の頻度（小さいほど滑らか）
+                            .build("sakubot_beam")
             );
     public static final RegistryObject<EntityType<GhostEntity>> GHOST =
             ENTITY_TYPES.register("ghost", () ->

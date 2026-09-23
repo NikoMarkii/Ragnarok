@@ -5,9 +5,11 @@ import com.niko.ragnarok.blockentities.RagnarokBlockEntities;
 import com.niko.ragnarok.blockentities.Renderer.DoorsofKingroomRenderer;
 import com.niko.ragnarok.entity.Model.groot_model;
 import com.niko.ragnarok.entity.Model.mini_groot_model;
+import com.niko.ragnarok.entity.Projectile.Model.sakubot_beam_model;
 import com.niko.ragnarok.entity.Projectile.Model.slash_model;
 import com.niko.ragnarok.entity.Projectile.Renderer.BlueFireballRenderer;
 import com.niko.ragnarok.entity.Projectile.Renderer.DinocampusBubbleRenderer;
+import com.niko.ragnarok.entity.Projectile.Renderer.SakubotBeamRenderer;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.Model.scorpion_model;
 import com.niko.ragnarok.entity.Model.t_lex_model;
@@ -47,6 +49,7 @@ public class RagnarokEventBusClientEvent {
         event.registerEntityRenderer(RagnarokEntities.DINOCAMPUS_BUBBLE.get(), DinocampusBubbleRenderer::new);
         event.registerBlockEntityRenderer(RagnarokBlockEntities.DOORS_KING_ROOM.get(), DoorsofKingroomRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.SAKUBOT.get(), SakubotRenderer::new);
+        event.registerEntityRenderer(RagnarokEntities.SAKUBOT_BEAM.get(), SakubotBeamRenderer::new);
     }
 
     @SubscribeEvent
@@ -64,5 +67,7 @@ public class RagnarokEventBusClientEvent {
                 magic_golem_model::createBodyLayer);
         event.registerLayerDefinition(slash_model.LAYER_LOCATION,
                 slash_model::createBodyLayer);
+        event.registerLayerDefinition(sakubot_beam_model.LAYER_LOCATION,
+                sakubot_beam_model::createBodyLayer);
     }
 }

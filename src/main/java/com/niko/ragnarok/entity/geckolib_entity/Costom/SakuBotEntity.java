@@ -63,7 +63,7 @@ public static AttributeSupplier.Builder createAttributes() {
 
     @Override
     protected SoundEvent getHurtSound(DamageSource s) {
-        return SoundEvents.ANVIL_HIT;
+        return SoundEvents.ANVIL_LAND;
     }
 
     @Override
