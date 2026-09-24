@@ -99,5 +99,16 @@
   "advancements.ragnarok.full_naitomea.title": "Cover Me in nightnium",
   "advancements.ragnarok.full_naitomea.description": "Have a full set of nightnium armor in your inventory.",
   "advancements.ragnarok.defeat_gradius.title": "A ghost from 100 years ago",
-  "advancements.ragnarok.defeat_gradius.description": "Defeat Gradius."
+  "advancements.ragnarok.defeat_gradius.description": "Defeat Gradius.",
+  "ragnarok.dialogue.fairy.speaker": "Fairy",
+  "ragnarok.dialogue.fairy.greeting": "Hello!",
+  "ragnarok.dialogue.fairy.question": "What did you come here to do today?",
+  "ragnarok.dialogue.fairy.chat": "If you have flowers, please show them to me again sometime.",
+  "ragnarok.dialogue.fairy.chat_1": "The flowers in this forest are especially beautiful today.",
+  "ragnarok.dialogue.fairy.chat_2": "I sometimes find sparkling dust near the old trees.",
+  "ragnarok.dialogue.fairy.chat_3": "Please be kind to the small creatures living here.",
+  "ragnarok.dialogue.fairy.chat_4": "The forest feels peaceful when the wind is gentle.",
+  "ragnarok.dialogue.choice.trade": "Trade",
+  "ragnarok.dialogue.choice.chat": "Chat",
+  "ragnarok.dialogue.choice.end": "End conversation"
 }

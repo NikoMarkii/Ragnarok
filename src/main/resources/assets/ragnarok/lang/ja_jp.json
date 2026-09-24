@@ -99,6 +99,17 @@
   "advancements.ragnarok.full_naitomea.title": "ナイトニウムで私を覆って",
   "advancements.ragnarok.full_naitomea.description": "ナイトニウムの防具一式を手に入れる",
   "advancements.ragnarok.defeat_gradius.title": "100年前の亡霊",
-  "advancements.ragnarok.defeat_gradius.description": "グラディウスを倒す"
+  "advancements.ragnarok.defeat_gradius.description": "グラディウスを倒す",
+  "ragnarok.dialogue.fairy.speaker": "妖精",
+  "ragnarok.dialogue.fairy.greeting": "こんにちは!",
+  "ragnarok.dialogue.fairy.question": "今日は何をしに来たの?",
+  "ragnarok.dialogue.fairy.chat": "花を持ってきたら、また見せてね。",
+  "ragnarok.dialogue.fairy.chat_1": "今日は森の花がいつもよりきれいに咲いているよ。",
+  "ragnarok.dialogue.fairy.chat_2": "古い木の近くでは、ときどき輝く粉を見つけるの。",
+  "ragnarok.dialogue.fairy.chat_3": "この森に住む小さな生き物たちにも優しくしてね。",
+  "ragnarok.dialogue.fairy.chat_4": "風が穏やかな日は、森も静かで心地いいね。",
+  "ragnarok.dialogue.choice.trade": "取引する",
+  "ragnarok.dialogue.choice.chat": "雑談する",
+  "ragnarok.dialogue.choice.end": "会話を終了する"
 
 }

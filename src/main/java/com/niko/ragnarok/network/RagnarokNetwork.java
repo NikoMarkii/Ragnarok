@@ -32,5 +32,11 @@ public class RagnarokNetwork {
                 ClientBossDialoguePacket::decode,
                 ClientBossDialoguePacket::handle
         );
+        CHANNEL.registerMessage(id++, TradeRequestPacket.class,
+                TradeRequestPacket::encode, TradeRequestPacket::decode,
+                TradeRequestPacket::handle);
+        CHANNEL.registerMessage(id++, DialogueStatePacket.class,
+                DialogueStatePacket::encode, DialogueStatePacket::decode,
+                DialogueStatePacket::handle);
     }
 }

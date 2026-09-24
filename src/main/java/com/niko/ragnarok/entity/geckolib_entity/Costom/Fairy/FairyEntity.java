@@ -1,6 +1,7 @@
 package com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy;
 
 import com.niko.ragnarok.item.Ragnarok_mainItems;
+import com.niko.ragnarok.client.gui.FairyDialogueClient;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -36,6 +37,8 @@ import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -44,6 +47,7 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.EnumSet;
+import java.util.Comparator;
 
 /**
  * フェアリー - 森に住む友好的な妖精
@@ -93,7 +97,7 @@ public class FairyEntity extends PathfinderMob implements GeoEntity, FlyingAnima
         // 優先度4: ランダムに見回す
         this.goalSelector.addGoal(4, new RandomLookAroundGoal(this));
 
-        this.goalSelector.addGoal(1, new TemptGoal(this, 1.25D, Ingredient.of(ItemTags.FLOWERS), false));
+        this.goalSelector.addGoal(1, new FairyFlowerTemptGoal(this, 1.25D, 80.0D));
 
         this.goalSelector.addGoal(0, new Goal() {
             @Override
@@ -121,7 +125,7 @@ public class FairyEntity extends PathfinderMob implements GeoEntity, FlyingAnima
                 .add(Attributes.MAX_HEALTH, 6.0D)
                 .add(Attributes.FLYING_SPEED, 0.4D)
                 .add(Attributes.MOVEMENT_SPEED, 0.2D)
-                .add(Attributes.FOLLOW_RANGE, 35.0D);
+                .add(Attributes.FOLLOW_RANGE, 80.0D);
     }
     @Override
     public void aiStep() {
@@ -140,12 +144,15 @@ public class FairyEntity extends PathfinderMob implements GeoEntity, FlyingAnima
     }
     @Override
     public InteractionResult mobInteract(Player player, InteractionHand hand) {
+        if (this.level().isClientSide && !this.isFleeing()) {
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> FairyDialogueClient.open(this, player));
+            return InteractionResult.SUCCESS;
+        }
         if (!this.level().isClientSide && !this.isFleeing()) {
             if (this.offers == null) {
-                this.updateTrades(); // 取引内容がなければ作成
+                this.updateTrades();
             }
             this.setTradingPlayer(player);
-            this.openTradingScreen(player, this.getDisplayName(), 1);
             return InteractionResult.SUCCESS;
         }
         return InteractionResult.sidedSuccess(this.level().isClientSide);
@@ -401,6 +408,72 @@ public class FairyEntity extends PathfinderMob implements GeoEntity, FlyingAnima
         @Override
         public void stop() {
             this.fairyEntity.setFleeing(false);
+        }
+    }
+
+    /** 花を持つプレイヤーを通常の TemptGoal より遠くから見つけて追従するゴール */
+    static class FairyFlowerTemptGoal extends Goal {
+        private final FairyEntity fairy;
+        private final double speedModifier;
+        private final double detectionRange;
+        private final Ingredient flowers = Ingredient.of(ItemTags.FLOWERS);
+        @Nullable
+        private Player player;
+
+        FairyFlowerTemptGoal(FairyEntity fairy, double speedModifier, double detectionRange) {
+            this.fairy = fairy;
+            this.speedModifier = speedModifier;
+            this.detectionRange = detectionRange;
+            this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (this.fairy.getTradingPlayer() != null || this.fairy.isFleeing()) {
+                return false;
+            }
+
+            this.player = this.fairy.level().getEntitiesOfClass(
+                            Player.class,
+                            this.fairy.getBoundingBox().inflate(this.detectionRange),
+                            this::isHoldingFlower)
+                    .stream()
+                    .min(Comparator.comparingDouble(this.fairy::distanceToSqr))
+                    .orElse(null);
+            return this.player != null;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return this.player != null
+                    && this.player.isAlive()
+                    && this.fairy.getTradingPlayer() == null
+                    && !this.fairy.isFleeing()
+                    && this.fairy.distanceToSqr(this.player) <= this.detectionRange * this.detectionRange
+                    && this.isHoldingFlower(this.player);
+        }
+
+        @Override
+        public void stop() {
+            this.player = null;
+            this.fairy.getNavigation().stop();
+        }
+
+        @Override
+        public void tick() {
+            if (this.player == null) {
+                return;
+            }
+            this.fairy.getLookControl().setLookAt(this.player, 30.0F, 30.0F);
+            if (this.fairy.distanceToSqr(this.player) > 6.25D) {
+                this.fairy.getNavigation().moveTo(this.player, this.speedModifier);
+            } else {
+                this.fairy.getNavigation().stop();
+            }
+        }
+
+        private boolean isHoldingFlower(Player player) {
+            return this.flowers.test(player.getMainHandItem()) || this.flowers.test(player.getOffhandItem());
         }
     }
 

@@ -10,6 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.util.FormattedCharSequence;
 
 import javax.annotation.Nullable;
@@ -41,8 +42,14 @@ public class NpcDialogueScreen extends Screen {
 
     private final List<DialogueLine> lines;
     @Nullable
+    private final Mob conversationMob;
+    private final boolean controlConversationMob;
+    @Nullable
+    private final Runnable onDialogueClosed;
+    @Nullable
     private final SoundEvent typingSound;
     private int lineIndex = 0;
+    private Component selectedText = Component.empty();
 
     private int visibleChars = 0;
     private int tickCounter = 0;
@@ -64,9 +71,18 @@ public class NpcDialogueScreen extends Screen {
     private boolean isChoiceTransitioning = false;
 
     public NpcDialogueScreen(List<DialogueLine> lines, @Nullable SoundEvent typingSound) {
+        this(lines, typingSound, null, false, null);
+    }
+
+    public NpcDialogueScreen(List<DialogueLine> lines, @Nullable SoundEvent typingSound,
+                             @Nullable Mob conversationMob, boolean controlConversationMob,
+                             @Nullable Runnable onDialogueClosed) {
         super(Component.literal("Dialogue"));
         this.lines = lines;
         this.typingSound = typingSound;
+        this.conversationMob = conversationMob;
+        this.controlConversationMob = controlConversationMob;
+        this.onDialogueClosed = onDialogueClosed;
     }
 
     public NpcDialogueScreen(List<DialogueLine> lines) {
@@ -92,6 +108,8 @@ public class NpcDialogueScreen extends Screen {
         this.choiceAnimTicks = 0;
         this.pendingChoiceAction = null;
         this.isChoiceTransitioning = false;
+        DialogueLine current = getCurrentLine();
+        this.selectedText = current == null ? Component.empty() : current.resolveText();
     }
 
     public void startClosing() {
@@ -106,6 +124,12 @@ public class NpcDialogueScreen extends Screen {
         super.tick();
         KeyMapping.releaseAll();
 
+        if (controlConversationMob && conversationMob != null && minecraft.player != null) {
+            conversationMob.getNavigation().stop();
+            conversationMob.setDeltaMovement(0.0D, 0.0D, 0.0D);
+            conversationMob.getLookControl().setLookAt(minecraft.player, 30.0F, 30.0F);
+        }
+
         // 1. 全体フェードイン/アウト処理
         if (!isClosing) {
             if (animTicks < ANIM_DURATION) {
@@ -115,6 +139,9 @@ public class NpcDialogueScreen extends Screen {
             animTicks--;
             if (animTicks <= 0) {
                 super.onClose();
+                if (onDialogueClosed != null) {
+                    onDialogueClosed.run();
+                }
                 return;
             }
         }
@@ -131,8 +158,8 @@ public class NpcDialogueScreen extends Screen {
                 tickCounter = 0;
                 visibleChars++;
                 playTypingSound(current);
-                if (visibleChars >= current.text().length()) {
-                    visibleChars = current.text().length();
+                if (visibleChars >= selectedText.getString().length()) {
+                    visibleChars = selectedText.getString().length();
                     lineFullyShown = true;
                 }
             }
@@ -162,7 +189,8 @@ public class NpcDialogueScreen extends Screen {
 
     private void playTypingSound(DialogueLine current) {
         int idx = visibleChars - 1;
-        if (idx < 0 || idx >= current.text().length() || Character.isWhitespace(current.text().charAt(idx))) {
+        String text = selectedText.getString();
+        if (idx < 0 || idx >= text.length() || Character.isWhitespace(text.charAt(idx))) {
             return;
         }
 
@@ -264,7 +292,8 @@ public class NpcDialogueScreen extends Screen {
             graphics.drawCenteredString(this.font, current.speaker(),
                     nameX + subW / 2, nameY + (subH - this.font.lineHeight) / 2, whiteColor);
 
-            String shownText = current.text().substring(0, Math.min(visibleChars, current.text().length()));
+            String text = selectedText.getString();
+            String shownText = text.substring(0, Math.min(visibleChars, text.length()));
             int paddingX = 8 * SCALE;
             int paddingY = 6 * SCALE;
             int textX = mainX + paddingX;
@@ -382,7 +411,7 @@ public class NpcDialogueScreen extends Screen {
     private void skipTyping() {
         DialogueLine current = getCurrentLine();
         if (current != null) {
-            visibleChars = current.text().length();
+            visibleChars = selectedText.getString().length();
             lineFullyShown = true;
         }
     }
@@ -431,34 +460,104 @@ public class NpcDialogueScreen extends Screen {
         return false;
     }
 
+    public void closeImmediately() {
+        if (onDialogueClosed != null) {
+            onDialogueClosed.run();
+        }
+        super.onClose();
+    }
+
+    public void closeImmediatelyWithoutRelease() {
+        super.onClose();
+    }
+
     public record DialogueLine(
-            String speaker,
-            String text,
+            Component speaker,
+            Component text,
             @Nullable ResourceLocation faceIcon,
             List<DialogueChoice> choices,
-            @Nullable Integer nextIndex
+            @Nullable Integer nextIndex,
+            List<Component> randomTexts
     ) {
+        public DialogueLine(String speaker, String text, @Nullable ResourceLocation faceIcon,
+                            List<DialogueChoice> choices, @Nullable Integer nextIndex) {
+            this(Component.literal(speaker), Component.literal(text), faceIcon, choices, nextIndex, List.of());
+        }
+
         public DialogueLine(String speaker, String text, ResourceLocation faceIcon, List<DialogueChoice> choices) {
-            this(speaker, text, faceIcon, choices, null);
+            this(Component.literal(speaker), Component.literal(text), faceIcon, choices, null, List.of());
         }
 
         public DialogueLine(String speaker, String text, ResourceLocation faceIcon, Integer nextIndex) {
-            this(speaker, text, faceIcon, List.of(), nextIndex);
+            this(Component.literal(speaker), Component.literal(text), faceIcon, List.of(), nextIndex, List.of());
         }
 
         public DialogueLine(String speaker, String text, ResourceLocation faceIcon) {
-            this(speaker, text, faceIcon, List.of(), null);
+            this(Component.literal(speaker), Component.literal(text), faceIcon, List.of(), null, List.of());
         }
 
         public DialogueLine(String speaker, String text) {
-            this(speaker, text, null, List.of(), null);
+            this(Component.literal(speaker), Component.literal(text), null, List.of(), null, List.of());
         }
 
         public DialogueLine(String speaker, String text, List<DialogueChoice> choices) {
-            this(speaker, text, null, choices, null);
+            this(Component.literal(speaker), Component.literal(text), null, choices, null, List.of());
+        }
+
+        public static DialogueLine translated(String speakerKey, String textKey,
+                                               @Nullable ResourceLocation faceIcon) {
+            return new DialogueLine(Component.translatable(speakerKey), Component.translatable(textKey),
+                    faceIcon, List.of(), null, List.of());
+        }
+
+        public static DialogueLine translated(String speakerKey, String textKey,
+                                               @Nullable ResourceLocation faceIcon,
+                                               List<DialogueChoice> choices) {
+            return new DialogueLine(Component.translatable(speakerKey), Component.translatable(textKey),
+                    faceIcon, choices, null, List.of());
+        }
+
+        public static DialogueLine translated(String speakerKey, String textKey,
+                                               @Nullable ResourceLocation faceIcon, int nextIndex) {
+            return new DialogueLine(Component.translatable(speakerKey), Component.translatable(textKey),
+                    faceIcon, List.of(), nextIndex, List.of());
+        }
+
+        public static DialogueLine random(String speaker, List<String> texts,
+                                          @Nullable ResourceLocation faceIcon) {
+            return new DialogueLine(Component.literal(speaker), Component.empty(), faceIcon,
+                    List.of(), null, texts.stream().map(text -> (Component) Component.literal(text)).toList());
+        }
+
+        public static DialogueLine translatedRandom(String speakerKey, List<String> textKeys,
+                                                    @Nullable ResourceLocation faceIcon) {
+            return new DialogueLine(Component.translatable(speakerKey), Component.empty(), faceIcon,
+                    List.of(), null, textKeys.stream()
+                            .map(key -> (Component) Component.translatable(key)).toList());
+        }
+
+        public Component resolveText() {
+            if (this.randomTexts.isEmpty()) {
+                return this.text;
+            }
+            return this.randomTexts.get(RANDOM.nextInt(this.randomTexts.size()));
         }
     }
 
-    public record DialogueChoice(String label, Consumer<NpcDialogueScreen> onSelect) {
+    public record DialogueChoice(Component label, Consumer<NpcDialogueScreen> onSelect) {
+        public DialogueChoice(String label, Consumer<NpcDialogueScreen> onSelect) {
+            this(Component.literal(label), onSelect);
+        }
+
+        public static DialogueChoice translated(String labelKey, Consumer<NpcDialogueScreen> onSelect) {
+            return new DialogueChoice(Component.translatable(labelKey), onSelect);
+        }
+
+        public static DialogueChoice toTrade(Runnable openTradeRequest) {
+            return new DialogueChoice(Component.translatable("ragnarok.dialogue.choice.trade"), screen -> {
+                openTradeRequest.run();
+                screen.closeImmediatelyWithoutRelease();
+            });
+        }
     }
 }
