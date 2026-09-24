@@ -198,12 +198,12 @@ SakuBotAttackGoal(SakuBotEntity mob) {
         if (!box.intersects(primary.getBoundingBox())) return; // ターゲットが範囲内かだけ確認
 
         primary.invulnerableTime = 0;
-        primary.hurt(mob.damageSources().mobAttack(mob),
-                (float) mob.getAttributeValue(Attributes.ATTACK_DAMAGE));
-
-        Vec3 kb = primary.position().subtract(mob.position()).normalize().scale(1.2);
-        primary.setDeltaMovement(kb.x, 0.3, kb.z);
-        primary.hurtMarked = true;
+        if (primary.hurt(mob.damageSources().mobAttack(mob),
+                (float) mob.getAttributeValue(Attributes.ATTACK_DAMAGE))) {
+            primary.knockback(0.4F,
+                    mob.getX() - primary.getX(), mob.getZ() - primary.getZ());
+            primary.hurtMarked = true;
+        }
 
         mob.playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 1.2F, 0.8F);
     }
