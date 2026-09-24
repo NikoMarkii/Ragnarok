@@ -100,6 +100,8 @@
   "advancements.ragnarok.full_naitomea.description": "ナイトニウムの防具一式を手に入れる",
   "advancements.ragnarok.defeat_gradius.title": "100年前の亡霊",
   "advancements.ragnarok.defeat_gradius.description": "グラディウスを倒す",
+  "advancements.ragnarok.hardmode.title": "本当の始まり",
+  "advancements.ragnarok.hardmode.description": "ハードモードへ移行する",
   "ragnarok.dialogue.fairy.speaker": "妖精",
   "ragnarok.dialogue.fairy.greeting": "こんにちは!",
   "ragnarok.dialogue.fairy.question": "今日は何をしに来たの?",
@@ -110,6 +112,6 @@
   "ragnarok.dialogue.fairy.chat_4": "風が穏やかな日は、森も静かで心地いいね。",
   "ragnarok.dialogue.choice.trade": "取引する",
   "ragnarok.dialogue.choice.chat": "雑談する",
-  "ragnarok.dialogue.choice.end": "会話を終了する"
-
+  "ragnarok.dialogue.choice.end": "会話を終了する",
+  "message.ragnarok.hardmode_start": "古の精霊たちが解放された…！"
 }

@@ -1,0 +1,28 @@
+{
+  "display": {
+    "icon": {
+      "item": "minecraft:ender_eye"
+    },
+    "title": {
+      "translate": "advancements.ragnarok.hardmode.title"
+    },
+    "description": {
+      "translate": "advancements.ragnarok.hardmode.description"
+    },
+    "frame": "challenge",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "parent": "ragnarok:root",
+  "criteria": {
+    "hardmode_started": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "hardmode_started"
+    ]
+  ]
+}

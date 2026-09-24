@@ -13,12 +13,14 @@ import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.event.entity.SpawnPlacementRegisterEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import static com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity.isBrightEnoughToSpawn;
+import com.niko.ragnarok.world.WorldModeData;
 
 @Mod.EventBusSubscriber(modid = Ragnarok.MOD_ID,bus = Mod.EventBusSubscriber.Bus.MOD)
 public class RagnarokEventBusEvent {
@@ -65,7 +67,9 @@ public class RagnarokEventBusEvent {
               Monster::checkMonsterSpawnRules, SpawnPlacementRegisterEvent.Operation.REPLACE);
 
         event.register(RagnarokEntities.ENDER_SOLDIER.get(), SpawnPlacements.Type.ON_GROUND, Heightmap.Types.WORLD_SURFACE,
-                Monster::checkMonsterSpawnRules, SpawnPlacementRegisterEvent.Operation.REPLACE);
+                (entityType, level, spawnType, pos, random) ->
+                        isHardmode(level) && Monster.checkMonsterSpawnRules(entityType, level, spawnType, pos, random),
+                SpawnPlacementRegisterEvent.Operation.REPLACE);
 
         event.register(RagnarokEntities.GROOT.get(),
                 SpawnPlacements.Type.ON_GROUND,
@@ -119,6 +123,12 @@ public class RagnarokEventBusEvent {
                 Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                 GhostEntity::checkGhostSpawnRules
         );
+    }
+
+    private static boolean isHardmode(LevelAccessor level) {
+        return level instanceof net.minecraft.server.level.ServerLevel serverLevel
+                && WorldModeData.get(serverLevel).getCurrentState().getId()
+                >= WorldModeData.GameModeState.HARD.getId();
     }
 }
 

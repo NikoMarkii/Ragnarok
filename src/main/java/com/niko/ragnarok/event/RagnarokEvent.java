@@ -9,10 +9,16 @@ import com.niko.ragnarok.entity.costom.Magic_Golem;
 import com.niko.ragnarok.item.Armor.GradiusArmorItem;
 import com.niko.ragnarok.item.ItemScorpionNecklace;
 import com.niko.ragnarok.item.VoidScythe;
+import com.niko.ragnarok.network.RagnarokNetwork;
+import com.niko.ragnarok.network.ScreenShakePacket;
+import com.niko.ragnarok.world.WorldModeData;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -23,6 +29,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.monster.Evoker;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.raid.Raider;
@@ -34,20 +41,115 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.network.PacketDistributor;
 import top.theillusivec4.curios.api.CuriosCapability;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Mod.EventBusSubscriber(modid = "ragnarok")
 public class RagnarokEvent {
+
+    // ドラゴンの消滅検知からハードモード発火までのカウントダウンマップ
+    private static final Map<UUID, Integer> PENDING_HARDMODE_TICKS = new HashMap<>();
+
+    /**
+     * 1. エンダードラゴンの消滅演出が完了し、ワールドから除外（remove）された瞬間をフック
+     */
+    @SubscribeEvent
+    public static void onDragonLeaveLevel(EntityLeaveLevelEvent event) {
+        if (event.getLevel().isClientSide()) return;
+
+        // ワールドから離脱したのがエンダードラゴンであり、かつ「死亡・消滅（KILLED/DISCARDED）」による離脱かをチェック
+        if (event.getEntity() instanceof EnderDragon dragon && dragon.isRemoved()) {
+            // 消滅完了（ポータル出現＆経験値放出）の瞬間から正確に 20 ticks（1秒後）のタイマーをセット
+            PENDING_HARDMODE_TICKS.put(dragon.getUUID(), 20);
+        }
+    }
+
+    /**
+     * 2. サーバーTickで20 ticks（1秒）のカウントダウンを進行
+     */
+    @SubscribeEvent
+    public static void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+
+        if (!PENDING_HARDMODE_TICKS.isEmpty()) {
+            ServerLevel overworld = event.getServer().overworld();
+
+            PENDING_HARDMODE_TICKS.entrySet().removeIf(entry -> {
+                int left = entry.getValue() - 1;
+                if (left <= 0) {
+                    // 20 ticks経過：ハードモード突入処理を発火
+                    triggerHardmode(overworld);
+                    return true; // リストから削除
+                } else {
+                    entry.setValue(left);
+                    return false;
+                }
+            });
+        }
+    }
+    /**
+     * ハードモード突入演出およびデータ更新
+     */
+    public static void triggerHardmode(ServerLevel level) {
+        WorldModeData modeData = WorldModeData.get(level);
+
+        // すでにハードモード以上の場合は処理しない
+        if (modeData.getCurrentState() != WorldModeData.GameModeState.NORMAL) {
+            return;
+        }
+
+        // 状態をハードモードに変更
+        modeData.setCurrentState(WorldModeData.GameModeState.HARD);
+
+        // 演出：テラリア風メッセージ（langファイルを参照）
+        Component message = Component.translatable("message.ragnarok.hardmode_start")
+                .withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD);
+
+        level.getServer().getPlayerList().getPlayers().forEach(player -> {
+            grantHardmodeAdvancement(player);
+            player.displayClientMessage(message, true);
+
+            player.playNotifySound(
+                    SoundEvents.END_PORTAL_SPAWN,
+                    SoundSource.AMBIENT,
+                    1.0F,
+                    0.5F
+            );
+
+            RagnarokNetwork.CHANNEL.send(
+                    PacketDistributor.PLAYER.with(() -> player),
+                    new ScreenShakePacket(3.0F, 40)
+            );
+        });
+    }
+
+    private static void grantHardmodeAdvancement(ServerPlayer player) {
+        net.minecraft.advancements.Advancement advancement = player.getServer().getAdvancements()
+                .getAdvancement(net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("ragnarok", "hardmode"));
+        if (advancement == null) return;
+
+        net.minecraft.advancements.AdvancementProgress progress = player.getAdvancements().getOrStartProgress(advancement);
+        advancement.getCriteria().keySet().forEach(criterion -> {
+            if (!progress.isDone()) {
+                player.getAdvancements().award(advancement, criterion);
+            }
+        });
+    }
+
     @SubscribeEvent
     public static void onLivingTick(LivingEvent.LivingTickEvent event) {
         DinocampusBubbleEntity.tickSuffocation(event.getEntity());
@@ -257,4 +359,5 @@ public class RagnarokEvent {
             }
         }
     }
+
 }

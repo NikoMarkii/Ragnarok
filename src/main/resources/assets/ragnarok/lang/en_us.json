@@ -100,6 +100,8 @@
   "advancements.ragnarok.full_naitomea.description": "Have a full set of nightnium armor in your inventory.",
   "advancements.ragnarok.defeat_gradius.title": "A ghost from 100 years ago",
   "advancements.ragnarok.defeat_gradius.description": "Defeat Gradius.",
+  "advancements.ragnarok.hardmode.title": "The Real Beginning",
+  "advancements.ragnarok.hardmode.description": "Enter hard mode.",
   "ragnarok.dialogue.fairy.speaker": "Fairy",
   "ragnarok.dialogue.fairy.greeting": "Hello!",
   "ragnarok.dialogue.fairy.question": "What did you come here to do today?",
@@ -110,5 +112,6 @@
   "ragnarok.dialogue.fairy.chat_4": "The forest feels peaceful when the wind is gentle.",
   "ragnarok.dialogue.choice.trade": "Trade",
   "ragnarok.dialogue.choice.chat": "Chat",
-  "ragnarok.dialogue.choice.end": "End conversation"
+  "ragnarok.dialogue.choice.end": "End conversation",
+  "message.ragnarok.hardmode_start": "The ancient spirits have been released...!"
 }
