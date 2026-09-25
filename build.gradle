@@ -40,7 +40,7 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-
+            property 'geckolib.disable_examples', 'true'
             mods {
                 "${mod_id}" {
                     source sourceSets.main
@@ -50,6 +50,8 @@ minecraft {
 
         client {
             property 'forge.enabledGameTestNamespaces', mod_id
+            jvmArg '-Xmx8G'
+            jvmArg '-Xms8G'
             // Mixinの設定
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
@@ -58,6 +60,8 @@ minecraft {
         server {
             property 'forge.enabledGameTestNamespaces', mod_id
             args '--nogui'
+            jvmArg '-Xmx8G'
+            jvmArg '-Xms8G'
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
         }

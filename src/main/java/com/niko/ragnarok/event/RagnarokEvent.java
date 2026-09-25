@@ -132,7 +132,7 @@ public class RagnarokEvent {
 
             RagnarokNetwork.CHANNEL.send(
                     PacketDistributor.PLAYER.with(() -> player),
-                    new ScreenShakePacket(3.0F, 40)
+                    new ScreenShakePacket(5.0F, 40)
             );
         });
     }

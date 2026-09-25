@@ -11,7 +11,7 @@ public class WorldModeData extends SavedData {
     public enum GameModeState {
         NORMAL(0),
         HARD(1),
-        ECLIPSE(2);
+        MASTER(2);
 
         private final int id;
 
