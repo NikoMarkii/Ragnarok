@@ -1,6 +1,7 @@
 package com.niko.ragnarok;
 
 import com.niko.ragnarok.block.RagnarokBlocks;
+import com.niko.ragnarok.config.RagnarokConfig;
 import com.niko.ragnarok.blockentities.RagnarokBlockEntities;
 import com.niko.ragnarok.effect.ModMobEffects;
 import com.niko.ragnarok.entity.RagnarokEntities;
@@ -12,6 +13,7 @@ import com.niko.ragnarok.sound.RagnarokSoundEvents;
 import com.niko.ragnarok.worldgen.biome.RagnarokBiomes;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import software.bernie.geckolib.GeckoLib;
@@ -20,6 +22,7 @@ import software.bernie.geckolib.GeckoLib;
 public class Ragnarok {
         public static final String MOD_ID = "ragnarok";
         public Ragnarok(FMLJavaModLoadingContext context) {
+                context.registerConfig(ModConfig.Type.COMMON, RagnarokConfig.SPEC, RagnarokConfig.FILE_NAME);
 
                 IEventBus bus = context.getModEventBus();
 

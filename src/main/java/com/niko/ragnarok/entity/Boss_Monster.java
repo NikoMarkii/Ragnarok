@@ -1,5 +1,7 @@
 package com.niko.ragnarok.entity;
 
+import com.niko.ragnarok.config.RagnarokConfig;
+
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
@@ -79,12 +81,11 @@ public abstract class Boss_Monster extends Monster {
     @Override
     public boolean hurt(DamageSource source, float amount) {
         // /killコマンドや即死ダメージはキャップ・軽減しない
-        if (source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY)
-                || source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_ARMOR)) {
+        if (source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY)) {
             return super.hurt(source, amount);
         }
 
-        float capped = Math.min(amount, MAX_DAMAGE_PER_HIT);
+        float capped = RagnarokConfig.capDamage(this, source, amount, MAX_DAMAGE_PER_HIT);
 
         // 例: 5スタックなら 1.0 - (5 * 0.05) = 0.75倍 (25%カット)
         float adaptationMultiplier = 1.0F - (adaptationStacks * ADAPTATION_REDUCTION_PER_STACK);

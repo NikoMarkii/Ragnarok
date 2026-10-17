@@ -120,6 +120,7 @@ public class RagnarokEntities {
     public static final RegistryObject<EntityType<DinocampusBubbleEntity>> DINOCAMPUS_BUBBLE =
             ENTITY_TYPES.register("dinocampus_bubble", () ->
                     EntityType.Builder.<DinocampusBubbleEntity>of(DinocampusBubbleEntity::new, MobCategory.MISC)
+                            .fireImmune()
                             .sized(0.8F, 0.8F)
                             .clientTrackingRange(64)
                             .updateInterval(1)

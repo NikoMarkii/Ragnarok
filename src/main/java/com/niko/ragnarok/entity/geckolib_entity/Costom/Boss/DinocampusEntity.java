@@ -1,6 +1,7 @@
 package com.niko.ragnarok.entity.geckolib_entity.Costom.Boss;
 
 import com.niko.ragnarok.Ragnarok;
+import com.niko.ragnarok.config.RagnarokConfig;
 import com.niko.ragnarok.client.gui.bossbar.ICustomBossBar;
 import com.niko.ragnarok.entity.Boss_Monster;
 import com.niko.ragnarok.entity.Projectile.DinocampusBubbleEntity;
@@ -10,6 +11,8 @@ import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.network.ScreenShakePacket;
 import com.niko.ragnarok.sound.RagnarokSoundEvents;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -296,6 +299,12 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         DinocampusBubbleEntity bubble = new DinocampusBubbleEntity(
                 this.level(), this, target, variant, mouth, direction.scale(speed));
         this.level().addFreshEntity(bubble);
+        if (this.level() instanceof ServerLevel sl) {
+            ParticleOptions particle = variant == DinocampusBubbleEntity.RED
+                    ? ParticleTypes.FLAME : ParticleTypes.SPLASH;
+            sl.sendParticles(particle, mouth.x, mouth.y, mouth.z, 18, 0.35D, 0.35D, 0.35D, 0.12D);
+            sl.sendParticles(ParticleTypes.CLOUD, mouth.x, mouth.y, mouth.z, 5, 0.2D, 0.2D, 0.2D, 0.04D);
+        }
         this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
                 SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_INSIDE, SoundSource.HOSTILE, 1.0F, 0.8F);
     }
@@ -305,6 +314,53 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         double cos = Math.cos(radians);
         double sin = Math.sin(radians);
         return new Vec3(vector.x * cos - vector.z * sin, vector.y, vector.x * sin + vector.z * cos);
+    }
+
+    private void emitRing(Vec3 center, double radius, ParticleOptions particle, int points) {
+        if (!(this.level() instanceof ServerLevel sl)) return;
+        for (int i = 0; i < points; i++) {
+            double angle = Math.PI * 2.0D * i / points;
+            sl.sendParticles(particle, center.x + Math.cos(angle) * radius, center.y,
+                    center.z + Math.sin(angle) * radius, 1, 0.04D, 0.08D, 0.04D, 0.02D);
+        }
+    }
+
+    private void emitGroundImpact(Vec3 center, double radius, boolean electric) {
+        if (!(this.level() instanceof ServerLevel sl)) return;
+        emitRing(center, radius, electric ? ParticleTypes.ELECTRIC_SPARK : ParticleTypes.SPLASH, 32);
+        sl.sendParticles(ParticleTypes.CLOUD, center.x, center.y, center.z,
+                18, radius * 0.35D, 0.15D, radius * 0.35D, 0.08D);
+        if (this.isPhase2()) {
+            emitRing(center.add(0.0D, 0.4D, 0.0D), radius * 0.75D, ParticleTypes.ELECTRIC_SPARK, 24);
+        }
+    }
+
+    private void emitSweep(boolean tail) {
+        if (!(this.level() instanceof ServerLevel sl)) return;
+        Vec3 forward = Vec3.directionFromRotation(0.0F, this.getYRot());
+        for (int i = 0; i <= 20; i++) {
+            Vec3 offset = rotateHorizontal(forward, (tail ? 180.0D : 0.0D) - 100.0D + i * 10.0D)
+                    .scale(tail ? 6.5D : 5.0D);
+            Vec3 point = this.position().add(offset).add(0.0D, 1.0D, 0.0D);
+            sl.sendParticles(ParticleTypes.SPLASH, point.x, point.y, point.z, 2, 0.1D, 0.2D, 0.1D, 0.06D);
+            if (i % 4 == 0) {
+                sl.sendParticles(ParticleTypes.SWEEP_ATTACK, point.x, point.y, point.z, 1, 0, 0, 0, 0);
+            }
+            if (this.isPhase2()) {
+                sl.sendParticles(ParticleTypes.ELECTRIC_SPARK, point.x, point.y, point.z, 2, 0.1D, 0.1D, 0.1D, 0.03D);
+            }
+        }
+    }
+
+    private void emitGroundDust() {
+        if (!(this.level() instanceof ServerLevel sl)) return;
+        BlockState ground = sl.getBlockState(this.blockPosition().below());
+        if (!ground.isAir()) {
+            sl.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, ground),
+                    this.getX(), this.getY() + 0.15D, this.getZ(), 16, 1.8D, 0.1D, 1.8D, 0.12D);
+        }
+        sl.sendParticles(ParticleTypes.CLOUD, this.getX(), this.getY() + 0.3D, this.getZ(),
+                5, 1.3D, 0.15D, 1.3D, 0.03D);
     }
 
     private void doMeleeHit(double forward, double inflate, float damageMultiplier, double knockback, double yKnockback,boolean breakShield) {
@@ -362,12 +418,11 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         LivingEntity target = this.getTarget();
         Vec3 center = this.position().add(this.getLookAngle().scale(2.0D));
         for (int i = 0; i < 20; i++) {
-            double angle = i * 0.62D;
-            double speed = 0.18D + i * 0.012D;
-            Vec3 direction = new Vec3(Math.cos(angle), 0.0D, Math.sin(angle)).scale(speed);
+            double angle = Math.PI * 2.0D * i / 20;
             DinocampusBubbleEntity bubble = new DinocampusBubbleEntity(
                     this.level(), this, target, DinocampusBubbleEntity.YELLOW,
-                    center.add(direction.normalize().scale(0.5D)), direction);
+                    center, Vec3.ZERO);
+            bubble.startSpiral(center, angle);
             this.level().addFreshEntity(bubble);
         }
     }
@@ -663,6 +718,7 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         }
 
         private void executeAttack() {
+            tickAttackTelegraph();
             switch (this.mob.getAttackState()) {
                 case ATTACK_1 -> tickAttack1();
                 case BUBBLE_STREAM_START -> tickBubbleStreamStart();
@@ -680,11 +736,43 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
             }
         }
 
+        private void tickAttackTelegraph() {
+            int state = this.mob.getAttackState();
+            if (this.timer == 1) {
+                if (state == CHARGE_START) {
+                    this.mob.playSound(SoundEvents.RAVAGER_ROAR, 1.8F, 0.75F);
+                } else if (state == BUBBLE_STREAM_START || state == BUBBLE_SHOT || state == BUBBLE_DOUBLE_RED) {
+                    this.mob.playSound(SoundEvents.BUBBLE_COLUMN_UPWARDS_AMBIENT, 1.5F, 0.6F);
+                } else if (state == TAIL_SPIRAL) {
+                    this.mob.playSound(SoundEvents.TRIDENT_THUNDER, 0.7F, 1.4F);
+                }
+            }
+            if (this.timer % 4 != 0) return;
+            if ((state == BUBBLE_STREAM_START || state == BUBBLE_SHOT || state == BUBBLE_DOUBLE_RED)
+                    && this.timer < 25) {
+                Vec3 mouth = this.mob.getMouthPosition(state, this.timer);
+                ParticleOptions particle = state == BUBBLE_DOUBLE_RED ? ParticleTypes.FLAME : ParticleTypes.SPLASH;
+                this.mob.emitRing(mouth, 1.3D - this.timer * 0.04D, particle, 12);
+                if (this.mob.isPhase2()) {
+                    this.mob.emitRing(mouth, 0.5D, ParticleTypes.ELECTRIC_SPARK, 8);
+                }
+            } else if (state == STOMP && this.timer >= 16 && this.timer < 35) {
+                this.mob.emitRing(this.mob.position().add(0, 0.15D, 0),
+                        2.0D + (35 - this.timer) * 0.12D, ParticleTypes.SPLASH, 20);
+            } else if (state == TAIL_SPIRAL && (this.timer < 35 || this.timer > 40 && this.timer < 55)) {
+                this.mob.emitRing(this.mob.position().add(this.mob.getLookAngle().scale(2.0D)).add(0, 0.2D, 0),
+                        2.0D, ParticleTypes.ELECTRIC_SPARK, 16);
+            } else if (state == CHARGE_START && this.timer < 25) {
+                this.mob.emitGroundDust();
+            }
+        }
+
         private void tickAttack1() {
             if (!this.hitDone && this.timer >= 25) {
                 this.hitDone = true;
                 this.mob.doAreaSweepHit(3.5D, 4.0D, 4.0D, 1.0F, 1.2D, 0.35D, false);
                 this.mob.playSound(SoundEvents.PHANTOM_BITE, 1.5F, 0.8F);
+                this.mob.emitSweep(false);
             }
             if (this.timer >= 45) {
                 finish(25);
@@ -758,6 +846,8 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                 mob.sendScreenShake(1.5F, 15);
                 this.mob.playSound(SoundEvents.GENERIC_EXPLODE, 1.5F, 0.8F);
 
+                this.mob.emitGroundImpact(this.mob.position().add(0, 0.2D, 0), 4.5D, false);
+
                 // グラディウスと同じウェーブ型ブロック起動に変更
                 spawnCircularBlockLift();
 
@@ -775,6 +865,8 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                 this.hitDone = true;
                 this.mob.doAreaSweepHit(-3.0D, 6.5D, 5.5D, 1.2F, 3.2D, 0.8D, true);
                 this.mob.playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 1.8F, 0.6F);
+                this.mob.emitSweep(true);
+                this.mob.sendScreenShake(0.6F, 6);
             }
             if (this.timer >= 55) {
                 finish(35);
@@ -783,6 +875,8 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
 
         private void tickTailSpiral() {
             if (this.timer == 35 || this.timer == 55) {
+                this.mob.emitGroundImpact(this.mob.position().add(this.mob.getLookAngle().scale(2.0D))
+                        .add(0, 0.2D, 0), 4.0D, true);
                 this.mob.spawnYellowSpiralWave();
                 this.mob.doAreaSweepHit(0.0D, 5.0D, 5.0D, 1.1F, 2.0D, 0.5D, true);
                 this.mob.playSound(SoundEvents.GENERIC_EXPLODE, 1.5F, 0.8F);
@@ -807,6 +901,12 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         }
 
         private void tickChargeLoop() {
+            if (this.timer % 4 == 0) {
+                this.mob.emitGroundDust();
+                if (this.mob.isPhase2()) {
+                    this.mob.emitRing(this.mob.position().add(0, 0.5D, 0), 2.3D, ParticleTypes.ELECTRIC_SPARK, 12);
+                }
+            }
             double currentY = this.mob.getDeltaMovement().y;
             this.mob.setDeltaMovement(this.chargeDirection.x * 0.85D, currentY, this.chargeDirection.z * 0.85D);
 
@@ -825,6 +925,11 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         }
 
         private void tickChargeEnd() {
+            if (this.timer == 1) {
+                this.mob.emitGroundImpact(this.mob.position().add(0, 0.2D, 0), 3.5D, false);
+                this.mob.playSound(SoundEvents.RAVAGER_STEP, 1.7F, 0.65F);
+                this.mob.sendScreenShake(0.8F, 8);
+            }
             this.mob.setDeltaMovement(Vec3.ZERO);
             if (this.timer >= 10) {
                 finish(45);
@@ -930,6 +1035,8 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
         }
 
         private void spawnBlockRing(ServerLevel level, BlockPos center, int radius) {
+            this.mob.emitRing(Vec3.atBottomCenterOf(center).add(0, 0.3D, 0), radius,
+                    this.mob.isPhase2() ? ParticleTypes.ELECTRIC_SPARK : ParticleTypes.SPLASH, 24);
             for (int x = -radius; x <= radius; x++) {
                 for (int z = -radius; z <= radius; z++) {
                     double dist = Math.sqrt(x * x + z * z);
@@ -979,7 +1086,7 @@ public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustom
                 AABB box = block.getBoundingBox().inflate(0.15D);
                 for (LivingEntity living : this.mob.level().getEntitiesOfClass(LivingEntity.class, box,
                         entity -> entity != this.mob && entity.isAlive() && !(entity instanceof DinocampusEntity))) {
-                    living.hurt(this.mob.damageSources().mobAttack(this.mob), 8.0F);
+                    living.hurt(this.mob.damageSources().mobAttack(this.mob), RagnarokConfig.scaleSpecialDamage(this.mob, 8.0F));
                 }
             }
         }

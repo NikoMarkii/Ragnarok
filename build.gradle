@@ -134,6 +134,7 @@ dependencies {
     runtimeOnly fg.deobf("curse.maven:corpse-316582:7018272")
     runtimeOnly fg.deobf("curse.maven:corpse-x-curios-api-compat-1138130:7088113")
     runtimeOnly fg.deobf("curse.maven:baguettelib-1264423:8887462")
+    runtimeOnly fg.deobf("curse.maven:configured-457570:5180900")
 
 }
 

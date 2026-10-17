@@ -1,5 +1,7 @@
 package com.niko.ragnarok.entity.Projectile;
 
+import com.niko.ragnarok.config.RagnarokConfig;
+
 import com.niko.ragnarok.entity.RagnarokEntities;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
 import net.minecraft.core.particles.ParticleTypes;
@@ -116,7 +118,7 @@ public class BlueFireballEntity extends Projectile {
                     ? damageSources().mobAttack(owner)
                     : damageSources().generic();
 
-            living.hurt(source, 25F);
+            living.hurt(source, RagnarokConfig.scaleSpecialDamage(owner, 25F));
 
             // 弱体化を付与
             living.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 1));

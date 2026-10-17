@@ -1,7 +1,9 @@
 package com.niko.ragnarok.entity.Projectile;
 
 import com.niko.ragnarok.entity.RagnarokEntities;
+import com.niko.ragnarok.config.RagnarokConfig;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.DinocampusEntity;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -20,6 +22,7 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -46,10 +49,17 @@ public class DinocampusBubbleEntity extends Entity implements GeoEntity {
     private LivingEntity owner;
     private LivingEntity target;
     private int burstTicks;
+    private Vec3 spiralCenter;
+    private double spiralRadius;
+    private double spiralAngle;
+    private static final double SPIRAL_RADIAL_SPEED = 0.18D;
+    private static final double SPIRAL_TANGENTIAL_SPEED = 0.32D;
     private static final Map<UUID, Integer> SUFFOCATION_TICKS = new HashMap<>();
 
     // 赤い泡（追尾する火の泡）は、当たらなくてもこのtick数が経過したら自然に弾ける
     private static final int RED_LIFETIME_TICKS = 60;
+    private static final DustParticleOptions BLUE_TRAIL =
+            new DustParticleOptions(new Vector3f(0.12F, 0.7F, 1.0F), 1.2F);
 
     public DinocampusBubbleEntity(EntityType<? extends DinocampusBubbleEntity> type, Level level) {
         super(type, level);
@@ -82,19 +92,41 @@ public class DinocampusBubbleEntity extends Entity implements GeoEntity {
         return this.entityData.get(BURSTING);
     }
 
+    public void startSpiral(Vec3 center, double angle) {
+        this.spiralCenter = center;
+        this.spiralRadius = 0.5D;
+        this.spiralAngle = angle;
+        this.setPos(center.x + Math.cos(angle) * this.spiralRadius, center.y,
+                center.z + Math.sin(angle) * this.spiralRadius);
+    }
+
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
         this.setVariant(tag.getInt("Variant"));
+        this.spiralCenter = tag.contains("SpiralCenterX")
+                ? new Vec3(tag.getDouble("SpiralCenterX"), tag.getDouble("SpiralCenterY"), tag.getDouble("SpiralCenterZ"))
+                : null;
+        this.spiralRadius = tag.getDouble("SpiralRadius");
+        this.spiralAngle = tag.getDouble("SpiralAngle");
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         tag.putInt("Variant", this.getVariant());
+        if (this.spiralCenter != null) {
+            tag.putDouble("SpiralCenterX", this.spiralCenter.x);
+            tag.putDouble("SpiralCenterY", this.spiralCenter.y);
+            tag.putDouble("SpiralCenterZ", this.spiralCenter.z);
+            tag.putDouble("SpiralRadius", this.spiralRadius);
+            tag.putDouble("SpiralAngle", this.spiralAngle);
+        }
     }
 
     @Override
     public void tick() {
+        this.clearFire();
         super.tick();
+        this.clearFire();
 
         if (this.isBursting()) {
             this.burstTicks++;
@@ -120,6 +152,9 @@ public class DinocampusBubbleEntity extends Entity implements GeoEntity {
 
         Vec3 movement = this.getDeltaMovement();
         this.move(MoverType.SELF, movement);
+        if (this.level().isClientSide() && !this.isBursting()) {
+            spawnTrail();
+        }
 
         // 赤い泡は追尾し続けて当たらないまま長引くことがあるため、専用の寿命で先に弾けさせる
         if (this.getVariant() == RED && this.tickCount > RED_LIFETIME_TICKS) {
@@ -147,12 +182,12 @@ public class DinocampusBubbleEntity extends Entity implements GeoEntity {
 
         switch (this.getVariant()) {
             case RED -> {
-                living.hurt(source, 14.0F); // ★ 8.0F -> 14.0F
+                living.hurt(source, RagnarokConfig.scaleSpecialDamage(sourceOwner, 14.0F));
                 living.setSecondsOnFire(5);
                 living.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, 0));
             }
             case YELLOW -> {
-                living.hurt(source, 16.0F); // ★ 9.0F -> 16.0F
+                living.hurt(source, RagnarokConfig.scaleSpecialDamage(sourceOwner, 16.0F));
                 if (this.level() instanceof ServerLevel sl) {
                     net.minecraft.world.entity.LightningBolt lightning =
                             net.minecraft.world.entity.EntityType.LIGHTNING_BOLT.create(sl);
@@ -164,7 +199,7 @@ public class DinocampusBubbleEntity extends Entity implements GeoEntity {
                 }
             }
             default -> {
-                living.hurt(source, 12.0F); // ★ 6.0F -> 12.0F
+                living.hurt(source, RagnarokConfig.scaleSpecialDamage(sourceOwner, 12.0F));
                 living.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 60, 1));
                 addSuffocation(living, 60);
             }
@@ -185,19 +220,45 @@ public class DinocampusBubbleEntity extends Entity implements GeoEntity {
             this.setDeltaMovement(current.scale(0.88D).add(desired.scale(0.12D)));
         } else if (variant == YELLOW) {
             Vec3 current = this.getDeltaMovement();
-            this.setDeltaMovement(current.x, 0.0D, current.z);
+            if (this.spiralCenter != null) {
+                this.spiralRadius += SPIRAL_RADIAL_SPEED;
+                // Cap tangential speed so outer bubbles do not accelerate or skip targets.
+                this.spiralAngle += Math.min(0.12D, SPIRAL_TANGENTIAL_SPEED / this.spiralRadius);
+                double nextX = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius;
+                double nextZ = this.spiralCenter.z + Math.sin(this.spiralAngle) * this.spiralRadius;
+                this.setDeltaMovement(nextX - this.getX(), 0.0D, nextZ - this.getZ());
+            } else {
+                this.setDeltaMovement(current.x, 0.0D, current.z);
+            }
             this.setPos(this.getX(), this.level().getHeightmapPos(
                     net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                     this.blockPosition()).getY() + 0.08D, this.getZ());
         }
 
-        if (this.level() instanceof ServerLevel sl) {
-            var particle = switch (variant) {
+    }
+
+    // Continuous trails are client-side to avoid a packet per projectile per tick.
+    private void spawnTrail() {
+        Vec3 direction = this.getDeltaMovement().normalize();
+        Vec3 side = direction.cross(new Vec3(0, 1, 0));
+        if (side.lengthSqr() < 0.001D) side = new Vec3(1, 0, 0);
+        side = side.normalize();
+        Vec3 up = side.cross(direction).normalize();
+        for (int i = 0; i < 2; i++) {
+            double angle = this.tickCount * 0.55D + i * Math.PI;
+            Vec3 offset = side.scale(Math.cos(angle) * 0.35D).add(up.scale(Math.sin(angle) * 0.35D));
+            Vec3 point = this.position().add(0, this.getBbHeight() * 0.5D, 0).add(offset);
+            var particle = switch (this.getVariant()) {
                 case RED -> ParticleTypes.FLAME;
                 case YELLOW -> ParticleTypes.ELECTRIC_SPARK;
-                default -> ParticleTypes.BUBBLE;
+                default -> BLUE_TRAIL;
             };
-            sl.sendParticles(particle, this.getX(), this.getY(), this.getZ(), 2, 0.12D, 0.12D, 0.12D, 0.01D);
+            this.level().addParticle(particle, point.x, point.y, point.z,
+                    -direction.x * 0.03D, 0.02D, -direction.z * 0.03D);
+        }
+        if (this.tickCount % 3 == 0) {
+            this.level().addParticle(this.getVariant() == RED ? ParticleTypes.SMOKE : ParticleTypes.SPLASH,
+                    this.getX(), this.getY() + 0.1D, this.getZ(), 0, 0.02D, 0);
         }
     }
 
@@ -266,6 +327,21 @@ public class DinocampusBubbleEntity extends Entity implements GeoEntity {
                 default -> ParticleTypes.BUBBLE_POP;
             };
             sl.sendParticles(particle, this.getX(), this.getY(), this.getZ(), 24, 0.35D, 0.35D, 0.35D, 0.05D);
+            // A short radial burst marks the actual hit, before the burst animation finishes.
+            for (int i = 0; i < 16; i++) {
+                double angle = Math.PI * 2.0D * i / 16;
+                sl.sendParticles(this.getVariant() == BLUE ? ParticleTypes.SPLASH : particle,
+                        this.getX() + Math.cos(angle) * 0.45D, this.getY() + 0.3D,
+                        this.getZ() + Math.sin(angle) * 0.45D,
+                        0, Math.cos(angle) * 0.2D, 0.08D, Math.sin(angle) * 0.2D, 1.0D);
+            }
+            if (this.getVariant() == RED) {
+                sl.sendParticles(ParticleTypes.SMOKE, this.getX(), this.getY(), this.getZ(),
+                        10, 0.4D, 0.4D, 0.4D, 0.04D);
+                sl.playSound(null, this.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.HOSTILE, 0.8F, 1.2F);
+            } else if (this.getVariant() == YELLOW) {
+                sl.sendParticles(ParticleTypes.FLASH, this.getX(), this.getY() + 0.3D, this.getZ(), 1, 0, 0, 0, 0);
+            }
         }
 
         this.level().playSound(null, this.getX(), this.getY(), this.getZ(),

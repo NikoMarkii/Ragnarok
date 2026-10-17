@@ -1,11 +1,18 @@
 package com.niko.ragnarok.entity;
 
+import com.niko.ragnarok.config.RagnarokConfig;
+
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 
 public class Mid_Boss_Monster extends Monster {
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        return super.hurt(source, RagnarokConfig.capDamage(this, source, amount, 0.0F));
+    }
+
     protected Mid_Boss_Monster(EntityType<? extends Monster> p_33002_, Level p_33003_) {
         super(p_33002_, p_33003_);
     }
