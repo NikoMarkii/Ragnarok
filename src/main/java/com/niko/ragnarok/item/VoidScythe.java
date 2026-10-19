@@ -5,6 +5,7 @@ import com.google.common.collect.Multimap;
 import com.niko.ragnarok.entity.Projectile.VoidSlashEntity;
 import com.niko.ragnarok.entity.RagnarokEntities;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -25,11 +26,19 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import org.jetbrains.annotations.Nullable;
+import software.bernie.geckolib.animatable.GeoItem;
+import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
+import java.util.function.Consumer;
 
-public class VoidScythe extends TieredItem {
+public class VoidScythe extends TieredItem implements GeoItem {
+    private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private final Multimap<Attribute, AttributeModifier> defaultModifiers;
     private static final int SPECIAL_COOLDOWN = 120; // 6秒クールダウン
 
@@ -44,6 +53,30 @@ public class VoidScythe extends TieredItem {
         builder.put(Attributes.ATTACK_SPEED,
                 new AttributeModifier(BASE_ATTACK_SPEED_UUID, "Weapon modifier", -3.2D, AttributeModifier.Operation.ADDITION));
         this.defaultModifiers = builder.build();
+    }
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return cache;
+    }
+
+    @Override
+    public void initializeClient(Consumer<IClientItemExtensions> consumer) {
+        consumer.accept(new IClientItemExtensions() {
+            private VoidScytheRenderer renderer;
+
+            @Override
+            public BlockEntityWithoutLevelRenderer getCustomRenderer() {
+                if (renderer == null) {
+                    renderer = new VoidScytheRenderer();
+                }
+                return renderer;
+            }
+        });
     }
 
     @Override
@@ -88,11 +121,17 @@ public class VoidScythe extends TieredItem {
 
         // クライアント側：アニメーション開始
         if (level.isClientSide) {
-            triggerBetterCombat(player);
+            if (ModList.get().isLoaded("bettercombat")) {
+                triggerBetterCombat(player);
+            } else {
+                player.swing(hand);
+            }
         } else {
-            // サーバー側：即座に出さず、アニメーションに合わせて遅らせる
-            // Better Combat の Scythe アニメーションなら 5～8 Tick (約0.25～0.4秒) 程度が目安だ
-            startDelayedShoot(level, player, 6); // 6 Tick 遅らせる
+            if (ModList.get().isLoaded("bettercombat")) {
+                startDelayedShoot(level, player, 6);
+            } else {
+                shootSlash(level, player, true);
+            }
             player.getCooldowns().addCooldown(this, SPECIAL_COOLDOWN);
         }
 

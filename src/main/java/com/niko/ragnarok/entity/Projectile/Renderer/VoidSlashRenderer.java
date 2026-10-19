@@ -11,6 +11,8 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import com.niko.ragnarok.entity.Projectile.VoidSlashEntity;
 
 public class VoidSlashRenderer extends EntityRenderer<VoidSlashEntity> {
@@ -28,9 +30,18 @@ public class VoidSlashRenderer extends EntityRenderer<VoidSlashEntity> {
     public void render(VoidSlashEntity entity, float entityYaw, float partialTicks, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
         poseStack.pushPose();
 
-        // 回転は水平に固定
-        poseStack.mulPose(Axis.YP.rotationDegrees(-180F - entity.getViewYRot(partialTicks)));
-        // XP（縦回転）を入れないことで、常に水平を保つ
+        Vec3 velocity = entity.getDeltaMovement();
+        float yaw = entity.getYRot();
+        float pitch = entity.getXRot();
+        if (velocity.lengthSqr() > 1.0E-12D) {
+            double horizontalSpeed = velocity.horizontalDistance();
+            if (horizontalSpeed > 1.0E-6D) {
+                yaw = (float) (Mth.atan2(velocity.x, velocity.z) * Mth.RAD_TO_DEG);
+            }
+            pitch = (float) (Mth.atan2(velocity.y, horizontalSpeed) * Mth.RAD_TO_DEG);
+        }
+        poseStack.mulPose(Axis.YP.rotationDegrees(yaw - 180.0F));
+        poseStack.mulPose(Axis.XP.rotationDegrees(pitch));
 
         // 【重要】余計な translate はすべて消去！
         // これで当たり判定の中心にモデルが来る

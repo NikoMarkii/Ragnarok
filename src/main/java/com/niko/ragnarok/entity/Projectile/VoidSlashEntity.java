@@ -23,6 +23,8 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 public class VoidSlashEntity extends ThrowableItemProjectile {
+    private static final double TRAIL_HALF_WIDTH = 2.0D;
+    private static final int TRAIL_PARTICLE_COUNT = 17;
     // データアクセサは変更なし
     private static final EntityDataAccessor<Boolean> IS_BIG = SynchedEntityData.defineId(VoidSlashEntity.class, EntityDataSerializers.BOOLEAN);
 
@@ -50,7 +52,6 @@ public class VoidSlashEntity extends ThrowableItemProjectile {
         return this.entityData.get(IS_BIG);
     }
 
-    // tick内のパーティクル演出は変更なし
     @Override
     public void tick() {
         // super.tick() を呼ぶと重力が計算されてしまうため、
@@ -86,13 +87,33 @@ public class VoidSlashEntity extends ThrowableItemProjectile {
 
         // 4. パーティクル演出
         if (this.level().isClientSide) {
-            this.level().addParticle(ParticleTypes.SOUL,
-                    this.getX(), this.getY() + 0.1, this.getZ(), 0, 0, 0);
+            this.spawnTrailParticles();
         }
 
         // 40tick（2秒）で消滅する設定はそのまま
         if (this.tickCount > 40) {
             this.discard();
+        }
+    }
+
+    private void spawnTrailParticles() {
+        Vec3 velocity = this.getDeltaMovement();
+        double horizontalSpeed = velocity.horizontalDistance();
+        Vec3 sideways;
+        if (horizontalSpeed > 1.0E-6D) {
+            sideways = new Vec3(velocity.z / horizontalSpeed, 0.0D, -velocity.x / horizontalSpeed);
+        } else {
+            double yaw = Math.toRadians(this.getYRot());
+            sideways = new Vec3(Math.cos(yaw), 0.0D, -Math.sin(yaw));
+        }
+
+        for (int particleIndex = 0; particleIndex < TRAIL_PARTICLE_COUNT; particleIndex++) {
+            double offset = -TRAIL_HALF_WIDTH
+                    + 2.0D * TRAIL_HALF_WIDTH * particleIndex / (TRAIL_PARTICLE_COUNT - 1);
+            Vec3 particlePosition = this.position().add(sideways.scale(offset));
+            this.level().addParticle(ParticleTypes.SOUL,
+                    particlePosition.x, particlePosition.y + 0.1D, particlePosition.z,
+                    0.0D, 0.0D, 0.0D);
         }
     }
 

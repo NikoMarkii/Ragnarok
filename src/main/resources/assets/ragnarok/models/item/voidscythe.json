@@ -1,0 +1,48 @@
+{
+  "credit": "Made with Blockbench",
+  "parent": "builtin/entity",
+  "texture_size": [
+    256,
+    256
+  ],
+  "display": {
+    "thirdperson_righthand": {
+      "translation": [
+        0,
+        0,
+        1.5
+      ]
+    },
+    "thirdperson_lefthand": {
+      "translation": [
+        0,
+        0,
+        1.5
+      ]
+    },
+    "firstperson_righthand": {
+      "rotation": [
+        -36,
+        0,
+        0
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        -36,
+        0,
+        0
+      ]
+    },
+    "ground": {
+      "scale": [
+        0.37,
+        0.37,
+        0.37
+      ]
+    }
+  },
+  "textures": {
+    "particle": "ragnarok:item/voidscythe"
+  }
+}
