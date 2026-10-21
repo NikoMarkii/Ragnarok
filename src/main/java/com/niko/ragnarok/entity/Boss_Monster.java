@@ -1,6 +1,7 @@
 package com.niko.ragnarok.entity;
 
 import com.niko.ragnarok.config.RagnarokConfig;
+import com.niko.ragnarok.loot.BossLoreRewards;
 
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.sounds.SoundEvent;
@@ -9,6 +10,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.world.level.Level;
@@ -40,6 +42,20 @@ public abstract class Boss_Monster extends Monster {
 
     protected Boss_Monster(EntityType<? extends Monster> type, Level level) {
         super(type, level);
+    }
+
+    @Nullable
+    protected Item getLoreItem() {
+        return null;
+    }
+
+    @Override
+    protected void dropFromLootTable(DamageSource source, boolean recentlyHit) {
+        super.dropFromLootTable(source, recentlyHit);
+        Item loreItem = getLoreItem();
+        if (loreItem != null) {
+            BossLoreRewards.award(this, source, loreItem);
+        }
     }
 
     @Override
@@ -82,7 +98,11 @@ public abstract class Boss_Monster extends Monster {
     public boolean hurt(DamageSource source, float amount) {
         // /killコマンドや即死ダメージはキャップ・軽減しない
         if (source.is(net.minecraft.tags.DamageTypeTags.BYPASSES_INVULNERABILITY)) {
-            return super.hurt(source, amount);
+            boolean result = super.hurt(source, amount);
+            if (result && getLoreItem() != null) {
+                BossLoreRewards.recordHit(this, source);
+            }
+            return result;
         }
 
         float capped = RagnarokConfig.capDamage(this, source, amount, MAX_DAMAGE_PER_HIT);
@@ -99,6 +119,9 @@ public abstract class Boss_Monster extends Monster {
         boolean result = super.hurt(source, capped);
 
         if (result) {
+            if (getLoreItem() != null) {
+                BossLoreRewards.recordHit(this, source);
+            }
             damageReductionTimer = DAMAGE_REDUCTION_DURATION;
 
             // ── 追加：攻撃を受けたので適応スタックを増加させ、減衰タイマーをリセット ──

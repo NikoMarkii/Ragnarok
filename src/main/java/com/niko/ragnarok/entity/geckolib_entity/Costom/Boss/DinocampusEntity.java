@@ -7,6 +7,7 @@ import com.niko.ragnarok.entity.Boss_Monster;
 import com.niko.ragnarok.entity.Projectile.DinocampusBubbleEntity;
 import com.niko.ragnarok.entity.others.RkMobPathNavigation;
 import com.niko.ragnarok.entity.others.RkSmoothMoveControl;
+import com.niko.ragnarok.item.Ragnarok_mainItems;
 import com.niko.ragnarok.network.RagnarokNetwork;
 import com.niko.ragnarok.network.ScreenShakePacket;
 import com.niko.ragnarok.sound.RagnarokSoundEvents;
@@ -41,6 +42,7 @@ import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
@@ -60,6 +62,11 @@ import java.util.Iterator;
 import java.util.List;
 
 public class DinocampusEntity extends Boss_Monster implements GeoEntity, ICustomBossBar {
+    @Override
+    protected Item getLoreItem() {
+        return Ragnarok_mainItems.DINOCAMPUS_LORE.get();
+    }
+
     private static final EntityDataAccessor<Integer> ATTACK_STATE =
             SynchedEntityData.defineId(DinocampusEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> IS_DYING =

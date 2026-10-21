@@ -77,6 +77,8 @@ public class RagnarokModTabs {
                                 output.accept(Ragnarok_mainItems.MAGIC_GOLEM_SPAWN_EGG.get());
                                 output.accept(Ragnarok_mainItems.SCORPION_SPAWN_EGG.get());
                             }
+                            output.accept(Ragnarok_mainItems.GRADIUS_LORE.get());
+                            output.accept(Ragnarok_mainItems.DINOCAMPUS_LORE.get());
                         })
                         .build();
             });

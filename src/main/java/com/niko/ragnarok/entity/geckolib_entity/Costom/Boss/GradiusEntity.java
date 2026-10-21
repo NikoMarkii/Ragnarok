@@ -39,6 +39,7 @@ import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -113,6 +114,11 @@ import java.util.*;
  * ────────────────────────────────────────────────────────────
  */
 public class GradiusEntity extends Boss_Monster implements GeoEntity, ICustomBossBar {
+
+    @Override
+    protected Item getLoreItem() {
+        return Ragnarok_mainItems.GRADIUS_LORE.get();
+    }
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 

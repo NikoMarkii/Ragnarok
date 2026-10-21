@@ -52,6 +52,12 @@ public class Ragnarok_mainItems {
 
     public static final RegistryObject<Item> GRADIUS_SOUL = ITEMS.register("gradius_soul",() -> new Item(new Item.Properties()));
 
+    public static final RegistryObject<Item> GRADIUS_LORE = ITEMS.register("gradius_lore",
+            () -> new BossLoreItem(4, new Item.Properties().stacksTo(1).rarity(Rarity.RARE).fireResistant()));
+
+    public static final RegistryObject<Item> DINOCAMPUS_LORE = ITEMS.register("dinocampus_lore",
+            () -> new BossLoreItem(4, new Item.Properties().stacksTo(1).rarity(Rarity.RARE).fireResistant()));
+
     public static final RegistryObject<Item> RED_CREEPER_SPAWN_EGG = ITEMS.register("red_creeper_spawn_egg",
             () -> new ForgeSpawnEggItem(RagnarokEntities.RED_CREEPER,
                     Color.RED.getRGB(),Color.BLACK.getRGB(),new Item.Properties()));
