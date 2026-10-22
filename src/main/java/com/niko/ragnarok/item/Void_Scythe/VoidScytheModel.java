@@ -1,4 +1,4 @@
-package com.niko.ragnarok.item;
+package com.niko.ragnarok.item.Void_Scythe;
 
 import com.niko.ragnarok.Ragnarok;
 import net.minecraft.resources.ResourceLocation;

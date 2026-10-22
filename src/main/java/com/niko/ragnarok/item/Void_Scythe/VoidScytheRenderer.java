@@ -1,4 +1,4 @@
-package com.niko.ragnarok.item;
+package com.niko.ragnarok.item.Void_Scythe;
 
 import software.bernie.geckolib.renderer.GeoItemRenderer;
 

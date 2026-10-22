@@ -6,6 +6,7 @@ import com.niko.ragnarok.item.Armor.GradiusArmorItem;
 import com.niko.ragnarok.item.Armor.NaitomeaArmorItem;
 import com.niko.ragnarok.item.Armor.RagnarokArmorMaterials;
 import com.niko.ragnarok.item.Gradius_Great_Sword.GradiusGreatSword;
+import com.niko.ragnarok.item.Void_Scythe.VoidScythe;
 import net.minecraft.ChatFormatting;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.*;
@@ -53,10 +54,10 @@ public class Ragnarok_mainItems {
     public static final RegistryObject<Item> GRADIUS_SOUL = ITEMS.register("gradius_soul",() -> new Item(new Item.Properties()));
 
     public static final RegistryObject<Item> GRADIUS_LORE = ITEMS.register("gradius_lore",
-            () -> new BossLoreItem(4, new Item.Properties().stacksTo(1).rarity(Rarity.RARE).fireResistant()));
+            () -> new BossLoreItem(new Item.Properties().stacksTo(1).rarity(Rarity.RARE).fireResistant()));
 
     public static final RegistryObject<Item> DINOCAMPUS_LORE = ITEMS.register("dinocampus_lore",
-            () -> new BossLoreItem(4, new Item.Properties().stacksTo(1).rarity(Rarity.RARE).fireResistant()));
+            () -> new BossLoreItem(new Item.Properties().stacksTo(1).rarity(Rarity.RARE).fireResistant()));
 
     public static final RegistryObject<Item> RED_CREEPER_SPAWN_EGG = ITEMS.register("red_creeper_spawn_egg",
             () -> new ForgeSpawnEggItem(RagnarokEntities.RED_CREEPER,
