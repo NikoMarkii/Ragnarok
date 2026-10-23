@@ -52,7 +52,7 @@ public class RagnarokEntities {
     public static final RegistryObject<EntityType<EnderSoldierEntity>> ENDER_SOLDIER =
             ENTITY_TYPES.register("ender_soldier",() ->
                     EntityType.Builder.of(EnderSoldierEntity::new,MobCategory.MONSTER)
-                            .sized(3F,4.5F)
+                            .sized(EnderSoldierEntity.BODY_WIDTH, EnderSoldierEntity.BODY_HEIGHT)
                             .build("ender_soldier")
             );
     public static final RegistryObject<EntityType<FairyEntity>> FAIRY = ENTITY_TYPES.register("fairy",
