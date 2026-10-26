@@ -185,14 +185,31 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
         if (this.level().isClientSide || !this.isAlive()) {
             return;
         }
-        if (!isEnraged() && this.getHealth() <= this.getMaxHealth() * 0.5F) {
-            this.entityData.set(ENRAGED, true);
-            this.playSound(SoundEvents.ENDERMAN_SCREAM, 1.0F, 0.7F);
+        boolean enraged = this.getHealth() <= this.getMaxHealth() * 0.5F;
+        if (isEnraged() != enraged) {
+            this.entityData.set(ENRAGED, enraged);
+            if (enraged) {
+                this.playSound(SoundEvents.ENDERMAN_SCREAM, 1.0F, 0.7F);
+            } else if (getAttackState() == Attack.BEAM.id) {
+                // Returning to the normal phase also ends an active enraged-only attack.
+                if (this.attackGoal != null) this.attackGoal.stop();
+                else this.setAttackState(0);
+            }
         }
         AttributeInstance attack = this.getAttribute(Attributes.ATTACK_DAMAGE);
-        if (isEnraged() && attack != null && !attack.hasModifier(ENRAGED_ATTACK_BOOST)) {
-            attack.addTransientModifier(ENRAGED_ATTACK_BOOST);
+        if (attack != null) {
+            if (enraged && !attack.hasModifier(ENRAGED_ATTACK_BOOST)) {
+                attack.addTransientModifier(ENRAGED_ATTACK_BOOST);
+            } else if (!enraged && attack.hasModifier(ENRAGED_ATTACK_BOOST)) {
+                attack.removeModifier(ENRAGED_ATTACK_BOOST);
+            }
         }
+    }
+
+    @Override
+    public void heal(float amount) {
+        super.heal(amount);
+        updateEnragedState();
     }
 
     @Override
@@ -388,6 +405,12 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
         this.beamCooldown = Mth.clamp(tag.getInt("BeamCooldown"), 0, EnderSoldierBeam.COOLDOWN);
         updateEnragedState();
     }
+
+    @Override
+    public float getVoicePitch() {
+        return super.getVoicePitch() * 0.8F;
+    }
+
     @Override
     protected SoundEvent getAmbientSound() {
         return SoundEvents.ENDERMAN_AMBIENT; 
@@ -814,7 +837,7 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
             AABB area = new AABB(origin, end).inflate(EnderSoldierBeam.RADIUS);
             float damage = (float) mob.getAttributeValue(Attributes.ATTACK_DAMAGE) * Attack.BEAM.damageMultiplier;
             for (LivingEntity target : mob.level().getEntitiesOfClass(LivingEntity.class, area)) {
-                if (!isValidTarget(target) || target == mob || target instanceof EnderSoldierEntity || mob.isAlliedTo(target)) {
+                if (!isValidTarget(target) || target == mob || mob.isAlliedTo(target)) {
                     continue;
                 }
                 AABB bounds = target.getBoundingBox();
@@ -867,7 +890,7 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
             AABB area = getMeleeArea(mob.position());
             float damage = (float) mob.getAttributeValue(Attributes.ATTACK_DAMAGE) * attack.damageMultiplier;
             for (LivingEntity target : mob.level().getEntitiesOfClass(LivingEntity.class, area)) {
-                if (!isValidTarget(target) || target == mob || target instanceof EnderSoldierEntity
+                if (!isValidTarget(target) || target == mob
                         || mob.isAlliedTo(target) || !mob.hasLineOfSight(target)) {
                     continue;
                 }
@@ -877,7 +900,7 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
                 }
             }
             mob.playSound(attack == Attack.SLAM ? SoundEvents.TRIDENT_RIPTIDE_3 : SoundEvents.TRIDENT_THROW,
-                    1.0F, attack == Attack.SLAM ? 0.7F : 0.85F);
+                    1.0F, attack == Attack.SLAM ? 0.6F : 0.7F);
         }
     }
 }
