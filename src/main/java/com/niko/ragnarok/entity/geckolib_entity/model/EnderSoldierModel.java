@@ -90,9 +90,9 @@ public class EnderSoldierModel extends GeoModel<EnderSoldierEntity> {
         bone.setPosX(Mth.lerp(blend, previous.getOffsetX(), bone.getPosX()));
         bone.setPosY(Mth.lerp(blend, previous.getOffsetY(), bone.getPosY()));
         bone.setPosZ(Mth.lerp(blend, previous.getOffsetZ(), bone.getPosZ()));
-        bone.setRotX(Mth.lerp(blend, previous.getRotX(), bone.getRotX()));
-        bone.setRotY(Mth.lerp(blend, previous.getRotY(), bone.getRotY()));
-        bone.setRotZ(Mth.lerp(blend, previous.getRotZ(), bone.getRotZ()));
+        bone.setRotX(blendRotation(blend, previous.getRotX(), bone.getRotX()));
+        bone.setRotY(blendRotation(blend, previous.getRotY(), bone.getRotY()));
+        bone.setRotZ(blendRotation(blend, previous.getRotZ(), bone.getRotZ()));
         bone.setScaleX(Mth.lerp(blend, previous.getScaleX(), bone.getScaleX()));
         bone.setScaleY(Mth.lerp(blend, previous.getScaleY(), bone.getScaleY()));
         bone.setScaleZ(Mth.lerp(blend, previous.getScaleZ(), bone.getScaleZ()));
@@ -106,6 +106,12 @@ public class EnderSoldierModel extends GeoModel<EnderSoldierEntity> {
         if (scaleChanged) {
             bone.markScaleAsChanged();
         }
+    }
+
+    static float blendRotation(float blend, float from, float to) {
+        // Preserve full turns inside attacks, but never unwind them between animations.
+        float difference = Mth.wrapDegrees((to - from) * Mth.RAD_TO_DEG) * Mth.DEG_TO_RAD;
+        return from + blend * difference;
     }
 
     private static class PoseTransition {

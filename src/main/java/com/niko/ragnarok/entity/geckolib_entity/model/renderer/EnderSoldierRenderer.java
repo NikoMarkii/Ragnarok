@@ -77,7 +77,8 @@ public class EnderSoldierRenderer extends GeoEntityRenderer<EnderSoldierEntity> 
                 trail.images.add(new Afterimage(now, currentPose));
                 trail.lastEmission = now;
             }
-            RenderType ghostType = RenderType.entityTranslucent(getRenderer().getTextureLocation(entity));
+            RenderType ghostType = RenderType.lightning();
+            VertexConsumer ghostBuffer = new AfterimageVertices(bufferSource.getBuffer(ghostType));
             try {
                 for (Afterimage afterimage : trail.images) {
                     float age = now - afterimage.createdAt;
@@ -89,14 +90,64 @@ public class EnderSoldierRenderer extends GeoEntityRenderer<EnderSoldierEntity> 
                     try {
                         poseStack.translate(Math.sin(bodyYaw) * drift, 0.0D, -Math.cos(bodyYaw) * drift);
                         getRenderer().reRender(model, poseStack, bufferSource, entity, ghostType,
-                                bufferSource.getBuffer(ghostType), partialTick, LightTexture.FULL_BRIGHT,
-                                OverlayTexture.NO_OVERLAY, 0.75F, 0.55F, 1.0F, opacity);
+                                ghostBuffer, partialTick, LightTexture.FULL_BRIGHT,
+                                OverlayTexture.NO_OVERLAY, 0.85F, 0.65F, 1.0F, opacity);
                     } finally {
                         poseStack.popPose();
                     }
                 }
             } finally {
                 currentPose.forEach(BonePose::apply);
+            }
+        }
+
+        // The additive lightning shader needs only position/color, not the dark skin texture or lighting.
+        private record AfterimageVertices(VertexConsumer delegate) implements VertexConsumer {
+            @Override
+            public VertexConsumer vertex(double x, double y, double z) {
+                delegate.vertex(x, y, z);
+                return this;
+            }
+
+            @Override
+            public VertexConsumer color(int red, int green, int blue, int alpha) {
+                delegate.color(red, green, blue, alpha);
+                return this;
+            }
+
+            @Override
+            public VertexConsumer uv(float u, float v) {
+                return this;
+            }
+
+            @Override
+            public VertexConsumer overlayCoords(int u, int v) {
+                return this;
+            }
+
+            @Override
+            public VertexConsumer uv2(int u, int v) {
+                return this;
+            }
+
+            @Override
+            public VertexConsumer normal(float x, float y, float z) {
+                return this;
+            }
+
+            @Override
+            public void endVertex() {
+                delegate.endVertex();
+            }
+
+            @Override
+            public void defaultColor(int red, int green, int blue, int alpha) {
+                delegate.defaultColor(red, green, blue, alpha);
+            }
+
+            @Override
+            public void unsetDefaultColor() {
+                delegate.unsetDefaultColor();
             }
         }
 

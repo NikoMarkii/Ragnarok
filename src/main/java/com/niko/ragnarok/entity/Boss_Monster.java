@@ -1,6 +1,7 @@
 package com.niko.ragnarok.entity;
 
 import com.niko.ragnarok.config.RagnarokConfig;
+import com.niko.ragnarok.entity.others.BossRegeneration;
 import com.niko.ragnarok.loot.BossLoreRewards;
 
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -27,11 +28,9 @@ public abstract class Boss_Monster extends Monster {
     private static final float MAX_DAMAGE_PER_HIT = 21.0F;
     private static final int DAMAGE_REDUCTION_DURATION = 10;
     private static final float DAMAGE_REDUCTION_FACTOR = 0.09F;
-    private static final int REGEN_INTERVAL = 20;
-    private static final float REGEN_AMOUNT = 50.0F;
 
     private int damageReductionTimer = 0;
-    private int regenTimer = 0;
+    private final BossRegeneration regeneration = new BossRegeneration();
 
     private static final int MAX_ADAPTATION_STACKS = 10;          // 最大スタック数
     private static final float ADAPTATION_REDUCTION_PER_STACK = 0.05F; // 1スタックあたりのカット率 (0.05 = 5%)
@@ -171,20 +170,7 @@ public abstract class Boss_Monster extends Monster {
         }
 
         // 待機中ではなく、戦闘外であり、生きているかつ体力が減っている場合
-        if (!this.level().isClientSide()
-                && !isInStandbyState()
-                && isOutOfCombat
-                && this.isAlive()
-                && this.getHealth() < this.getMaxHealth()) {
-
-            regenTimer++;
-            if (regenTimer >= REGEN_INTERVAL) {
-                regenTimer = 0;
-                this.heal(REGEN_AMOUNT);
-            }
-        } else {
-            regenTimer = 0;
-        }
+        regeneration.tick(this, isInStandbyState(), 50.0F);
     }
     @Override
     public boolean causeFallDamage(float d, float m, DamageSource s) {

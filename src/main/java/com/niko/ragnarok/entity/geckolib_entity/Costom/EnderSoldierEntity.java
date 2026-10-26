@@ -1,6 +1,7 @@
 package com.niko.ragnarok.entity.geckolib_entity.Costom;
 
 import com.niko.ragnarok.entity.Mid_Boss_Monster;
+import com.niko.ragnarok.effect.ModMobEffects;
 import com.niko.ragnarok.entity.others.EnderSoldierBeam;
 import com.niko.ragnarok.entity.others.RkBodyRotationControl;
 import com.niko.ragnarok.entity.others.RkCombatUtil;
@@ -18,6 +19,7 @@ import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -54,6 +56,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.EnumSet;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
     public static final float BODY_WIDTH = 2.5F;
@@ -78,6 +81,7 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
     private int previousAttackState;
     private int targetChangeTime;
     private int beamCooldown;
+    private SoldierAttackGoal attackGoal;
 
     public EnderSoldierEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
@@ -89,8 +93,8 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
         return Monster.createMonsterAttributes()
                 .add(Attributes.MAX_HEALTH, 200.0D)
                 .add(Attributes.MOVEMENT_SPEED, 0.2D)
-                .add(Attributes.ATTACK_DAMAGE, 12.0D)
-                .add(Attributes.FOLLOW_RANGE, 32.0D)
+                .add(Attributes.ATTACK_DAMAGE, 18.0D)
+                .add(Attributes.FOLLOW_RANGE, 50.0D)
                 .add(Attributes.ARMOR, 15.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D);
     }
@@ -107,7 +111,8 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
     @Override
     protected void registerGoals() {
         this.goalSelector.addGoal(0, new FloatGoal(this));
-        this.goalSelector.addGoal(1, new SoldierAttackGoal(this));
+        this.attackGoal = new SoldierAttackGoal(this);
+        this.goalSelector.addGoal(1, this.attackGoal);
         this.goalSelector.addGoal(2, new WaterAvoidingRandomStrollGoal(this, 1.0D));
         this.goalSelector.addGoal(3, new LookAtPlayerGoal(this, Player.class, 8.0F));
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
@@ -152,6 +157,11 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
         Vec3 end = origin.add(getBeamDirection().scale(EnderSoldierBeam.RANGE));
         return this.level().clip(new ClipContext(origin, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this))
                 .getLocation();
+    }
+
+    @Override
+    public boolean canBeAffected(MobEffectInstance effect) {
+        return effect.getEffect() != ModMobEffects.VOID_REAPER_EFFECT.get() && super.canBeAffected(effect);
     }
 
     public boolean isEnraged() {
@@ -206,6 +216,10 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
                 }
             }
             return damaged;
+        }
+        if (!this.level().isClientSide && this.attackGoal != null
+                && this.attackGoal.tryGuardHit(source, amount)) {
+            return false;
         }
         boolean damaged = super.hurt(source, amount);
         if (damaged) {
@@ -262,6 +276,11 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
     }
 
     private boolean tryTeleport(double targetX, double targetY, double targetZ) {
+        return tryTeleport(targetX, targetY, targetZ, null);
+    }
+
+    private boolean tryTeleport(double targetX, double targetY, double targetZ,
+                                Predicate<Vec3> continuingAttackLanding) {
         if (this.level().isClientSide || !this.isAlive()) {
             return false;
         }
@@ -281,11 +300,32 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
         if (event.isCanceled()) {
             return false;
         }
+        double landingY = event.getTargetY();
+        if (continuingAttackLanding != null) {
+            // Validate the actual destination after other mods have handled the teleport event.
+            ground.set(event.getTargetX(), landingY, event.getTargetZ());
+            if (!this.level().hasChunkAt(ground)) return false;
+            while (ground.getY() > this.level().getMinBuildHeight()
+                    && !this.level().getBlockState(ground).blocksMotion()) {
+                ground.move(Direction.DOWN);
+            }
+            landingY = ground.getY() + 1.0D;
+            Vec3 landing = new Vec3(event.getTargetX(), landingY, event.getTargetZ());
+            AABB bounds = this.getBoundingBox().move(landing.subtract(this.position()));
+            if (!this.level().getBlockState(ground).blocksMotion()
+                    || !this.level().getFluidState(ground).isEmpty()
+                    || bounds.maxY > this.level().getMaxBuildHeight()
+                    || !this.level().hasChunksAt(BlockPos.containing(bounds.minX, bounds.minY, bounds.minZ),
+                    BlockPos.containing(bounds.maxX, bounds.maxY, bounds.maxZ))
+                    || !this.level().getWorldBorder().isWithinBounds(bounds)
+                    || !this.level().noCollision(this, bounds) || this.level().containsAnyLiquid(bounds)
+                    || !continuingAttackLanding.test(landing)) return false;
+        }
         Vec3 origin = this.position();
-        if (!this.randomTeleport(event.getTargetX(), event.getTargetY(), event.getTargetZ(), true)) {
+        if (!this.randomTeleport(event.getTargetX(), landingY, event.getTargetZ(), true)) {
             return false;
         }
-        this.setAttackState(0);
+        if (continuingAttackLanding == null) this.setAttackState(0);
         this.getNavigation().stop();
         this.setDeltaMovement(Vec3.ZERO);
         this.level().gameEvent(GameEvent.TELEPORT, origin, GameEvent.Context.of(this));
@@ -394,11 +434,17 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
     }
 
     private enum Attack {
-        LEFT_SWEEP(1, 25, 45, 4.5D, 140.0D, 1.0F, 0.45D),
-        RIGHT_SWEEP(2, 25, 45, 4.5D, 140.0D, 1.0F, 0.45D),
-        SLAM(3, 20, 40, 5.0D, 80.0D, 1.25F, 0.7D),
+        LEFT_SWEEP(1, 25, 45, 6.5D, 170.0D, 1.0F, 0.45D),
+        RIGHT_SWEEP(2, 25, 45, 6.5D, 170.0D, 1.0F, 0.45D),
+        SLAM(3, 20, 40, 7.0D, 120.0D, 1.25F, 0.7D),
         BEAM(4, EnderSoldierBeam.START_TICK, EnderSoldierBeam.DURATION,
-                EnderSoldierBeam.RANGE, 0.0D, 0.4F, 0.0D);
+                EnderSoldierBeam.RANGE, 0.0D, 0.4F, 0.0D),
+        LEFT_FINISHER(5, 35, 55, 7.0D, 180.0D, 1.35F, 0.8D),
+        RIGHT_FINISHER(6, 35, 55, 7.0D, 180.0D, 1.35F, 0.8D),
+        GUARD_START(7, -1, 10, 0, 0, 0, 0, "guard_start", false),
+        GUARD_LOOP(8, -1, 10, 0, 0, 0, 0, "guard_loop", true),
+        GUARD_END(9, -1, 10, 0, 0, 0, 0, "guard_end", false),
+        COUNTER(10, 10, 30, 6.0D, 160.0D, 1.25F, 0.7D, "guard_counter", false);
 
         private final int id;
         private final int impactTick;
@@ -411,6 +457,11 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
 
         Attack(int id, int impactTick, int duration, double reach, double arc,
                float damageMultiplier, double knockback) {
+            this(id, impactTick, duration, reach, arc, damageMultiplier, knockback, "attack" + id, false);
+        }
+
+        Attack(int id, int impactTick, int duration, double reach, double arc,
+               float damageMultiplier, double knockback, String animationName, boolean loop) {
             this.id = id;
             this.impactTick = impactTick;
             this.duration = duration;
@@ -418,15 +469,27 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
             this.arc = arc;
             this.damageMultiplier = damageMultiplier;
             this.knockback = knockback;
-            this.animation = RawAnimation.begin().thenPlay("attack" + id);
+            this.animation = loop ? RawAnimation.begin().thenLoop(animationName)
+                    : RawAnimation.begin().thenPlay(animationName);
         }
     }
 
     private static class SoldierAttackGoal extends Goal {
-        private static final double ATTACK_START_RANGE = 4.0D;
+        private static final double ATTACK_START_RANGE = 5.0D;
         private static final double CHASE_SPEED_MULTIPLIER = 1.25D;
         private static final double ATTACK_STEP_SPEED = 1.1D;
+        private static final double BASIC_ATTACK_STEP_SPEED = 1.6D;
+        private static final int FINISHER_ADVANCE_START_TICK = 20;
+        private static final int FINISHER_ADVANCE_END_TICK = 40;
+        private static final double FINISHER_ADVANCE_SPEED = 0.5D;
         private static final int ATTACK_COOLDOWN = 12;
+        private static final int MELEE_TELEPORT_TICK = 15;
+        private static final float GUARD_CHANCE = 0.25F;
+        private static final int GUARD_IDLE_TICKS = 40;
+        private static final int GUARD_COUNTER_HITS = 5;
+        private static final int GUARD_COOLDOWN = 40;
+        private static final Attack[] LEFT_COMBO = {Attack.LEFT_SWEEP, Attack.RIGHT_SWEEP, Attack.LEFT_FINISHER};
+        private static final Attack[] RIGHT_COMBO = {Attack.RIGHT_SWEEP, Attack.LEFT_SWEEP, Attack.RIGHT_FINISHER};
         private static final Attack[] MELEE_ATTACKS = {Attack.LEFT_SWEEP, Attack.RIGHT_SWEEP, Attack.SLAM};
         private final EnderSoldierEntity mob;
         private Attack attack;
@@ -436,6 +499,12 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
         private int previousAttackId;
         private int teleportTime;
         private float attackYaw;
+        private float beamPitch;
+        private Attack[] combo;
+        private int comboIndex;
+        private int guardedHits;
+        private int lastGuardHitTick;
+        private int guardReadyAt;
 
         SoldierAttackGoal(EnderSoldierEntity mob) {
             this.mob = mob;
@@ -464,6 +533,13 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
 
         @Override
         public void stop() {
+            if (attack == Attack.GUARD_START || attack == Attack.GUARD_LOOP
+                    || attack == Attack.GUARD_END || attack == Attack.COUNTER) {
+                guardReadyAt = mob.tickCount + GUARD_COOLDOWN;
+            }
+            combo = null;
+            comboIndex = 0;
+            guardedHits = 0;
             mob.getNavigation().stop();
             mob.setAttackState(0);
             attack = null;
@@ -519,7 +595,57 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
                 do {
                     nextAttackId = 1 + mob.getRandom().nextInt(MELEE_ATTACKS.length);
                 } while (nextAttackId == previousAttackId);
-                startAttack(MELEE_ATTACKS[nextAttackId - 1], target);
+                Attack first = MELEE_ATTACKS[nextAttackId - 1];
+                combo = first != Attack.SLAM && mob.getRandom().nextBoolean()
+                        ? (first == Attack.LEFT_SWEEP ? LEFT_COMBO : RIGHT_COMBO) : null;
+                comboIndex = 0;
+                startAttack(first, target);
+            }
+        }
+
+        private boolean tryGuardHit(DamageSource source, float amount) {
+            if (amount <= 0 || mob.isNoAi() || mob.isPassenger()
+                    || (attack != null && mob.getAttackState() != attack.id)
+                    || source.is(DamageTypeTags.BYPASSES_INVULNERABILITY)
+                    || source.is(DamageTypeTags.BYPASSES_SHIELD)
+                    || !(source.getEntity() instanceof LivingEntity attacker)
+                    || !isValidTarget(attacker) || mob.isAlliedTo(attacker)) {
+                return false;
+            }
+            boolean guarding = attack == Attack.GUARD_START || attack == Attack.GUARD_LOOP;
+            if (!guarding) {
+                if (attack != null || mob.getAttackState() != 0 || !isValidTarget(mob.getTarget())
+                        || mob.tickCount < guardReadyAt || mob.getRandom().nextFloat() >= GUARD_CHANCE) {
+                    return false;
+                }
+                combo = null;
+                guardedHits = 0;
+                lastGuardHitTick = mob.tickCount - 1;
+                startAttack(Attack.GUARD_START, attacker);
+            }
+            // Multiple damage callbacks in the same tick count as one blocked strike.
+            if (lastGuardHitTick != mob.tickCount) {
+                guardedHits++;
+                lastGuardHitTick = mob.tickCount;
+                mob.playSound(SoundEvents.SHIELD_BLOCK, 1.0F, 0.8F);
+            }
+            if (guardedHits >= GUARD_COUNTER_HITS) {
+                startAttack(Attack.COUNTER, attacker);
+            }
+            return true;
+        }
+
+        private void tickGuard() {
+            if (isValidTarget(lockedTarget)) {
+                RkCombatUtil.faceTarget(mob, lockedTarget, 8.0F);
+                attackYaw = mob.getYRot();
+            }
+            if (attack == Attack.GUARD_END) {
+                if (attackTick >= attack.duration) stop();
+            } else if (!isValidTarget(lockedTarget) || mob.tickCount - lastGuardHitTick >= GUARD_IDLE_TICKS) {
+                startAttack(Attack.GUARD_END, lockedTarget);
+            } else if (attack == Attack.GUARD_START && attackTick >= attack.duration) {
+                startAttack(Attack.GUARD_LOOP, lockedTarget);
             }
         }
 
@@ -538,7 +664,7 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
 
         private void startAttack(Attack nextAttack, LivingEntity target) {
             mob.getNavigation().stop();
-            RkCombatUtil.faceTarget(mob, target);
+            if (isValidTarget(target)) RkCombatUtil.faceTarget(mob, target);
             attack = nextAttack;
             previousAttackId = attack.id;
             lockedTarget = target;
@@ -551,6 +677,10 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
             attackTick++;
             mob.getNavigation().stop();
             mob.setDeltaMovement(0.0D, mob.getDeltaMovement().y, 0.0D);
+            if (attack == Attack.GUARD_START || attack == Attack.GUARD_LOOP || attack == Attack.GUARD_END) {
+                tickGuard();
+                return;
+            }
             if (attack == Attack.BEAM) {
                 tickBeam();
                 return;
@@ -559,17 +689,73 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
                 RkCombatUtil.faceTarget(mob, lockedTarget, 15.0F);
                 attackYaw = mob.getYRot();
             }
+            if (attackTick == MELEE_TELEPORT_TICK
+                    && (attack == Attack.LEFT_SWEEP || attack == Attack.RIGHT_SWEEP)) {
+                teleportIntoAttackRange();
+            }
             mob.setYRot(attackYaw);
             mob.yBodyRot = attackYaw;
             mob.yHeadRot = attackYaw;
+            if (isFinisher() && attackTick >= FINISHER_ADVANCE_START_TICK
+                    && attackTick <= FINISHER_ADVANCE_END_TICK) {
+                Vec3 forward = Vec3.directionFromRotation(0, attackYaw);
+                mob.setDeltaMovement(forward.x * FINISHER_ADVANCE_SPEED, mob.getDeltaMovement().y,
+                        forward.z * FINISHER_ADVANCE_SPEED);
+            }
             if (attackTick == attack.impactTick) {
                 performAttack();
             }
             if (attackTick >= attack.duration) {
-                mob.setAttackState(0);
-                attack = null;
-                lockedTarget = null;
-                cooldown = ATTACK_COOLDOWN;
+                if (combo != null && comboIndex + 1 < combo.length && isValidTarget(lockedTarget)) {
+                    startAttack(combo[++comboIndex], lockedTarget);
+                } else {
+                    stop();
+                }
+            }
+        }
+
+        private boolean isFinisher() {
+            return attack == Attack.LEFT_FINISHER || attack == Attack.RIGHT_FINISHER;
+        }
+
+        private AABB getMeleeArea(Vec3 origin) {
+            return new AABB(origin.x - attack.reach, origin.y - 0.5D, origin.z - attack.reach,
+                    origin.x + attack.reach, origin.y + mob.getBbHeight(), origin.z + attack.reach);
+        }
+
+        private boolean isInMeleeRange(Vec3 origin, float bodyYaw, AABB target) {
+            if (!getMeleeArea(origin).intersects(target)) return false;
+            double dx = Mth.clamp(origin.x, target.minX, target.maxX) - origin.x;
+            double dz = Mth.clamp(origin.z, target.minZ, target.maxZ) - origin.z;
+            if (dx * dx + dz * dz > attack.reach * attack.reach) return false;
+            Vec3 offset = target.getCenter().subtract(origin).multiply(1, 0, 1);
+            Vec3 forward = Vec3.directionFromRotation(0, bodyYaw);
+            return offset.lengthSqr() < 1.0E-6D
+                    || forward.dot(offset.normalize()) >= Math.cos(Math.toRadians(attack.arc * 0.5D));
+        }
+
+        private void teleportIntoAttackRange() {
+            if (!isValidTarget(lockedTarget) || mob.isPassenger()
+                    || mob.distanceToSqr(lockedTarget) > 32.0D * 32.0D
+                    || isInMeleeRange(mob.position(), attackYaw, lockedTarget.getBoundingBox())) return;
+            for (float offset : new float[]{0, 45, -45, 90, -90, 180}) {
+                float yaw = attackYaw + offset;
+                Vec3 approach = Vec3.directionFromRotation(0, yaw)
+                        .scale(Math.min(ATTACK_START_RANGE, attack.reach - 1.0D));
+                Vec3 destination = lockedTarget.position().add(-approach.x, 3.0D, -approach.z);
+                boolean teleported = mob.tryTeleport(destination.x, destination.y, destination.z, landing -> {
+                    if (Math.abs(landing.y - lockedTarget.getY()) > 2.0D
+                            || !isInMeleeRange(landing, yaw, lockedTarget.getBoundingBox())) return false;
+                    AABB body = mob.getBoundingBox().move(landing.subtract(mob.position()));
+                    return !body.intersects(lockedTarget.getBoundingBox())
+                            && mob.level().clip(new ClipContext(landing.add(0, mob.getEyeHeight(), 0),
+                            lockedTarget.getEyePosition(), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mob))
+                            .getType() == HitResult.Type.MISS;
+                });
+                if (teleported) {
+                    attackYaw = yaw;
+                    return;
+                }
             }
         }
 
@@ -579,16 +765,30 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
                     stop();
                     return;
                 }
-                RkCombatUtil.faceTarget(mob, lockedTarget, 8.0F);
-                attackYaw = mob.getYRot();
+                if (attackTick < EnderSoldierBeam.AIM_LOCK_TICK) {
+                    RkCombatUtil.faceTarget(mob, lockedTarget, 8.0F);
+                    attackYaw = mob.getYRot();
+                }
+            }
+            mob.entityData.set(BEAM_TICK, attackTick);
+            boolean lockAim = attackTick == EnderSoldierBeam.AIM_LOCK_TICK;
+            boolean trackAim = attackTick >= EnderSoldierBeam.TRACKING_START_TICK
+                    && attackTick < EnderSoldierBeam.END_TICK;
+            if ((lockAim || trackAim) && isValidTarget(lockedTarget)) {
+                Vec3 aim = lockedTarget.getBoundingBox().getCenter().subtract(mob.getBeamOrigin());
+                float desiredYaw = (float) Math.toDegrees(Math.atan2(aim.z, aim.x)) - 90.0F;
+                float desiredPitch = (float) -Math.toDegrees(Math.atan2(aim.y, aim.horizontalDistance()));
+                // Keep the first shot predictable, then rotate the body and beam together.
+                attackYaw = lockAim ? desiredYaw : Mth.approachDegrees(attackYaw, desiredYaw,
+                        EnderSoldierBeam.TRACKING_DEGREES_PER_TICK);
+                beamPitch = lockAim ? desiredPitch : Mth.approachDegrees(beamPitch, desiredPitch,
+                        EnderSoldierBeam.TRACKING_DEGREES_PER_TICK);
+                mob.entityData.set(BEAM_DIRECTION, Vec3.directionFromRotation(beamPitch, attackYaw).toVector3f());
             }
             mob.setYRot(attackYaw);
             mob.yBodyRot = attackYaw;
             mob.yHeadRot = attackYaw;
-            mob.entityData.set(BEAM_TICK, attackTick);
             if (attackTick == EnderSoldierBeam.START_TICK) {
-                Vec3 aim = lockedTarget.getBoundingBox().getCenter().subtract(mob.getBeamOrigin()).normalize();
-                mob.entityData.set(BEAM_DIRECTION, aim.toVector3f());
                 mob.playSound(SoundEvents.GUARDIAN_ATTACK, 1.2F, 0.6F);
             }
             if (mob.isFiringBeam() && (attackTick - EnderSoldierBeam.START_TICK) % EnderSoldierBeam.DAMAGE_INTERVAL == 0) {
@@ -601,7 +801,13 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
 
         private void damageAlongBeam() {
             Vec3 origin = mob.getBeamOrigin();
-            Vec3 end = mob.getBeamEnd(origin);
+            var blockHit = mob.level().clip(new ClipContext(origin,
+                    origin.add(mob.getBeamDirection().scale(EnderSoldierBeam.RANGE)),
+                    ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mob));
+            Vec3 end = blockHit.getLocation();
+            if (blockHit.getType() == HitResult.Type.BLOCK) {
+                spawnBeamImpact(end.subtract(mob.getBeamDirection().scale(0.08D)));
+            }
             if (origin.distanceToSqr(end) < 1.0E-6D) {
                 return;
             }
@@ -626,37 +832,46 @@ public class EnderSoldierEntity extends Mid_Boss_Monster implements GeoEntity {
                         && obstacle.getLocation().distanceToSqr(origin) + 1.0E-6D < surface.distanceToSqr(origin)) {
                     continue;
                 }
-                target.hurt(mob.damageSources().mobAttack(mob), damage);
+                if (target.hurt(mob.damageSources().mobAttack(mob), damage) && target.isAlive()) {
+                    target.addEffect(new MobEffectInstance(ModMobEffects.VOID_REAPER_EFFECT.get(),
+                            EnderSoldierBeam.DEBUFF_DURATION, 3), mob);
+                }
+                spawnBeamImpact(surface);
                 if (!mob.isAlive()) {
                     break;
                 }
             }
         }
 
+        private void spawnBeamImpact(Vec3 position) {
+            if (!(mob.level() instanceof net.minecraft.server.level.ServerLevel level)) return;
+            level.sendParticles(ParticleTypes.EXPLOSION, position.x, position.y, position.z,
+                    1, 0.0D, 0.0D, 0.0D, 0.0D);
+            level.sendParticles(ParticleTypes.PORTAL, position.x, position.y, position.z,
+                    8, 0.25D, 0.25D, 0.25D, 0.08D);
+            level.playSound(null, position.x, position.y, position.z, SoundEvents.GENERIC_EXPLODE,
+                    mob.getSoundSource(), 0.5F, 1.4F);
+        }
+
         private void performAttack() {
             double yaw = Math.toRadians(attackYaw);
             Vec3 forward = new Vec3(-Math.sin(yaw), 0.0D, Math.cos(yaw));
-            mob.setDeltaMovement(forward.x * ATTACK_STEP_SPEED, mob.getDeltaMovement().y,
-                    forward.z * ATTACK_STEP_SPEED);
-            double minimumDot = Math.cos(Math.toRadians(attack.arc * 0.5D));
-            AABB area = new AABB(mob.getX() - attack.reach, mob.getY() - 0.5D, mob.getZ() - attack.reach,
-                    mob.getX() + attack.reach, mob.getY() + mob.getBbHeight(), mob.getZ() + attack.reach);
+            if (!isFinisher()) {
+                double stepSpeed = switch (attack) {
+                    case LEFT_SWEEP, RIGHT_SWEEP, SLAM -> BASIC_ATTACK_STEP_SPEED;
+                    default -> ATTACK_STEP_SPEED;
+                };
+                mob.setDeltaMovement(forward.x * stepSpeed, mob.getDeltaMovement().y,
+                        forward.z * stepSpeed);
+            }
+            AABB area = getMeleeArea(mob.position());
             float damage = (float) mob.getAttributeValue(Attributes.ATTACK_DAMAGE) * attack.damageMultiplier;
             for (LivingEntity target : mob.level().getEntitiesOfClass(LivingEntity.class, area)) {
                 if (!isValidTarget(target) || target == mob || target instanceof EnderSoldierEntity
                         || mob.isAlliedTo(target) || !mob.hasLineOfSight(target)) {
                     continue;
                 }
-                AABB bounds = target.getBoundingBox();
-                double closestX = Mth.clamp(mob.getX(), bounds.minX, bounds.maxX);
-                double closestZ = Mth.clamp(mob.getZ(), bounds.minZ, bounds.maxZ);
-                double distanceSquared = (closestX - mob.getX()) * (closestX - mob.getX())
-                        + (closestZ - mob.getZ()) * (closestZ - mob.getZ());
-                Vec3 offset = new Vec3(target.getX() - mob.getX(), 0.0D, target.getZ() - mob.getZ());
-                if (distanceSquared > attack.reach * attack.reach
-                        || (offset.lengthSqr() > 1.0E-6D && forward.dot(offset.normalize()) < minimumDot)) {
-                    continue;
-                }
+                if (!isInMeleeRange(mob.position(), attackYaw, target.getBoundingBox())) continue;
                 if (target.hurt(mob.damageSources().mobAttack(mob), damage)) {
                     target.knockback(attack.knockback, -forward.x, -forward.z);
                 }

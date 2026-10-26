@@ -195,3 +195,27 @@ tasks.withType(JavaCompile).configureEach {
     }
 }
 
+tasks.register('verifyEnderSoldierRotation', JavaExec) {
+    group = 'verification'
+    description = 'Checks ender soldier rotation transitions.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.niko.ragnarok.entity.geckolib_entity.model.EnderSoldierRotationTest'
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyEnderSoldierRotation')
+}
+
+tasks.register('verifyBossRegeneration', JavaExec) {
+    group = 'verification'
+    description = 'Checks shared boss and miniboss regeneration timers.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.niko.ragnarok.entity.others.BossRegenerationTest'
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyBossRegeneration')
+}
+

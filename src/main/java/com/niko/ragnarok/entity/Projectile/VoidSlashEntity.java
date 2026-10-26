@@ -134,7 +134,7 @@ public class VoidSlashEntity extends ThrowableItemProjectile {
 
             // エフェクト「死神の刻印」を付与
             target.addEffect(new MobEffectInstance(
-                    ModMobEffects.VOID_REAPER_EFFECT.get(), 20, 2, false, true, true));
+                    ModMobEffects.VOID_REAPER_EFFECT.get(), 100, 2, false, true, true));
 
             // 演出の実行
             if (this.level() instanceof ServerLevel serverLevel) {

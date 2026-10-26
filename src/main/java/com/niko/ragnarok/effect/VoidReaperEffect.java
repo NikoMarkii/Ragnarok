@@ -1,10 +1,10 @@
 
 package com.niko.ragnarok.effect;
 
+import com.niko.ragnarok.entity.geckolib_entity.Costom.EnderSoldierEntity;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.entity.LivingEntity;
@@ -14,9 +14,10 @@ import net.minecraft.world.phys.Vec3;
 public class VoidReaperEffect extends MobEffect {
 
     // ベースダメージ
-    private static final float BASE_DAMAGE = 2.0F;
+    private static final float BASE_DAMAGE = 2.5F;
     // アンプリファイア1レベルあたりの追加ダメージ
-    private static final float DAMAGE_PER_LEVEL = 1.0F;
+    private static final float DAMAGE_PER_LEVEL = 0.5F;
+    private static final int DAMAGE_INTERVAL = 20;
 
     public VoidReaperEffect(MobEffectCategory category, int color) {
         super(category, color);
@@ -24,28 +25,15 @@ public class VoidReaperEffect extends MobEffect {
 
     @Override
     public void applyEffectTick(LivingEntity target, int amplifier) {
-        if (target.level().isClientSide) {
+        if (target.level().isClientSide || target instanceof EnderSoldierEntity) {
             return;
         }
 
         // ダメージ計算
         float damage = BASE_DAMAGE + (amplifier * DAMAGE_PER_LEVEL);
 
-        // 修正：魔法ダメージ、あるいは汎用ダメージに変更して無敵時間を貫通しやすくする
-        // 奈落ダメージにこだわりたい場合は fellOutOfWorld() のままでも良いが、
-        // 以下の「無敵時間リセット」を徹底する必要がある
-        DamageSource voidDamage = target.damageSources().magic();
-
-        // 核心的な修正：ダメージを与える「直前」に無敵時間を0にする
-        target.invulnerableTime = 0;
-
-        // ダメージを与える。もし false が返ってきたら何らかの耐性で弾かれている
-        boolean success = target.hurt(voidDamage, damage);
-
-        if (success) {
-            // ダメージが通った直後、次の Tick でもダメージが通るように無敵時間を強制的にリセットし続ける
-            target.invulnerableTime = 0;
-        }
+        // Respect normal hurt cooldowns so the debuff cannot amplify rapid follow-up hits.
+        target.hurt(target.damageSources().magic(), damage);
 
         // ビジュアルエフェクト（以下、ニコ氏の素晴らしいコードを継続）
         if (target.level() instanceof ServerLevel serverLevel) {
@@ -123,7 +111,7 @@ public class VoidReaperEffect extends MobEffect {
     // 修正：1.20.1等ではこのメソッド名が正解だ
     @Override
     public boolean isDurationEffectTick(int duration, int amplifier) {
-        return true;
+        return duration > 0 && duration % DAMAGE_INTERVAL == 0;
     }
 
     @Override

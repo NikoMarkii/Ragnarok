@@ -1,6 +1,7 @@
 package com.niko.ragnarok.entity;
 
 import com.niko.ragnarok.config.RagnarokConfig;
+import com.niko.ragnarok.entity.others.BossRegeneration;
 
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
@@ -8,9 +9,21 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
 
 public class Mid_Boss_Monster extends Monster {
+    private final BossRegeneration regeneration = new BossRegeneration();
+
     @Override
     public boolean hurt(DamageSource source, float amount) {
-        return super.hurt(source, RagnarokConfig.capDamage(this, source, amount, 0.0F));
+        return super.hurt(source, RagnarokConfig.capDamage(this, source, amount, 21.0F));
+    }
+
+    protected boolean isInStandbyState() {
+        return false;
+    }
+
+    @Override
+    public void aiStep() {
+        super.aiStep();
+        regeneration.tick(this, isInStandbyState(), 10.0F);
     }
 
     protected Mid_Boss_Monster(EntityType<? extends Monster> p_33002_, Level p_33003_) {

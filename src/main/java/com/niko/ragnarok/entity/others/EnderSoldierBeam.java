@@ -21,12 +21,16 @@ import java.util.TreeMap;
 
 public final class EnderSoldierBeam {
     public static final int START_TICK = 20;
+    public static final int AIM_LOCK_TICK = START_TICK - 8;
+    public static final int TRACKING_START_TICK = START_TICK + 4;
+    public static final float TRACKING_DEGREES_PER_TICK = 1.5F;
     public static final int END_TICK = 50;
     public static final int DURATION = 70;
     public static final int COOLDOWN = 160;
-    public static final int DAMAGE_INTERVAL = 10;
+    public static final int DAMAGE_INTERVAL = 5;
+    public static final int DEBUFF_DURATION = 100;
     public static final double RANGE = 32.0D;
-    public static final double RADIUS = 0.28D;
+    public static final double RADIUS = 0.38D;
     private static final Vec3[] MOUTH_OFFSETS = bakeMouthOffsets();
 
     private EnderSoldierBeam() {

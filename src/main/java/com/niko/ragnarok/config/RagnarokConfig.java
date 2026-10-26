@@ -19,14 +19,14 @@ public final class RagnarokConfig {
 
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
-        builder.comment("Boss base stats. Restart the game/server after editing.",
+        builder.comment("Boss and miniboss stats. Restart the game/server after editing.",
                 "Health and damage use points (2 points = 1 heart).",
                 "Existing bosses keep their remaining health percentage when loaded.").push("bosses");
         BOSSES = Map.of(
-                id("gradius"), new Stats(builder, "gradius", 500, 18, 12, 21),
-                id("dinocampus"), new Stats(builder, "dinocampus", 450, 28, 15, 21),
-                id("galeos"), new Stats(builder, "galeos", 200, 10, 10, 0),
-                id("ender_soldier"), new Stats(builder, "ender_soldier", 200, 12, 15, 0));
+                id("gradius"), new Stats(builder, "gradius", 500, 18, 12, 21, 50),
+                id("dinocampus"), new Stats(builder, "dinocampus", 450, 28, 15, 21, 50),
+                id("galeos"), new Stats(builder, "galeos", 200, 10, 10, 21, 10),
+                id("ender_soldier"), new Stats(builder, "ender_soldier", 200, 18, 15, 21, 10));
         builder.pop();
         SPEC = builder.build();
     }
@@ -62,10 +62,12 @@ public final class RagnarokConfig {
         public final ForgeConfigSpec.DoubleValue attackDamage;
         public final ForgeConfigSpec.DoubleValue armor;
         public final ForgeConfigSpec.DoubleValue damageCap;
+        public final ForgeConfigSpec.DoubleValue regenAmount;
+        public final ForgeConfigSpec.IntValue regenIntervalTicks;
         private final double defaultAttackDamage;
 
         private Stats(ForgeConfigSpec.Builder builder, String name, double health, double attack,
-                      double armor, double cap) {
+                      double armor, double cap, double regen) {
             this.defaultAttackDamage = attack;
             builder.push(name);
             this.health = builder.comment("Base maximum health.").worldRestart()
@@ -77,6 +79,12 @@ public final class RagnarokConfig {
             this.damageCap = builder.comment("Maximum incoming damage per hit BEFORE armor and boss reductions.",
                             "0 disables the cap. /kill and other invulnerability-bypassing damage are exempt.")
                     .worldRestart().defineInRange("damage_cap", cap, 0.0D, 1000000.0D);
+            this.regenAmount = builder.comment("Health restored per interval without a living target.",
+                            "0 disables regeneration. Dead or standby bosses never regenerate.")
+                    .worldRestart().defineInRange("regen_amount", regen, 0.0D, 1000000.0D);
+            this.regenIntervalTicks = builder.comment("Consecutive eligible ticks between heals (20 ticks = 1 second).",
+                            "The timer resets in combat, at full health, in standby or when regeneration is disabled.")
+                    .worldRestart().defineInRange("regen_interval_ticks", 20, 1, 72000);
             builder.pop();
         }
 
