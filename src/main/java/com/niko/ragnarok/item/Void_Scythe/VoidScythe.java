@@ -258,11 +258,6 @@ public class VoidScythe extends TieredItem implements GeoItem {
     }
 
     @Override
-    public boolean isFoil(ItemStack stack) {
-        return true;
-    }
-
-    @Override
     public int getEnchantmentValue() {
         return 15; // エンチャント適性が高い
     }
