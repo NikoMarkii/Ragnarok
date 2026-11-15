@@ -6,6 +6,9 @@ import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.DinocampusEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpentEntity.VolcanicSerpentHeadEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpentEntity.VolcanicSerpentBodyEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpentEntity.VolcanicSerpentTailEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -45,6 +48,12 @@ public class RagnarokEventBusEvent {
                 FairyEntity.createAttributes().build());
         event.put(RagnarokEntities.CASSOWARY.get(),
                 CassowaryEntity.createAttributes().build());
+        event.put(RagnarokEntities.VOLCANIC_SERPENT_HEAD.get(),
+                VolcanicSerpentHeadEntity.createAttributes().build());
+        event.put(RagnarokEntities.VOLCANIC_SERPENT_BODY.get(),
+                VolcanicSerpentBodyEntity.createAttributes().build());
+        event.put(RagnarokEntities.VOLCANIC_SERPENT_TAIL.get(),
+                VolcanicSerpentTailEntity.createAttributes().build());
         event.put(RagnarokEntities.GRADIUS.get(),
                 GradiusEntity.createAttributes().build());
         event.put(RagnarokEntities.GHOST.get(),
