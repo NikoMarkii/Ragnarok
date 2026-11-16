@@ -6,7 +6,6 @@ import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.DinocampusEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpent.VolcanicSerpentHeadEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -92,15 +91,6 @@ public class RagnarokEntities {
                             .updateInterval(1)
                             .build("dinocampus")
             );
-
-    // 頭部エンティティのみ登録する
-    public static final RegistryObject<EntityType<VolcanicSerpentHeadEntity>> VOLCANIC_SERPENT =
-            ENTITY_TYPES.register("volcanic_serpent",
-                    () -> EntityType.Builder.of(VolcanicSerpentHeadEntity::new, MobCategory.MONSTER)
-                            .sized(2.5F, 2.5F) // 頭部の当たり判定サイズ（ブロックにめり込まない大きさ）
-                            .fireImmune()      // 炎・溶岩耐性
-                            .clientTrackingRange(128) // ボスなので遠くからでも描画されるように広めに設定
-                            .build("volcanic_serpent"));
 
     public static final RegistryObject<EntityType<VoidSlashEntity>> VOID_SLASH =
             ENTITY_TYPES.register("void_slash", () ->

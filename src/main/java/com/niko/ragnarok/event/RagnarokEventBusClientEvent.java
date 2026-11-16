@@ -50,7 +50,6 @@ public class RagnarokEventBusClientEvent {
         event.registerBlockEntityRenderer(RagnarokBlockEntities.DOORS_KING_ROOM.get(), DoorsofKingroomRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.SAKUBOT.get(), SakubotRenderer::new);
         event.registerEntityRenderer(RagnarokEntities.SAKUBOT_BEAM.get(), SakubotBeamRenderer::new);
-        event.registerEntityRenderer(RagnarokEntities.VOLCANIC_SERPENT.get(), VolcanicSerpentRenderer::new);
     }
 
     @SubscribeEvent
