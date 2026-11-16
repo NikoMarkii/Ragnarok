@@ -6,9 +6,7 @@ import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.DinocampusEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpentEntity.VolcanicSerpentHeadEntity;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpentEntity.VolcanicSerpentBodyEntity;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpentEntity.VolcanicSerpentTailEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpent.VolcanicSerpentHeadEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -22,6 +20,7 @@ import net.minecraftforge.event.entity.SpawnPlacementRegisterEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import static com.niko.ragnarok.entity.RagnarokEntities.VOLCANIC_SERPENT;
 import static com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity.isBrightEnoughToSpawn;
 import com.niko.ragnarok.world.WorldModeData;
 
@@ -48,12 +47,6 @@ public class RagnarokEventBusEvent {
                 FairyEntity.createAttributes().build());
         event.put(RagnarokEntities.CASSOWARY.get(),
                 CassowaryEntity.createAttributes().build());
-        event.put(RagnarokEntities.VOLCANIC_SERPENT_HEAD.get(),
-                VolcanicSerpentHeadEntity.createAttributes().build());
-        event.put(RagnarokEntities.VOLCANIC_SERPENT_BODY.get(),
-                VolcanicSerpentBodyEntity.createAttributes().build());
-        event.put(RagnarokEntities.VOLCANIC_SERPENT_TAIL.get(),
-                VolcanicSerpentTailEntity.createAttributes().build());
         event.put(RagnarokEntities.GRADIUS.get(),
                 GradiusEntity.createAttributes().build());
         event.put(RagnarokEntities.GHOST.get(),
@@ -68,6 +61,8 @@ public class RagnarokEventBusEvent {
                 GhostWizardEntity.createAttributes().build());
         event.put(RagnarokEntities.SAKUBOT.get(),
                 SakuBotEntity.createAttributes().build());
+        event.put(VOLCANIC_SERPENT.get(),
+                VolcanicSerpentHeadEntity.createAttributes().build());
     }
 
     @SubscribeEvent

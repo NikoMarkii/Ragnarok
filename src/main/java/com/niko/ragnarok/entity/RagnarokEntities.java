@@ -6,9 +6,7 @@ import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.DinocampusEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpentEntity.VolcanicSerpentHeadEntity;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpentEntity.VolcanicSerpentBodyEntity;
-import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpentEntity.VolcanicSerpentTailEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpent.VolcanicSerpentHeadEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -95,33 +93,14 @@ public class RagnarokEntities {
                             .build("dinocampus")
             );
 
-    // Volcanic Serpent: 独立したHead / Body / Tailエンティティで構成する多節ボス。
-    public static final RegistryObject<EntityType<VolcanicSerpentHeadEntity>> VOLCANIC_SERPENT_HEAD =
-            ENTITY_TYPES.register("volcanic_serpent_head", () ->
-                    EntityType.Builder.<VolcanicSerpentHeadEntity>of(VolcanicSerpentHeadEntity::new, MobCategory.MONSTER)
-                            .sized(9.0F, 6.0F)
-                            .fireImmune()
-                            .clientTrackingRange(96)
-                            .updateInterval(1)
-                            .build("volcanic_serpent_head"));
-
-    public static final RegistryObject<EntityType<VolcanicSerpentBodyEntity>> VOLCANIC_SERPENT_BODY =
-            ENTITY_TYPES.register("volcanic_serpent_body", () ->
-                    EntityType.Builder.<VolcanicSerpentBodyEntity>of(VolcanicSerpentBodyEntity::new, MobCategory.MISC)
-                            .sized(7.5F, 5.0F)
-                            .fireImmune()
-                            .clientTrackingRange(96)
-                            .updateInterval(1)
-                            .build("volcanic_serpent_body"));
-
-    public static final RegistryObject<EntityType<VolcanicSerpentTailEntity>> VOLCANIC_SERPENT_TAIL =
-            ENTITY_TYPES.register("volcanic_serpent_tail", () ->
-                    EntityType.Builder.<VolcanicSerpentTailEntity>of(VolcanicSerpentTailEntity::new, MobCategory.MISC)
-                            .sized(10.0F, 5.0F)
-                            .fireImmune()
-                            .clientTrackingRange(96)
-                            .updateInterval(1)
-                            .build("volcanic_serpent_tail"));
+    // 頭部エンティティのみ登録する
+    public static final RegistryObject<EntityType<VolcanicSerpentHeadEntity>> VOLCANIC_SERPENT =
+            ENTITY_TYPES.register("volcanic_serpent",
+                    () -> EntityType.Builder.of(VolcanicSerpentHeadEntity::new, MobCategory.MONSTER)
+                            .sized(2.5F, 2.5F) // 頭部の当たり判定サイズ（ブロックにめり込まない大きさ）
+                            .fireImmune()      // 炎・溶岩耐性
+                            .clientTrackingRange(128) // ボスなので遠くからでも描画されるように広めに設定
+                            .build("volcanic_serpent"));
 
     public static final RegistryObject<EntityType<VoidSlashEntity>> VOID_SLASH =
             ENTITY_TYPES.register("void_slash", () ->
