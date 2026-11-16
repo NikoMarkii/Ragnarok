@@ -2,6 +2,7 @@ package com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.VolcanicSerpentEnti
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Monster;
@@ -10,10 +11,12 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.UUID;
 
-/** BodyとTailに共通する、頭部の移動履歴をなぞる追従処理。 */
 public abstract class VolcanicSerpentPartEntity extends VolcanicSerpentBaseEntity {
     private UUID parentUUID;
     private double followDistance;
+
+    private static final float MAX_PART_TURN = 7.0F;
+    private static final float FOLLOW_RATIO = 0.22F;
 
     protected VolcanicSerpentPartEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
@@ -48,14 +51,30 @@ public abstract class VolcanicSerpentPartEntity extends VolcanicSerpentBaseEntit
         float targetYaw = head.getYawAtDistance(this.followDistance);
         float targetPitch = head.getPitchAtDistance(this.followDistance);
 
-        // 履歴側ですでに滑らかな軌跡を作っているため、サーバー上では位置を直接合わせる。
-        // クライアント側の通常のEntity補間が描画を滑らかにする。
+        float currentYaw = this.getYRot();
+        float yawDelta = Mth.wrapDegrees(targetYaw - currentYaw);
+        float turnStep = Mth.clamp(yawDelta, -MAX_PART_TURN, MAX_PART_TURN);
+        float smoothedYaw = currentYaw + turnStep * FOLLOW_RATIO;
+
+        float currentPitch = this.getXRot();
+        float pitchDelta = Mth.wrapDegrees(targetPitch - currentPitch);
+        float pitchStep = Mth.clamp(pitchDelta, -MAX_PART_TURN, MAX_PART_TURN);
+        float smoothedPitch = currentPitch + pitchStep * FOLLOW_RATIO;
+
+        float currentRoll = this.getSerpentRoll();
+        float targetRoll = head.getSerpentRoll();
+
+        float rollDelta = Mth.wrapDegrees(targetRoll - currentRoll);
+        float rollStep = Mth.clamp(rollDelta, -MAX_PART_TURN, MAX_PART_TURN);
+        float smoothedRoll = currentRoll + rollStep * FOLLOW_RATIO;
+
         this.setPos(target.x, target.y, target.z);
-        this.setYRot(targetYaw);
-        this.setXRot(targetPitch);
-        this.yRotO = targetYaw;
-        this.xRotO = targetPitch;
-        this.setSerpentRoll(head.getSerpentRoll());
+        this.setYRot(smoothedYaw);
+        this.setXRot(smoothedPitch);
+        this.setSerpentRoll(smoothedRoll);
+
+        this.yRotO = smoothedYaw;
+        this.xRotO = smoothedPitch;
     }
 
     @Override

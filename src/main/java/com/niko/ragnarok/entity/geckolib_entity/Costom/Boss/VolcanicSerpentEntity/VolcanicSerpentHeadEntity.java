@@ -6,32 +6,36 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.level.Level;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/** ヴォルケニックサーペントの頭部。移動履歴と全節の生成を管理する親エンティティ。 */
 public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
     public static final int DEFAULT_BODY_SEGMENTS = 5;
     public static final double SEGMENT_SPACING = 5.0D;
     private static final int HISTORY_LIMIT = 512;
     private static final double MOVE_SPEED = 0.105D;
 
-    private final List<Vec3> movementHistory = new ArrayList<>(); // newest first
+    private static final float MAX_TURN_STEP = 7.0F;
+    private static final float TURN_FOLLOW = 0.18F;
+    private static final float VERTICAL_STEP = 0.12F;
+
+    private final List<Vec3> movementHistory = new ArrayList<>();
     private final List<UUID> childIds = new ArrayList<>();
     private boolean segmentsInitialized;
     private int bodySegmentCount = DEFAULT_BODY_SEGMENTS;
     private float travelYaw;
+    private float targetYaw;
     private double baseY;
     private int excursionTicks;
     private int nextExcursionTick = 260;
@@ -56,6 +60,7 @@ public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
 
         if (this.movementHistory.isEmpty()) {
             this.travelYaw = this.getYRot();
+            this.targetYaw = this.getYRot();
             this.baseY = this.getY();
             this.seedHistory();
         }
@@ -99,58 +104,64 @@ public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
         this.segmentsInitialized = true;
     }
 
-    /** 自由遊泳と溶岩水面付近の遊泳を周期的に切り替える。 */
     private void moveSerpent() {
         int age = this.tickCount;
-        double broadTurn = Math.sin(age * 0.0065D) * 0.48D;
-        double smallWaver = Math.sin(age * 0.021D) * 0.22D;
-        this.travelYaw += (float) (broadTurn + smallWaver);
+        float previousYaw = this.getYRot();
 
-        Vec3 forward = new Vec3(-Mth.sin(this.travelYaw * Mth.DEG_TO_RAD), 0,
-                Mth.cos(this.travelYaw * Mth.DEG_TO_RAD)).normalize();
+        float baseTurn = (float) Math.sin(age * 0.032D) * 18.0F;
+        float sideWobble = (float) Math.sin(age * 0.09D) * 9.0F;
+        this.targetYaw = this.travelYaw + baseTurn + sideWobble;
 
-        double targetY = this.getY();
         Double lavaSurface = this.findNearbyLavaSurface();
-        boolean freeSwim = this.excursionTicks > 0;
+        double targetY;
 
-        if (!freeSwim && age >= this.nextExcursionTick) {
-            this.excursionTicks = 100 + this.random.nextInt(70);
-            this.nextExcursionTick = age + 300 + this.random.nextInt(260);
-            freeSwim = true;
-        }
-
-        if (freeSwim) {
-            double phase = (this.excursionTicks / 170.0D) * Math.PI;
-            double excursionHeight = 3.5D + Math.sin(phase) * 1.8D;
+        if (this.excursionTicks > 0) {
+            double phase = (this.excursionTicks / 120.0D) * Math.PI;
+            double excursionHeight = 3.5D + Math.sin(phase) * 2.2D;
             targetY = (lavaSurface != null ? lavaSurface - 2.0D : this.baseY) + excursionHeight;
             this.excursionTicks--;
+        } else if (age >= this.nextExcursionTick) {
+            this.excursionTicks = 70 + this.random.nextInt(80);
+            this.nextExcursionTick = age + 180 + this.random.nextInt(220);
+            targetY = (lavaSurface != null ? lavaSurface - 2.0D : this.baseY) + 2.5D;
         } else if (lavaSurface != null) {
-            // モデル原点を水面より少し下に置き、胴体が溶岩から覗く高さを保つ。
             targetY = lavaSurface - 2.0D + Math.sin(age * 0.035D) * 0.28D;
             this.baseY = targetY;
         } else {
             targetY = this.baseY + Math.sin(age * 0.018D) * 1.6D;
         }
 
-        double nextY = this.getY() + Mth.clamp(targetY - this.getY(), -0.075D, 0.075D);
-        float previousYaw = this.getYRot();
-        float previousPitch = this.getXRot();
-        Vec3 nextPosition = this.position().add(forward.scale(MOVE_SPEED));
+        float yawDelta = Mth.wrapDegrees(this.targetYaw - this.travelYaw);
+        float turnStep = Mth.clamp(yawDelta, -MAX_TURN_STEP, MAX_TURN_STEP);
+        this.travelYaw += turnStep * TURN_FOLLOW;
+
+        Vec3 forward = new Vec3(
+                -Mth.sin(this.travelYaw * Mth.DEG_TO_RAD),
+                0,
+                Mth.cos(this.travelYaw * Mth.DEG_TO_RAD)
+        ).normalize();
+
+        double nextY = this.getY() + Mth.clamp(targetY - this.getY(), -VERTICAL_STEP, VERTICAL_STEP);
+        Vec3 nextPosition = this.position()
+                .add(forward.scale(MOVE_SPEED * (this.excursionTicks > 0 ? 1.35D : 1.0D)));
         nextPosition = new Vec3(nextPosition.x, nextY, nextPosition.z);
 
         Vec3 actualMotion = nextPosition.subtract(this.position());
         if (actualMotion.horizontalDistanceSqr() > 1.0E-7D) {
             this.travelYaw = (float) (Mth.atan2(-actualMotion.x, actualMotion.z) * Mth.RAD_TO_DEG);
         }
-        float pitch = (float) (-Mth.atan2(actualMotion.y, Math.max(1.0E-4D, actualMotion.horizontalDistance())) * Mth.RAD_TO_DEG);
+
+        float pitch = (float) (-Mth.atan2(actualMotion.y,
+                Math.max(1.0E-4D, actualMotion.horizontalDistance())) * Mth.RAD_TO_DEG);
+
         this.setYRot(this.travelYaw);
         this.setXRot(Mth.clamp(pitch, -28.0F, 28.0F));
         this.yRotO = previousYaw;
-        this.xRotO = previousPitch;
+        this.xRotO = this.getXRot();
         this.setPos(nextPosition.x, nextPosition.y, nextPosition.z);
 
         float curvature = Mth.wrapDegrees(this.travelYaw - previousYaw);
-        this.setSerpentRoll(Mth.clamp(curvature * 0.035F, -0.18F, 0.18F));
+        this.setSerpentRoll(Mth.clamp(curvature * 0.04F, -0.22F, 0.22F));
     }
 
     private Double findNearbyLavaSurface() {
@@ -173,7 +184,6 @@ public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
         }
     }
 
-    /** 頭部から指定距離だけ過去に遡った位置を返す。 */
     public Vec3 getPositionAtDistance(double distance) {
         if (this.movementHistory.isEmpty()) return this.position();
         double travelled = 0.0D;
@@ -220,6 +230,7 @@ public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
         tag.putBoolean("SegmentsInitialized", this.segmentsInitialized);
         tag.putInt("BodySegmentCount", this.bodySegmentCount);
         tag.putFloat("TravelYaw", this.travelYaw);
+        tag.putFloat("TargetYaw", this.targetYaw);
         tag.putDouble("BaseY", this.baseY);
         tag.putInt("ExcursionTicks", this.excursionTicks);
         tag.putInt("NextExcursionTick", this.nextExcursionTick);
@@ -252,6 +263,7 @@ public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
                 ? Mth.clamp(tag.getInt("BodySegmentCount"), 1, 16)
                 : DEFAULT_BODY_SEGMENTS;
         this.travelYaw = tag.getFloat("TravelYaw");
+        this.targetYaw = tag.contains("TargetYaw") ? tag.getFloat("TargetYaw") : this.travelYaw;
         this.baseY = tag.getDouble("BaseY");
         this.excursionTicks = tag.getInt("ExcursionTicks");
         this.nextExcursionTick = tag.getInt("NextExcursionTick");
