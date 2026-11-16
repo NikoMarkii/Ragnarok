@@ -20,17 +20,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/** Volcanic Serpent head; owns movement history and its body parts. */
 public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
     public static final int DEFAULT_BODY_SEGMENTS = 5;
-    public static final double SEGMENT_SPACING = 5.0D;
+    /** Segment centers are closer than the model's 5.25-block body length so bends remain connected. */
+    public static final double SEGMENT_SPACING = 4.0D;
     private static final int HISTORY_LIMIT = 512;
     private static final double MOVE_SPEED = 0.105D;
 
     private static final float MAX_TURN_STEP = 7.0F;
     private static final float TURN_FOLLOW = 0.18F;
-    private static final float VERTICAL_STEP = 0.12F;
+    private static final double VERTICAL_STEP = 0.12D;
 
-    private final List<Vec3> movementHistory = new ArrayList<>();
+    private final List<Vec3> movementHistory = new ArrayList<>(); // newest first
     private final List<UUID> childIds = new ArrayList<>();
     private boolean segmentsInitialized;
     private int bodySegmentCount = DEFAULT_BODY_SEGMENTS;
@@ -104,26 +106,30 @@ public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
         this.segmentsInitialized = true;
     }
 
+    /** Smoothly steers the head and preserves the existing lava-surface swim/excursion behavior. */
     private void moveSerpent() {
         int age = this.tickCount;
         float previousYaw = this.getYRot();
+        float previousPitch = this.getXRot();
 
-        float baseTurn = (float) Math.sin(age * 0.032D) * 18.0F;
-        float sideWobble = (float) Math.sin(age * 0.09D) * 9.0F;
-        this.targetYaw = this.travelYaw + baseTurn + sideWobble;
+        float broadTurn = (float) Math.sin(age * 0.0065D) * 0.48F;
+        float smallWaver = (float) Math.sin(age * 0.021D) * 0.22F;
+        this.targetYaw = this.travelYaw + broadTurn + smallWaver;
 
         Double lavaSurface = this.findNearbyLavaSurface();
-        double targetY;
+        boolean excursionActive = this.excursionTicks > 0;
+        if (!excursionActive && age >= this.nextExcursionTick) {
+            this.excursionTicks = 100 + this.random.nextInt(70);
+            this.nextExcursionTick = age + 300 + this.random.nextInt(260);
+            excursionActive = true;
+        }
 
-        if (this.excursionTicks > 0) {
-            double phase = (this.excursionTicks / 120.0D) * Math.PI;
-            double excursionHeight = 3.5D + Math.sin(phase) * 2.2D;
+        double targetY;
+        if (excursionActive) {
+            double phase = (this.excursionTicks / 170.0D) * Math.PI;
+            double excursionHeight = 3.5D + Math.sin(phase) * 1.8D;
             targetY = (lavaSurface != null ? lavaSurface - 2.0D : this.baseY) + excursionHeight;
             this.excursionTicks--;
-        } else if (age >= this.nextExcursionTick) {
-            this.excursionTicks = 70 + this.random.nextInt(80);
-            this.nextExcursionTick = age + 180 + this.random.nextInt(220);
-            targetY = (lavaSurface != null ? lavaSurface - 2.0D : this.baseY) + 2.5D;
         } else if (lavaSurface != null) {
             targetY = lavaSurface - 2.0D + Math.sin(age * 0.035D) * 0.28D;
             this.baseY = targetY;
@@ -132,32 +138,27 @@ public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
         }
 
         float yawDelta = Mth.wrapDegrees(this.targetYaw - this.travelYaw);
-        float turnStep = Mth.clamp(yawDelta, -MAX_TURN_STEP, MAX_TURN_STEP);
-        this.travelYaw += turnStep * TURN_FOLLOW;
+        this.travelYaw += Mth.clamp(yawDelta, -MAX_TURN_STEP, MAX_TURN_STEP) * TURN_FOLLOW;
 
-        Vec3 forward = new Vec3(
-                -Mth.sin(this.travelYaw * Mth.DEG_TO_RAD),
-                0,
-                Mth.cos(this.travelYaw * Mth.DEG_TO_RAD)
-        ).normalize();
-
+        Vec3 forward = new Vec3(-Mth.sin(this.travelYaw * Mth.DEG_TO_RAD), 0,
+                Mth.cos(this.travelYaw * Mth.DEG_TO_RAD)).normalize();
         double nextY = this.getY() + Mth.clamp(targetY - this.getY(), -VERTICAL_STEP, VERTICAL_STEP);
-        Vec3 nextPosition = this.position()
-                .add(forward.scale(MOVE_SPEED * (this.excursionTicks > 0 ? 1.35D : 1.0D)));
+        double speed = MOVE_SPEED * (excursionActive ? 1.35D : 1.0D);
+        Vec3 nextPosition = this.position().add(forward.scale(speed));
         nextPosition = new Vec3(nextPosition.x, nextY, nextPosition.z);
 
         Vec3 actualMotion = nextPosition.subtract(this.position());
         if (actualMotion.horizontalDistanceSqr() > 1.0E-7D) {
             this.travelYaw = (float) (Mth.atan2(-actualMotion.x, actualMotion.z) * Mth.RAD_TO_DEG);
         }
-
         float pitch = (float) (-Mth.atan2(actualMotion.y,
                 Math.max(1.0E-4D, actualMotion.horizontalDistance())) * Mth.RAD_TO_DEG);
 
         this.setYRot(this.travelYaw);
         this.setXRot(Mth.clamp(pitch, -28.0F, 28.0F));
+        // Keep the previous orientation for the client's normal entity interpolation.
         this.yRotO = previousYaw;
-        this.xRotO = this.getXRot();
+        this.xRotO = previousPitch;
         this.setPos(nextPosition.x, nextPosition.y, nextPosition.z);
 
         float curvature = Mth.wrapDegrees(this.travelYaw - previousYaw);
@@ -184,6 +185,7 @@ public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
         }
     }
 
+    /** Returns the point at a distance behind the head along its recorded route. */
     public Vec3 getPositionAtDistance(double distance) {
         if (this.movementHistory.isEmpty()) return this.position();
         double travelled = 0.0D;
@@ -215,6 +217,15 @@ public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
         return (float) (-Mth.atan2(forward.y, Math.max(1.0E-4D, forward.horizontalDistance())) * Mth.RAD_TO_DEG);
     }
 
+    /** Computes a local banking angle from the change in route tangent around this segment. */
+    public float getRollAtDistance(double distance) {
+        double sampleOffset = Math.max(0.75D, SEGMENT_SPACING * 0.25D);
+        float before = this.getYawAtDistance(Math.max(0.0D, distance - sampleOffset));
+        float after = this.getYawAtDistance(distance + sampleOffset);
+        float bendRadians = Mth.wrapDegrees(after - before) * Mth.DEG_TO_RAD;
+        return Mth.clamp(bendRadians * 0.65F, -0.28F, 0.28F);
+    }
+
     public void setBodySegmentCount(int count) {
         if (this.segmentsInitialized) return;
         this.bodySegmentCount = Mth.clamp(count, 1, 16);
@@ -236,8 +247,7 @@ public class VolcanicSerpentHeadEntity extends VolcanicSerpentBaseEntity {
         tag.putInt("NextExcursionTick", this.nextExcursionTick);
 
         ListTag historyTag = new ListTag();
-        for (int i = 0; i < this.movementHistory.size(); i++) {
-            Vec3 point = this.movementHistory.get(i);
+        for (Vec3 point : this.movementHistory) {
             CompoundTag pointTag = new CompoundTag();
             pointTag.putDouble("X", point.x);
             pointTag.putDouble("Y", point.y);
