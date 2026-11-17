@@ -46,6 +46,8 @@ import java.util.UUID;
 
 public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
 
+    private static final float MAX_FLUID_WANDER_PITCH = 35.0F;
+
     // 胴体12個 + 尻尾1個
     public static final int BODY_SEGMENT_COUNT = 12;
     public static final int TOTAL_PART_COUNT = BODY_SEGMENT_COUNT + 1;
@@ -477,7 +479,8 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
             this.serpent.fluidWandering = true;
             this.serpent.fluidWanderYaw = this.serpent.getYRot()
                     + this.serpent.getRandom().nextFloat() * 90.0F - 45.0F;
-            this.serpent.fluidWanderPitch = this.serpent.getRandom().nextFloat() * 10.0F - 5.0F;
+            this.serpent.fluidWanderPitch = this.serpent.getRandom().nextFloat()
+                    * MAX_FLUID_WANDER_PITCH * 2.0F - MAX_FLUID_WANDER_PITCH;
             this.serpent.fluidWanderTurnTicks = 0;
             this.serpent.getNavigation().stop();
         }
@@ -498,7 +501,8 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
         }
 
         this.fluidWanderYaw = Mth.wrapDegrees(this.fluidWanderYaw + turn);
-        this.fluidWanderPitch = this.getRandom().nextFloat() * 12.0F - 6.0F;
+        this.fluidWanderPitch = this.getRandom().nextFloat()
+                * MAX_FLUID_WANDER_PITCH * 2.0F - MAX_FLUID_WANDER_PITCH;
         this.fluidWanderTurnTicks = avoidObstacle
                 ? 12
                 : 80 + this.getRandom().nextInt(81);
