@@ -14,4 +14,9 @@ public class VolcanicSerpentPartRenderer
         super(context, new VolcanicSerpentPartModel());
         this.shadowRadius = 1.5F;
     }
+
+    @Override
+    public boolean shouldShowName(VolcanicSerpentPartEntity entity) {
+        return false;
+    }
 }
