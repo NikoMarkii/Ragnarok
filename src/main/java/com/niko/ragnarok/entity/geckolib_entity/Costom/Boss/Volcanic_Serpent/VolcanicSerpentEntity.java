@@ -21,6 +21,7 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
@@ -39,9 +40,7 @@ import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -72,6 +71,10 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
     private final AnimatableInstanceCache cache =
             GeckoLibUtil.createInstanceCache(this);
     private boolean usingSwimNavigation;
+    private boolean fluidWandering;
+    private float fluidWanderYaw;
+    private float fluidWanderPitch;
+    private int fluidWanderTurnTicks;
 
     public VolcanicSerpentEntity(
             EntityType<? extends VolcanicSerpentEntity> type,
@@ -113,11 +116,16 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
 
         this.goalSelector.addGoal(
                 3,
-                new LookAtPlayerGoal(this, Player.class, 12.0F)
+                new WaterAvoidingRandomStrollGoal(this, 0.5D)
         );
 
         this.goalSelector.addGoal(
                 4,
+                new LookAtPlayerGoal(this, Player.class, 12.0F)
+        );
+
+        this.goalSelector.addGoal(
+                5,
                 new RandomLookAroundGoal(this)
         );
 
@@ -257,14 +265,8 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
             this.move(MoverType.SELF, this.getDeltaMovement());
 
             this.setDeltaMovement(
-                    this.getDeltaMovement().scale(0.9D)
+                    this.getDeltaMovement().scale(0.8D)
             );
-
-            if (this.getTarget() == null) {
-                this.setDeltaMovement(
-                        this.getDeltaMovement().add(0.0D, -0.005D, 0.0D)
-                );
-            }
         } else {
             super.travel(travelVector);
         }
@@ -323,6 +325,8 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
     }
 
     private static class SwimMoveControl extends MoveControl {
+        private static final double MIN_YAW_UPDATE_DISTANCE_SQR = 0.64D;
+
         private final VolcanicSerpentEntity serpent;
 
         private SwimMoveControl(VolcanicSerpentEntity serpent) {
@@ -332,10 +336,11 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
 
         @Override
         public void tick() {
-            if (this.serpent.isInWater() || this.serpent.isInLava()) {
-                this.serpent.setDeltaMovement(
-                        this.serpent.getDeltaMovement().add(0.0D, 0.005D, 0.0D)
-                );
+            if (this.serpent.fluidWandering
+                    && this.serpent.getTarget() == null
+                    && (this.serpent.isInWater() || this.serpent.isInLava())) {
+                this.tickFluidWander();
+                return;
             }
 
             if (this.operation != Operation.MOVE_TO || this.serpent.getNavigation().isDone()) {
@@ -349,7 +354,8 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
             double dx = this.wantedX - this.serpent.getX();
             double dy = this.wantedY - this.serpent.getY();
             double dz = this.wantedZ - this.serpent.getZ();
-            double horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+            double horizontalDistanceSqr = dx * dx + dz * dz;
+            double horizontalDistance = Math.sqrt(horizontalDistanceSqr);
 
             if (dx * dx + dy * dy + dz * dz < 1.0E-6D) {
                 this.serpent.setSpeed(0.0F);
@@ -358,19 +364,18 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
                 return;
             }
 
-            float targetYaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0F;
+            boolean closeHorizontally = horizontalDistanceSqr < MIN_YAW_UPDATE_DISTANCE_SQR;
+            float targetYaw = closeHorizontally
+                    ? this.serpent.getYRot()
+                    : (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0F;
             float targetPitch = (float) (-Mth.atan2(dy, horizontalDistance) * Mth.RAD_TO_DEG);
             targetPitch = Mth.clamp(Mth.wrapDegrees(targetPitch), -65.0F, 65.0F);
-
-            float[] clearHeading = this.findClearHeading(targetYaw, targetPitch);
-            targetYaw = clearHeading[0];
-            targetPitch = clearHeading[1];
 
             float bodyYaw = this.serpent.getYRot();
             float neckYaw = Mth.wrapDegrees(targetYaw - bodyYaw);
             if (Math.abs(neckYaw) > 45.0F) {
                 float bodyTargetYaw = targetYaw - Math.copySign(45.0F, neckYaw);
-                bodyYaw = this.rotlerp(bodyYaw, bodyTargetYaw, 4.0F);
+                bodyYaw = this.rotlerp(bodyYaw, bodyTargetYaw, 8.0F);
             }
             this.serpent.setYRot(bodyYaw);
             this.serpent.yBodyRot = bodyYaw;
@@ -385,46 +390,66 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
             float movementSpeed = (float) (
                     this.speedModifier
                             * this.serpent.getAttributeValue(Attributes.MOVEMENT_SPEED)
-                            * 0.2D
+                            * 0.08D
             );
             this.serpent.setSpeed(movementSpeed);
+            this.serpent.zza = closeHorizontally
+                    ? 0.0F
+                    : Mth.cos(this.serpent.getXRot() * Mth.DEG_TO_RAD);
+            this.serpent.yya = -Mth.sin(this.serpent.getXRot() * Mth.DEG_TO_RAD);
+        }
+
+        private void tickFluidWander() {
+            if (this.serpent.fluidWanderTurnTicks-- <= 0) {
+                this.serpent.chooseFluidWanderHeading(false);
+            }
+
+            Vec3 direction = this.getWanderDirection();
+            Vec3 nextPosition = this.serpent.position().add(direction);
+            BlockPos nextBlock = BlockPos.containing(nextPosition);
+            boolean matchingFluid = this.serpent.isInLava()
+                    ? this.serpent.level().getFluidState(nextBlock).is(FluidTags.LAVA)
+                    : this.serpent.level().getFluidState(nextBlock).is(FluidTags.WATER);
+            if (!matchingFluid || !this.serpent.level().noCollision(
+                    this.serpent,
+                    this.serpent.getBoundingBox().move(direction)
+            )) {
+                this.serpent.chooseFluidWanderHeading(true);
+            }
+
+            this.serpent.setYRot(this.rotlerp(
+                    this.serpent.getYRot(),
+                    this.serpent.fluidWanderYaw,
+                    8.0F
+            ));
+            this.serpent.yBodyRot = this.serpent.getYRot();
+            this.serpent.setYHeadRot(this.serpent.getYRot());
+            this.serpent.setXRot(this.rotlerp(
+                    this.serpent.getXRot(),
+                    this.serpent.fluidWanderPitch,
+                    5.0F
+            ));
+            this.serpent.setSpeed((float) (
+                    this.serpent.getAttributeValue(Attributes.MOVEMENT_SPEED) * 0.08D
+            ));
+            this.serpent.setXxa(0.0F);
             this.serpent.zza = Mth.cos(this.serpent.getXRot() * Mth.DEG_TO_RAD);
             this.serpent.yya = -Mth.sin(this.serpent.getXRot() * Mth.DEG_TO_RAD);
         }
 
-        private float[] findClearHeading(float yaw, float pitch) {
-            float[] yawOffsets = {0.0F, 35.0F, -35.0F, 70.0F, -70.0F, 110.0F, -110.0F, 180.0F};
-            float[] pitchOffsets = {0.0F, -30.0F, 30.0F};
-
-            for (float pitchOffset : pitchOffsets) {
-                float candidatePitch = Mth.clamp(pitch + pitchOffset, -65.0F, 65.0F);
-                for (float yawOffset : yawOffsets) {
-                    float candidateYaw = Mth.wrapDegrees(yaw + yawOffset);
-                    double yawRadians = candidateYaw * Mth.DEG_TO_RAD;
-                    double pitchRadians = candidatePitch * Mth.DEG_TO_RAD;
-                    Vec3 step = new Vec3(
-                            -Mth.sin((float) yawRadians) * Mth.cos((float) pitchRadians),
-                            -Mth.sin((float) pitchRadians),
-                            Mth.cos((float) yawRadians) * Mth.cos((float) pitchRadians)
-                    ).scale(0.8D);
-
-                    if (this.serpent.level().noCollision(
-                            this.serpent,
-                            this.serpent.getBoundingBox().move(step)
-                    )) {
-                        return new float[]{candidateYaw, candidatePitch};
-                    }
-                }
-            }
-
-            return new float[]{yaw, pitch};
+        private Vec3 getWanderDirection() {
+            float yaw = this.serpent.fluidWanderYaw * Mth.DEG_TO_RAD;
+            float pitch = this.serpent.fluidWanderPitch * Mth.DEG_TO_RAD;
+            return new Vec3(
+                    -Mth.sin(yaw) * Mth.cos(pitch),
+                    -Mth.sin(pitch),
+                    Mth.cos(yaw) * Mth.cos(pitch)
+            ).scale(0.8D);
         }
     }
 
     private static class FluidWanderGoal extends Goal {
         private final VolcanicSerpentEntity serpent;
-        @Nullable
-        private BlockPos target;
 
         private FluidWanderGoal(VolcanicSerpentEntity serpent) {
             this.serpent = serpent;
@@ -433,87 +458,49 @@ public class VolcanicSerpentEntity extends Boss_Monster implements GeoEntity {
 
         @Override
         public boolean canUse() {
-            if (this.serpent.getTarget() != null || this.serpent.getRandom().nextInt(20) != 0) {
+            if (this.serpent.getTarget() != null
+                    || this.serpent.getRandom().nextInt(20) != 0) {
                 return false;
             }
 
-            this.target = this.serpent.isInWater() || this.serpent.isInLava()
-                    ? this.findNearbyFluid()
-                    : this.findNearestFluid();
-            return this.target != null;
+            return this.serpent.isInWater() || this.serpent.isInLava();
         }
 
         @Override
         public boolean canContinueToUse() {
             return this.serpent.getTarget() == null
-                    && this.target != null
-                    && !this.serpent.getNavigation().isDone();
+                    && (this.serpent.isInWater() || this.serpent.isInLava());
         }
 
         @Override
         public void start() {
-            if (this.target != null) {
-                this.serpent.getNavigation().moveTo(
-                        this.target.getX() + 0.5D,
-                        this.target.getY() + 0.5D,
-                        this.target.getZ() + 0.5D,
-                        0.8D
-                );
-            }
+            this.serpent.fluidWandering = true;
+            this.serpent.fluidWanderYaw = this.serpent.getYRot()
+                    + this.serpent.getRandom().nextFloat() * 90.0F - 45.0F;
+            this.serpent.fluidWanderPitch = this.serpent.getRandom().nextFloat() * 10.0F - 5.0F;
+            this.serpent.fluidWanderTurnTicks = 0;
+            this.serpent.getNavigation().stop();
         }
 
         @Override
         public void stop() {
-            this.target = null;
+            this.serpent.fluidWandering = false;
+            this.serpent.getNavigation().stop();
+        }
+    }
+
+    private void chooseFluidWanderHeading(boolean avoidObstacle) {
+        float turn = avoidObstacle
+                ? 90.0F + this.getRandom().nextFloat() * 60.0F
+                : 25.0F + this.getRandom().nextFloat() * 50.0F;
+        if (this.getRandom().nextBoolean()) {
+            turn = -turn;
         }
 
-        @Nullable
-        private BlockPos findNearbyFluid() {
-            BlockPos origin = this.serpent.blockPosition();
-            List<BlockPos> candidates = new ArrayList<>();
-
-            for (int x = -8; x <= 8; x++) {
-                for (int y = -5; y <= 5; y++) {
-                    for (int z = -8; z <= 8; z++) {
-                        BlockPos candidate = origin.offset(x, y, z);
-                        if (this.isSwimmable(candidate)) {
-                            candidates.add(candidate);
-                        }
-                    }
-                }
-            }
-
-            return candidates.isEmpty()
-                    ? null
-                    : candidates.get(this.serpent.getRandom().nextInt(candidates.size()));
-        }
-
-        @Nullable
-        private BlockPos findNearestFluid() {
-            BlockPos origin = this.serpent.blockPosition();
-            BlockPos nearest = null;
-            double nearestDistance = Double.MAX_VALUE;
-
-            for (int x = -12; x <= 12; x++) {
-                for (int y = -6; y <= 6; y++) {
-                    for (int z = -12; z <= 12; z++) {
-                        BlockPos candidate = origin.offset(x, y, z);
-                        double distance = candidate.distSqr(origin);
-                        if (distance < nearestDistance && this.isSwimmable(candidate)) {
-                            nearest = candidate;
-                            nearestDistance = distance;
-                        }
-                    }
-                }
-            }
-
-            return nearest;
-        }
-
-        private boolean isSwimmable(BlockPos pos) {
-            return !this.serpent.level().getBlockState(pos).blocksMotion()
-                    && (this.serpent.level().getFluidState(pos).is(FluidTags.WATER)
-                    || this.serpent.level().getFluidState(pos).is(FluidTags.LAVA));
-        }
+        this.fluidWanderYaw = Mth.wrapDegrees(this.fluidWanderYaw + turn);
+        this.fluidWanderPitch = this.getRandom().nextFloat() * 12.0F - 6.0F;
+        this.fluidWanderTurnTicks = avoidObstacle
+                ? 12
+                : 80 + this.getRandom().nextInt(81);
     }
 }

@@ -17,13 +17,11 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobType;
-import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.NetworkHooks;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -225,11 +223,7 @@ public class VolcanicSerpentPartEntity
         double z = parent.zo + Math.sin(angle) * desiredHorizontalDistance;
 
         this.setNoGravity(true);
-        Vec3 followPosition = this.findClearFollowPosition(new Vec3(x, y, z), parent.yRotO);
-        this.move(
-                MoverType.SELF,
-                followPosition.subtract(this.position())
-        );
+        this.setPos(x, y, z);
 
         this.updatePartHitbox();
 
@@ -374,35 +368,6 @@ public class VolcanicSerpentPartEntity
                 this.getY() + height,
                 this.getZ() + halfZ
         ));
-    }
-
-    private Vec3 findClearFollowPosition(Vec3 target, float parentYaw) {
-        double yawRadians = parentYaw * Mth.DEG_TO_RAD;
-        Vec3 side = new Vec3(
-                Math.cos(yawRadians),
-                0.0D,
-                Math.sin(yawRadians)
-        );
-        Vec3[] offsets = {
-                Vec3.ZERO,
-                side.scale(1.25D),
-                side.scale(-1.25D),
-                new Vec3(0.0D, 1.25D, 0.0D),
-                new Vec3(0.0D, -1.25D, 0.0D),
-                side.scale(2.5D),
-                side.scale(-2.5D)
-        };
-
-        for (Vec3 offset : offsets) {
-            Vec3 candidate = target.add(offset);
-            net.minecraft.world.phys.AABB candidateBounds =
-                    this.getBoundingBox().move(candidate.subtract(this.position()));
-            if (this.level().noCollision(this, candidateBounds)) {
-                return candidate;
-            }
-        }
-
-        return this.position();
     }
 
     // --------------------------------------------------
