@@ -6,6 +6,8 @@ import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.DinocampusEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.Volcanic_Serpent.VolcanicSerpentEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.Volcanic_Serpent.VolcanicSerpentPartEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -166,6 +168,34 @@ public class RagnarokEntities {
                     .updateInterval(1)
                     .build("sakubot")
             );
+
+    public static final RegistryObject<EntityType<VolcanicSerpentEntity>>
+            VOLCANIC_SERPENT = ENTITY_TYPES.register(
+            "volcanic_serpent",
+            () -> EntityType.Builder.of(
+                            VolcanicSerpentEntity::new,
+                            MobCategory.MONSTER
+                    )
+                    .sized(1.5F, 2.5F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build("volcanic_serpent")
+    );
+
+    public static final RegistryObject<EntityType<VolcanicSerpentPartEntity>>
+            VOLCANIC_SERPENT_PART = ENTITY_TYPES.register(
+            "volcanic_serpent_part",
+            () -> EntityType.Builder.of(
+                            VolcanicSerpentPartEntity::new,
+                            MobCategory.MISC
+                    )
+                    .sized(2.9F, 2.6F)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build("volcanic_serpent_part")
+    );
     public static void register(IEventBus eventBus) {
         ENTITY_TYPES.register(eventBus);
     }

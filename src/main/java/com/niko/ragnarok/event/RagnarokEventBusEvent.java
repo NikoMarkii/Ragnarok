@@ -6,6 +6,8 @@ import com.niko.ragnarok.entity.costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.*;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.DinocampusEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.GradiusEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.Volcanic_Serpent.VolcanicSerpentEntity;
+import com.niko.ragnarok.entity.geckolib_entity.Costom.Boss.Volcanic_Serpent.VolcanicSerpentPartEntity;
 import com.niko.ragnarok.entity.geckolib_entity.Costom.Fairy.FairyEntity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
@@ -59,6 +61,10 @@ public class RagnarokEventBusEvent {
                 GhostWizardEntity.createAttributes().build());
         event.put(RagnarokEntities.SAKUBOT.get(),
                 SakuBotEntity.createAttributes().build());
+        event.put(RagnarokEntities.VOLCANIC_SERPENT.get(),
+                VolcanicSerpentEntity.createAttributes().build());
+        event.put(RagnarokEntities.VOLCANIC_SERPENT_PART.get(),
+                VolcanicSerpentPartEntity.createAttributes().build());
     }
 
     @SubscribeEvent
