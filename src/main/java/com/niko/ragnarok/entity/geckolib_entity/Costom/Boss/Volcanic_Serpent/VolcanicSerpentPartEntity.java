@@ -77,6 +77,7 @@ public class VolcanicSerpentPartEntity
     ) {
         super(type, level);
 
+        this.noPhysics = true;
         this.setNoGravity(true);
     }
 
@@ -171,10 +172,18 @@ public class VolcanicSerpentPartEntity
         double z = parent.getZ() + Math.sin(angle) * desiredHorizontalDistance;
 
         this.setPos(x, y, z);
+        this.xo = x;
+        this.yo = y;
+        this.zo = z;
+
         this.setYRot(parent.getYRot());
+        this.yRotO = parent.getYRot();
         this.yBodyRot = parent.getYRot();
+        this.yBodyRotO = parent.getYRot();
         this.yHeadRot = parent.getYRot();
+        this.yHeadRotO = parent.getYRot();
         this.setXRot(parent.getXRot());
+        this.xRotO = parent.getXRot();
         this.updatePartHitbox();
     }
 
@@ -193,14 +202,19 @@ public class VolcanicSerpentPartEntity
         }
 
         if (this.level().isClientSide) {
+            // 描画に使われる yBodyRot を yRot と一致させ、ノコギリ状のズレを防ぐ
+            this.yBodyRot = this.getYRot();
+            this.yBodyRotO = this.yRotO;
+            this.yHeadRot = this.getYRot();
+            this.yHeadRotO = this.yRotO;
             return;
         }
 
         Entity parent = this.getParent();
 
-        // 親が存在しなくなった場合はパーツを削除
+        // 親が存在しなくなった場合はパーツを削除（ロード直後のチャンク待機猶予として60tick）
         if (parent == null || parent.isRemoved()) {
-            if (this.tickCount > 20) {
+            if (this.tickCount > 60) {
                 this.discard();
             }
             return;
@@ -223,6 +237,7 @@ public class VolcanicSerpentPartEntity
         double z = parent.zo + Math.sin(angle) * desiredHorizontalDistance;
 
         this.setNoGravity(true);
+        this.setDeltaMovement(net.minecraft.world.phys.Vec3.ZERO);
         this.setPos(x, y, z);
 
         this.updatePartHitbox();

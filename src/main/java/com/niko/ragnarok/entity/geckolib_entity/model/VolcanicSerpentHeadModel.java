@@ -48,7 +48,7 @@ public class VolcanicSerpentHeadModel
         if (head != null) {
             EntityModelData entityData = animationState.getData(DataTickets.ENTITY_MODEL_DATA);
             head.setRotY(Mth.clamp(entityData.netHeadYaw(), -45.0F, 45.0F) * Mth.DEG_TO_RAD);
-            head.setRotX(Mth.clamp(entityData.headPitch(), -35.0F, 35.0F) * Mth.DEG_TO_RAD);
+            head.setRotX(Mth.clamp(entityData.headPitch(), -70.0F, 70.0F) * Mth.DEG_TO_RAD);
         }
     }
 

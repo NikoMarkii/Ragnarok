@@ -176,7 +176,7 @@ public class RagnarokEntities {
                             VolcanicSerpentEntity::new,
                             MobCategory.MONSTER
                     )
-                    .sized(1.5F, 2.5F)
+                    .sized(2.9F, 2.5F)
                     .fireImmune()
                     .clientTrackingRange(10)
                     .updateInterval(1)
